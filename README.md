@@ -1,4 +1,4 @@
-# Doccano - Extensão para a disciplina de Laboratório de Engenharia de Software
+# Doccana - Extensão para a disciplina de Laboratório de Engenharia de Software
 
 Este projeto foi desenvolvido no âmbito da disciplina de Laboratório de Engenharia de Software, do curso de Engenharia Informática da Faculdade de Ciências e Tecnologia da Universidade do Algarve. Criado pelos estudantes da instituição, este trabalho visa aprimorar e expandir as funcionalidades do Doccano tornando-o assim mais completo e adequado às necessidades do ambiente acadêmico e profissional.
 
