@@ -24,7 +24,7 @@ def register_user(request):
     data = json.loads(request.body)
     username = data.get("username")
     email = data.get("email")
-    password = data.get("password1")  # Note: we use password1 (and assume password1 == password2)
+    password = data.get("password1")
     role = data.get("role", "").lower()
     first_name = data.get("first_name", "")
     last_name = data.get("last_name", "")
