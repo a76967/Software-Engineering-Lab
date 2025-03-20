@@ -2,12 +2,12 @@
   <v-app>
     <v-container fluid fill-height class="d-flex align-center justify-center">
       <v-row align="center" justify="center">
-        <v-col cols="12" sm="8" md="6" class="text-center">
+        <v-col cols="12" md="6" class="text-center">
           <v-card class="pa-6" outlined>
-            <div class="display-1 primary--text mb-4">{{ msg }}</div>
-            <div class="headline my-4">
-              Redirecting in {{ countdown }} second<span v-if="countdown !== 1">s</span>...
-            </div>
+            <h1 class="display-2 primary--text mb-4">{{ msg }}</h1>
+            <p class="headline">
+              Redirecting in {{ countdown }} second<span v-if="countdown !== 1">s</span>..
+            </p>
           </v-card>
         </v-col>
       </v-row>
@@ -44,7 +44,6 @@ export default {
 </script>
 
 <style scoped>
-/* Add styles to match your aesthetic and support night mode */
 .v-card {
   background-color: var(--v-background-base) !important;
 }

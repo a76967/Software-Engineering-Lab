@@ -22,7 +22,7 @@
                   </v-alert>
                   
                   <v-text-field
-                    v-model="name"
+                    v-model="username"
                     :rules="nameRules"
                     label="Username"
                     required
@@ -39,7 +39,7 @@
                   ></v-text-field>
 
                   <v-text-field
-                    v-model="password"
+                    v-model="password1"
                     :rules="passwordRules"
                     label="Password"
                     type="password"
@@ -48,7 +48,7 @@
                   ></v-text-field>
 
                   <v-text-field
-                    v-model="confirmPassword"
+                    v-model="password2"
                     :rules="confirmPasswordRules"
                     label="Confirm Password"
                     type="password"
@@ -82,38 +82,35 @@
 </template>
 
 <script>
+import ApiService from '@/services/api.service'
+
 export default {
   data() {
     return {
       valid: false,
-      name: '',
+      username: '',
       email: '',
-      password: '',
-      confirmPassword: '',
+      password1: '',
+      password2: '',
       role: '',
       showError: false,
       errorMessage: '',
       nameRules: [
-        (v) => !!v || 'Name is required',
-        (v) => (v && v.length >= 3) || 'Name must be at least 3 characters'
+        v => !!v || 'Name is required',
+        v => (v && v.length >= 3) || 'Name must be at least 3 characters'
       ],
       emailRules: [
-        (v) => !!v || 'Email is required',
-        (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
+        v => !!v || 'Email is required',
+        v => /.+@.+\..+/.test(v) || 'E-mail must be valid'
       ],
       passwordRules: [
-        (v) => !!v || 'Password is required',
-        (v) =>
-          (v && v.length >= 8) ||
-          'Password must be at least 8 characters',
-        (v) =>
-          (v && v.length <= 30) ||
-          'Password must be less than 31 characters'
+        v => !!v || 'Password is required',
+        v => (v && v.length >= 8) || 'Password must be at least 8 characters',
+        v => (v && v.length <= 30) || 'Password must be less than 31 characters'
       ],
-
       confirmPasswordRules: [
-        (v) => !!v || 'Please confirm your password',
-        (v) => v === this.password || 'Passwords do not match'
+        v => !!v || 'Please confirm your password',
+        v => v === this.password1 || 'Passwords do not match'
       ],
       roleOptions: [
         { text: 'Annotator', value: 'annotator' },
@@ -122,12 +119,10 @@ export default {
     }
   },
   watch: {
-    
-    password() {
-     
+    password1() {
       this.confirmPasswordRules = [
-        (v) => !!v || 'Please confirm your password',
-        (v) => v === this.password || 'Passwords do not match'
+        v => !!v || 'Please confirm your password',
+        v => v === this.password1 || 'Passwords do not match'
       ]
     }
   },
@@ -139,43 +134,44 @@ export default {
         return;
       }
       
-      try {
-        const userData = {
-          username: this.name,
-          email: this.email,
-          password1: this.password,
-          password2: this.password,
-          role: this.role
-        };
-        const result = await this.$repositories.user.register(userData);
-        console.log('User registered successfully:', result);
-        this.showError = false;
+      const userData = {
+        username: this.username,
+        email: this.email,
+        password1: this.password1,
+        password2: this.password2,
+        role: this.role
+      };
       
+      try {
+        const response = await ApiService.post("/register/", userData);
+        console.log('User registered successfully:', response.data);
+        this.showError = false;
         this.$router.push({
-        path: '/message',
-        query: {
-          message: 'User registered successfully! Redirecting...',
-          redirectPath: '/login',
-          duration: 99999
-        }
-      });
-        
+          path: '/message',
+          query: {
+            message: 'User registered successfully! Redirecting...',
+            redirectPath: '/',
+            duration: 3
+          }
+        });
       } catch (error) {
         this.showError = true;
         let errorDetail = '';
         if (error.response && error.response.data) {
           const errors = [];
-            for (const [field, messages] of Object.entries(error.response.data)) {
+          for (const [field, messages] of Object.entries(error.response.data)) {
             const fieldName = field.charAt(0).toUpperCase() + field.slice(1);
-            const formattedMessages = Array.isArray(messages) ? messages.join(', ') : messages;
+            const formattedMessages = Array.isArray(messages)
+              ? messages.join(', ')
+              : messages;
             errors.push(`${fieldName}: ${formattedMessages.replace(/^\n+/, '')}`);
-            }
+          }
           errorDetail = errors.join('\n\n');
         } else {
           errorDetail = 'User registration failed';
         }
         this.errorMessage = errorDetail;
-        console.error('Registration error:', error.response && error.response.data);
+        console.error('Registration error:', error.response ? error.response.data : error);
       }
     }
   }
