@@ -134,26 +134,18 @@ export default {
         return;
       }
       
-      const userData = {
-        username: this.username,
-        email: this.email,
-        password1: this.password1,
-        password2: this.password2,
-        role: this.role
-      };
-      
       try {
-        const response = await ApiService.post("/register/", userData);
-        console.log('User registered successfully:', response.data);
+        const userData = {
+          username: this.name,
+          email: this.email,
+          password1: this.password,
+          password2: this.password,
+          role: this.role
+        };
+        const result = await this.$repositories.user.register(userData);
+        console.log('User registered successfully:', result);
         this.showError = false;
-        this.$router.push({
-          path: '/message',
-          query: {
-            message: 'User registered successfully! Redirecting...',
-            redirectPath: '/',
-            duration: 3
-          }
-        });
+     
       } catch (error) {
         this.showError = true;
         let errorDetail = '';
