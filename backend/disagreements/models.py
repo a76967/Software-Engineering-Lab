@@ -1,13 +1,12 @@
 from django.db import models
 from django.conf import settings
 from django.db.models import JSONField
-from annotations.models import Annotation
 
 class Disagreement(models.Model):
-
     dataset_item_id = models.IntegerField()
+    signature = models.CharField(max_length=64, db_index=True)
   
-    annotations = models.ManyToManyField(Annotation)
+    annotations = models.ManyToManyField("annotations.Annotation")
     
     disagreement_details = JSONField(null=True, blank=True)
    
@@ -25,4 +24,4 @@ class Disagreement(models.Model):
     resolved_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"Disagreement for dataset item {self.dataset_item_id} (Status: {self.status})"
+        return f"Disagreement for dataset item {self.dataset_item_id} from {self.signature} (Status: {self.status})"
