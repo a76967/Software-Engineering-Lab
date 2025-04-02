@@ -207,6 +207,7 @@ DATABASES["default"].update(
         ssl_require="sslmode" not in furl(env("DATABASE_URL", "")).args,
     )
 )
+
 if not os.getenv("DATABASE_URL"):
     os.environ["DATABASE_URL"] = "postgres://doccano_admin:doccano@localhost:5432/doccano_db?sslmode=disable"
 
@@ -236,6 +237,7 @@ CSRF_TRUSTED_ORIGINS = env.list(
 # Allow all host headers
 ALLOWED_HOSTS = ["*"]
 
+<<<<<<< HEAD
 CORS_ORIGIN_ALLOW_ALL = True
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
@@ -249,6 +251,18 @@ CSRF_TRUSTED_ORIGINS = [
     "http://10.20.85.44:3000",
     "http://10.20.81.58:3000",
 ]
+=======
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    "http://192.168.101.18:3000",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+]
+CORS_ALLOW_CREDENTIALS = True
+
+CSRF_TRUSTED_ORIGINS = ["http://127.0.0.1:3000", "http://0.0.0.0:3000", "http://localhost:3000", "http://127.0.0.1:000", "http://192.168.101.18:3000", "http://10.20.92.150:3000", "http://10.20.88.144:3000", "http://127.0.0.1:8000/"]
+>>>>>>> Goncalo
 CSRF_TRUSTED_ORIGINS += env.list("CSRF_TRUSTED_ORIGINS", [])
 
 # Batch size for importing data
@@ -293,7 +307,10 @@ except EnvError:
     except EnvError:
         CELERY_BROKER_URL = "sqla+sqlite:///{}".format(DATABASES["default"]["NAME"])
 
+<<<<<<< HEAD
 ACCOUNT_ADAPTER = "users.adapters.CustomAccountAdapter"
+=======
+>>>>>>> Goncalo
 CELERY_ACCEPT_CONTENT = ["application/json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

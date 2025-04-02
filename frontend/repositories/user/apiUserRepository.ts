@@ -21,7 +21,7 @@ export class APIUserRepository {
   }
 
   async register(userData: any): Promise<UserItem> {
-    const url = '/users/create'
+    const url = '/register/'
     const response = await this.request.post(url, userData)
     return toModel(response.data)
   }

@@ -24,7 +24,11 @@ from django.urls import include, path, re_path
 from django.views.static import serve
 from drf_yasg import openapi
 from drf_yasg.views import get_schema_view
+<<<<<<< HEAD
 from label_types.views import CategoryTypeList, CategoryTypeDetail
+=======
+from users.register import register_user  # Import your custom view
+>>>>>>> Goncalo
 
 schema_view = get_schema_view(
     openapi.Info(
@@ -36,7 +40,10 @@ schema_view = get_schema_view(
     public=True,
 )
 
-urlpatterns = []
+urlpatterns = [
+    path("register/", register_user, name="register"),
+]
+
 if settings.DEBUG or os.environ.get("STANDALONE", False):
     static_dir = Path(__file__).resolve().parent.parent / "client" / "dist"
     # For showing images and audios in the case of pip and Docker.
