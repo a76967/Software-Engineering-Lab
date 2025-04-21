@@ -1,14 +1,18 @@
 <template>
   <v-container fluid class="pa-0">
     <v-card class="mx-auto my-4 chat-card" max-width="800">
-      
+
       <v-card-title class="chat-header">
         <v-icon left class="mr-2">mdi-chat-processing</v-icon>
         <span class="headline">Discuss about the project here!</span>
       </v-card-title>
 
       <v-card-text class="chat-window">
+        <div v-if="!messages.length" class="no-messages">
+          No discussions yet on this project.. Be the first to start a discussion!
+        </div>
         <div
+          v-else
           v-for="msg in messages"
           :key="msg.id"
           :class="['chat-message', msg.senderId === userId ? 'sent' : 'received']"
@@ -34,16 +38,18 @@
           class="chat-input"
           @keyup.enter="newMessage.trim() && sendMessage()"
         />
-        <v-btn fab small color="primary" dark @click="newMessage.trim()
-        && sendMessage()">SEND</v-btn>
+        <v-btn fab small color="primary" dark @click="newMessage.trim() && sendMessage()">
+          SEND
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-container>
 </template>
 
 <script lang="ts">
-import { defineComponent } from 'vue'
+import Vue from 'vue'
 import axios from 'axios'
+import { discussionRepository } from '~/repositories/apiDiscussionRepository'
 
 interface ChatMessage {
   id: number
@@ -53,9 +59,9 @@ interface ChatMessage {
   timestamp: string
 }
 
-export default defineComponent({
+export default Vue.extend({
   layout: 'project',
-  name: 'ChatWindow',
+  name: 'DiscussionsPage',
   data() {
     return {
       messages: [] as ChatMessage[],
@@ -63,42 +69,52 @@ export default defineComponent({
       userId: 0
     }
   },
-  async created() {
+  async mounted() {
     this.userId = Number(this.$store.getters['auth/userId'] || 0)
     await this.fetchMessages()
   },
+  computed: {
+    validMessages(): ChatMessage[] {
+      return this.messages
+    }
+  },
   methods: {
     async fetchMessages() {
+      console.log('🔄 fetching discussions…')
       try {
-        const res = await axios.get<ChatMessage[]>(
-          `/v1/projects/${this.$route.params.id}/discussions/`
-        )
-        this.messages = res.data
-        this.$nextTick(this.scrollToBottom)
-      } catch (e) {
-        console.error('Failed to load discussions:', e)
+        const projectId = Number(this.$route.params.id)
+        const raw = await discussionRepository.list(projectId)
+        // normalize senderId so comparison works
+        this.messages = raw.map(m => ({
+          ...m,
+          senderId: Number(m.senderId)
+        }))
+      } catch (err) {
+        console.error('❌ fetchMessages failed:', err)
+        this.messages = []
       }
+      this.$nextTick(this.scrollToBottom)
+      console.log('✅ got', this.messages.length, 'messages')
     },
     async sendMessage() {
       const text = this.newMessage.trim()
       if (!text) return
+      this.newMessage = ''
       try {
-        const now = new Date().toISOString()
-        this.messages.push({ id: Date.now(), text, senderId: this.userId, senderName: '', timestamp: now })
-        this.newMessage = ''
-        this.$nextTick(this.scrollToBottom)
-        const res = await axios.post<ChatMessage>(
-          `/v1/projects/${this.$route.params.id}/discussions/`,
-          { text }
-        )
-        this.messages.splice(this.messages.findIndex(m => m.id === res.data.id), 1, res.data)
-        this.$nextTick(this.scrollToBottom)
-      } catch (e) {
-        console.error('Failed to send message:', e)
+        axios.defaults.withCredentials = true
+        const projectId = Number(this.$route.params.id)
+        await discussionRepository.create(projectId, text)
+        await this.fetchMessages()
+      } catch (err) {
+        console.error('❌ sendMessage failed:', err)
       }
     },
     formatTime(ts: string) {
-      return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      return new Date(ts).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      })
     },
     scrollToBottom() {
       const el = this.$el.querySelector('.chat-window') as HTMLElement
@@ -128,7 +144,6 @@ export default defineComponent({
 }
 .chat-window {
   flex: 1;
-  min-height: 0;
   overflow-y: auto;
   padding: 16px;
   background-color: #ece5dd;
@@ -139,11 +154,6 @@ export default defineComponent({
 }
 .chat-message.sent {
   justify-content: flex-end;
-}
-
-.chat-message.sent .message-bubble {
-  background-color: #bcc0e0;
-  border-radius: 20px 20px 4px 20px;
 }
 .chat-message.received {
   justify-content: flex-start;
@@ -189,5 +199,4 @@ export default defineComponent({
   background-color: #ffffff !important;
   border-radius: 50px;
 }
-
 </style>

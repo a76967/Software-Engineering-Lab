@@ -74,7 +74,7 @@ INSTALLED_APPS = [
     "django_cleanup",
     "perspectives",
     "annotations",
-    "discussions",
+    "discussions.apps.DiscussionsConfig",
 ]
 
 
