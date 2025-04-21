@@ -30,6 +30,7 @@
 <script>
 import {
   mdiAccount,
+  mdiAccountGroup,
   mdiBookOpenOutline,
   mdiChartBar,
   mdiCog,
@@ -39,7 +40,7 @@ import {
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
-  mdiThumbDownOutline,
+  mdiThumbDownOutline
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -118,6 +119,12 @@ export default {
           icon: this.mdiThumbDownOutline,
           text: 'Disagreements',
           link: 'disagreements',
+          isVisible: true
+        },
+        {
+          icon: mdiAccountGroup,
+          text: 'Discussions',
+          link: 'discussions',
           isVisible: true
         },
         {
