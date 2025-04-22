@@ -9,13 +9,17 @@
 
       <v-card-text class="chat-window">
         <div v-if="!messages.length" class="no-messages">
-          No discussions yet on this project.. Be the first to start a discussion!
+          No discussions yet..
         </div>
         <div
           v-else
           v-for="msg in messages"
           :key="msg.id"
-          :class="['chat-message', msg.senderId === userId ? 'sent' : 'received']"
+          :class="{
+            'chat-message': true,
+            'sent':    msg.senderId === userId,
+            'received': msg.senderId !== userId
+          }"
         >
           <div class="message-bubble">
             <div v-if="msg.senderId !== userId" class="message-sender">
@@ -30,7 +34,7 @@
       <v-card-actions class="chat-input-area">
         <v-text-field
           v-model="newMessage"
-          placeholder="Type a message..."
+          placeholder="Type a message.."
           dense
           outlined
           rounded
@@ -70,7 +74,9 @@ export default Vue.extend({
     }
   },
   async mounted() {
-    this.userId = Number(this.$store.getters['auth/userId'] || 0)
+    // ← use the correct getter name
+    this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
+    console.log('🟢 current userId =', this.userId)
     await this.fetchMessages()
   },
   computed: {
@@ -84,11 +90,12 @@ export default Vue.extend({
       try {
         const projectId = Number(this.$route.params.id)
         const raw = await discussionRepository.list(projectId)
-        // normalize senderId so comparison works
+        // normalize senderId → number
         this.messages = raw.map(m => ({
           ...m,
           senderId: Number(m.senderId)
         }))
+        console.log('💬 loaded messages:', this.messages.map(m => m.senderId))
       } catch (err) {
         console.error('❌ fetchMessages failed:', err)
         this.messages = []
