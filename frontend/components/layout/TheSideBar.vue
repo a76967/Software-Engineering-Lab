@@ -36,6 +36,7 @@ import {
   mdiCommentAccountOutline,
   mdiDatabase,
   mdiEyeOutline,
+  mdiForum,
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
@@ -118,6 +119,12 @@ export default {
           icon: this.mdiThumbDownOutline,
           text: 'Disagreements',
           link: 'disagreements',
+          isVisible: true
+        },
+        {
+          icon: mdiForum,
+          text: 'Discussion',
+          link: 'discussion',
           isVisible: true
         },
         {
