@@ -1,10 +1,11 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
 from django_filters.rest_framework import DjangoFilterBackend
 from .models import Annotation
 from .serializers import AnnotationSerializer
 from examples.models import Example
 from typing import Optional
+from annotation_rules.models import AnnotationRuleGrid   # ← import the model you reference below
 
 class AnnotationView(viewsets.ModelViewSet):
     queryset = Annotation.objects.all()

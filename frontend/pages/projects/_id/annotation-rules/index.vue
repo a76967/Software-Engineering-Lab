@@ -1,19 +1,26 @@
 <template>
     <v-container fluid class="pa-0">
-      <v-card class="mx-auto my-6" max-width="1000">
-        <v-card-title class="headline">
-          Annotation Rules Overview
+      <v-card class="mx-auto my-6" max-width="1200">
+        <v-card-title class="headline font-weight-medium">
+            Annotation Rules overview
         </v-card-title>
   
         <v-card-text>
           <div>
-            <h3>Current Submitted Grid</h3>
-            <div v-if="!currentGrid.length" class="text--secondary">
-              No grid has been submitted yet.
+            <p v-if="isViewingLatest">
+              The current rules for the project are the following:
+              (v{{ currentVersion }}):
+            </p>
+            <p v-else>
+              Viewing archived rules (v{{ currentVersion }}):
+            </p>
+            <div v-if="loading" class="text--secondary">Loading…</div>
+            <div v-else-if="!currentRules.length" class="text--secondary">
+              No rules submitted yet.
             </div>
             <div v-else class="rules-preview-grid">
               <div
-                v-for="(cell, idx) in flattenedGrid"
+                v-for="(cell, idx) in currentRules"
                 :key="idx"
                 class="preview-cell"
               >
@@ -25,22 +32,37 @@
           <v-divider class="my-6"/>
   
           <div>
-            <h3>History of Grids</h3>
+            <h3>History of chosen rules</h3>
             <v-simple-table v-if="history.length">
               <thead>
                 <tr>
                   <th class="text-left">#</th>
-                  <th class="text-left">Submitted At</th>
-                  <th class="text-left">Action</th>
+                  <th class="text-left">Author</th>
+                  <th class="text-left">Submitted</th>
+                  <th class="text-left">View</th>
+                  <th class="text-left">Edit</th>
+                  <th class="text-left">Delete</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="item in history" :key="item.id">
-                  <td>{{ item.id }}</td>
-                  <td>{{ item.submittedAt }}</td>
+                  <td>{{ item.version }}</td>
+                  <td>{{ item.author }}</td>
+                  <td>{{ timeAgo(item.createdAt) }}</td>
                   <td>
-                    <v-btn small text @click="viewHistory(item.id)">
+                    <v-btn small text @click="showVersion(item.id)">
                       View
+                    </v-btn>
+                  </td>
+                  <td>
+                    <v-btn small text color="primary" @click="goToEdit(item.id)">
+                      Edit
+                    </v-btn>
+                  </td>
+                  <td>
+                    <v-btn small text color="error" @click="showDeleteDialog(item.id,
+                    item.version)">
+                      Delete
                     </v-btn>
                   </td>
                 </tr>
@@ -54,59 +76,167 @@
   
         <v-card-actions>
           <v-spacer/>
-          <v-btn color="primary" @click="goToManage">
-            Manage Rules
+          <v-btn color="primary" @click="goToAdd">
+            Add new Rules
           </v-btn>
         </v-card-actions>
       </v-card>
+
+      <v-dialog v-model="deleteDialog" max-width="400">
+        <v-card>
+          <v-card-title class="headline">
+            Delete Rules?
+          </v-card-title>
+          <v-card-text>
+            Are you sure you want to delete version {{ deleteTargetVersion }}?
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer/>
+            <v-btn text @click="cancelDelete">Cancel</v-btn>
+            <v-btn text color="error" @click="confirmDelete">
+              Yes, Delete
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-container>
   </template>
   
   <script lang="ts">
   import Vue from 'vue'
+  import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
   
   interface HistoryItem {
     id: number
-    submittedAt: string
+    version: number
+    author: string
+    createdAt: string
   }
   
   export default Vue.extend({
     layout: 'project',
     name: 'AnnotationRulesIndex',
+  
     data() {
       return {
-        currentGrid: [
-          ['Rule 1', 'Rule 2', 'Rule 3'],
-          ['Rule 4', 'Rule 5', '']
-        ] as string[][],
-        history: [
-          { id: 1, submittedAt: '2025-05-01 10:00' },
-          { id: 2, submittedAt: '2025-05-03 14:30' }
-        ] as HistoryItem[]
+        loading: false as boolean,
+        currentRules: [] as string[],
+        currentVersion: 0 as number,
+        history: [] as HistoryItem[],
+        deleteDialog: false as boolean,
+        deleteTargetId: null as number | null,
+        deleteTargetVersion: 0 as number
       }
     },
+  
     computed: {
-      // flatten grid into row-major order for preview cells
-      flattenedGrid(): string[] {
-        return this.currentGrid.reduce<string[]>(
-          (acc, row) => acc.concat(row), []
-        )
-      },
       projectId(): number {
         return Number(this.$route.params.id)
+      },
+      isViewingLatest(): boolean {
+        return (
+          this.history.length > 0 &&
+          this.currentVersion === this.history[0].version
+        )
       }
     },
+  
+    async mounted() {
+      await this.fetchGrids()
+    },
+  
     methods: {
-      goToManage() {
+      async fetchGrids() {
+        this.loading = true
+        try {
+          const repo = new APIAnnotationRuleRepository()
+          const grids = await repo.list(this.projectId)
+          grids.sort((a, b) => b.version - a.version)
+          this.history = grids.map(g => ({
+            id: g.id,
+            version: g.version,
+            author: g.createdBy,
+            createdAt: g.createdAt
+          }))
+          if (grids.length) {
+            this.currentRules = grids[0].rules
+            this.currentVersion = grids[0].version
+          }
+        } catch (e) {
+          console.error('Failed to load annotation grids', e)
+        } finally {
+          this.loading = false
+        }
+      },
+  
+      showVersion(id: number) {
+        const selected = this.history.find(h => h.id === id)
+        const grid = selected && this.history.length
+          ? this.history.map(h => h).find(h => h.id === id)
+          : null
+        if (grid) {
+          const repo = new APIAnnotationRuleRepository()
+          repo.get(this.projectId, id).then(g => {
+            this.currentRules = g.rules
+            this.currentVersion = g.version
+          }).catch(err => {
+            console.error('Failed to load selected grid', err)
+          })
+        }
+      },
+  
+      timeAgo(dateStr: string): string {
+        const then = new Date(dateStr.replace(' ', 'T')).getTime()
+        const now = Date.now()
+        const diff = Math.floor((now - then) / 1000)
+        if (diff < 60) return `${diff}s ago`
+        const mins = Math.floor(diff / 60)
+        if (mins < 60) return `${mins}m ago`
+        const hrs = Math.floor(mins / 60)
+        if (hrs < 24) return `${hrs}h ago`
+        const days = Math.floor(hrs / 24)
+        return `${days}d ago`
+      },
+  
+      goToAdd() {
+        this.$router.push(`/projects/${this.projectId}/annotation-rules/add`)
+      },
+
+      goToEdit(rev: number) {
         this.$router.push(
-          `/projects/${this.projectId}/annotation-rules/manage`
+          `/projects/${this.projectId}/annotation-rules/edit/${rev}`
         )
       },
-      viewHistory(id: number) {
-        // placeholder: navigate to a detailed view
-        this.$router.push(
-          `/projects/${this.projectId}/annotation-rules/manage?rev=${id}`
-        )
+
+      showDeleteDialog(id: number, version: number) {
+        this.deleteTargetId = id
+        this.deleteTargetVersion = version
+        this.deleteDialog = true
+      },
+
+      cancelDelete() {
+        this.deleteDialog = false
+        this.deleteTargetId = null
+      },
+
+      async confirmDelete() {
+        if (!this.deleteTargetId) return
+        this.deleteDialog = false
+        try {
+          const repo = new APIAnnotationRuleRepository()
+          await repo.delete(this.projectId, this.deleteTargetId)
+          this.$router.push({
+            path: '/message',
+            query: {
+              message: 'Rules deleted successfully!',
+              redirect: `/projects/${this.projectId}/annotation-rules`
+            }
+          })
+        } catch (e) {
+          console.error('Delete failed', e)
+        } finally {
+          this.deleteTargetId = null
+        }
       }
     }
   })
@@ -117,7 +247,6 @@
     display: grid;
     grid-gap: 8px;
     margin-top: 8px;
-    /* auto layout: 3 columns */
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
   .preview-cell {

@@ -9,7 +9,6 @@ class AnnotationRuleGridSerializer(serializers.ModelSerializer):
         model = AnnotationRuleGrid
         fields = [
             "id",
-            "project",
             "version",
             "rules",
             "created_by",
@@ -18,6 +17,7 @@ class AnnotationRuleGridSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = [
+            "project",
             "version",
             "created_by",
             "last_edited_by",

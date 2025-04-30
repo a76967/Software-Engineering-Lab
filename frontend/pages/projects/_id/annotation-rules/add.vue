@@ -20,8 +20,7 @@
           <v-col cols="12" md="3" class="text-right">
             <v-btn
               color="primary"
-              dark
-              class="add-btn"
+              class="add-btn white--text"
               @click="addRule"
               :disabled="!newRule.trim()"
             >
@@ -44,12 +43,16 @@
         </div>
       </v-card-text>
 
-      <v-card-actions class="justify-center mt-4">
-        <v-btn
+      <v-card-actions>
+        <v-spacer/>
+        <v-btn text @click="goBack">
+          Cancel
+        </v-btn>
+        <v-btn text
           color="success"
-          large
           @click="submitRules"
-          :disabled="rules.length === 0"
+          :loading="saving"
+          :disabled="rules.length===0||saving"
         >
           Submit
         </v-btn>
@@ -64,7 +67,7 @@ import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiA
 
 export default Vue.extend({
   layout: 'project',
-  name: 'AnnotationRulesManage',
+  name: 'AnnotationRulesAdd',
 
   data() {
     return {
@@ -75,14 +78,8 @@ export default Vue.extend({
   },
 
   computed: {
-    gridSize(): number {
-      return Math.ceil(Math.sqrt(this.rules.length || 1))
-    },
-    gridItems(): string[] {
-      const total = this.gridSize * this.gridSize
-      const items = [...this.rules]
-      while (items.length < total) items.push('')
-      return items
+    projectId(): number {
+      return Number(this.$route.params.id)
     }
   },
 
@@ -96,17 +93,26 @@ export default Vue.extend({
 
     async submitRules() {
       if (!this.rules.length) return
-      this.isSubmitting = true
+      this.saving = true
       try {
-        const projectId = Number(this.$route.params.id)
         const repo = new APIAnnotationRuleRepository()
-        await repo.create(projectId, this.rules)
-        this.$router.push(`/projects/${projectId}/annotation-rules`)
+        await repo.create(this.projectId, this.rules)
+        this.$router.push({
+          path: '/message',
+          query: {
+            message: 'Rules added successfully!',
+            redirect: `/projects/${this.projectId}/annotation-rules`
+          }
+        })
       } catch (e) {
         console.error('Failed to submit rules', e)
       } finally {
-        this.isSubmitting = false
+        this.saving = false
       }
+    },
+
+    goBack() {
+      this.$router.push(`/projects/${this.projectId}/annotation-rules`)
     }
   }
 })
@@ -152,5 +158,6 @@ export default Vue.extend({
 
 .add-btn {
   width: 100%;
+  margin-left: 0.5vw;
 }
 </style>

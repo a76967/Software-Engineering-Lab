@@ -4,7 +4,7 @@
 
       <v-card-title class="chat-header">
         <v-icon left class="mr-2">mdi-chat-processing</v-icon>
-        <span class="headline">Discuss about the project here!</span>
+        <span class="headline">Discuss about the annotation rules here!</span>
       </v-card-title>
 
       <v-card-text class="chat-window">
@@ -74,7 +74,6 @@ export default Vue.extend({
     }
   },
   async mounted() {
-    // ← use the correct getter name
     this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
     console.log('🟢 current userId =', this.userId)
     await this.fetchMessages()
@@ -90,7 +89,6 @@ export default Vue.extend({
       try {
         const projectId = Number(this.$route.params.id)
         const raw = await discussionRepository.list(projectId)
-        // normalize senderId → number
         this.messages = raw.map(m => ({
           ...m,
           senderId: Number(m.senderId)

@@ -2,8 +2,8 @@ import ApiService from '@/services/api.service'
 import { AnnotationRuleGrid } from '~/domain/models/annotation-rule/annotation-rule'
 
 export class APIAnnotationRuleRepository {
-  private baseUrl(projectId: number) {
-    return `/projects/${projectId}/rule-grids`
+  private baseUrl(projectId: number): string {
+    return `/projects/${projectId}/rule-grids/`
   }
 
   async list(projectId: number): Promise<AnnotationRuleGrid[]> {
