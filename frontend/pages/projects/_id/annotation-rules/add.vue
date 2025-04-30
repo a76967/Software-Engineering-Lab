@@ -1,5 +1,5 @@
 <template>
-  <v-container fluid class="pa-0">
+  <v-container fluid>
     <v-card class="mx-auto my-6" max-width="1200">
       <v-card-title class="headline font-weight-medium">
         Annotation Rules
@@ -20,7 +20,8 @@
           <v-col cols="12" md="3" class="text-right">
             <v-btn
               color="primary"
-              class="add-btn white--text"
+              dark
+              class="add-btn"
               @click="addRule"
               :disabled="!newRule.trim()"
             >
@@ -48,7 +49,7 @@
         <v-btn text @click="goBack">
           Cancel
         </v-btn>
-        <v-btn text
+        <v-btn
           color="success"
           @click="submitRules"
           :loading="saving"
@@ -73,13 +74,32 @@ export default Vue.extend({
     return {
       rules: [] as string[],
       newRule: '',
-      isSubmitting: false
+      saving: false,
+      loading: false
     }
   },
 
   computed: {
     projectId(): number {
       return Number(this.$route.params.id)
+    },
+    fromRev(): number {
+      return Number(this.$route.query.from || 0)
+    }
+  },
+
+  async mounted() {
+    if (this.fromRev) {
+      this.loading = true
+      try {
+        const repo = new APIAnnotationRuleRepository()
+        const grid = await repo.get(this.projectId, this.fromRev)
+        this.rules = [...grid.rules]
+      } catch (e) {
+        console.error('Failed to load base grid', e)
+      } finally {
+        this.loading = false
+      }
     }
   },
 

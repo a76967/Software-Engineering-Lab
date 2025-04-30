@@ -60,7 +60,7 @@
                     </v-btn>
                   </td>
                   <td>
-                    <v-btn small text color="error" @click="showDeleteDialog(item.id,
+                    <v-btn small text color="error" :disabled="item.authorId !== currentUser.id" @click="showDeleteDialog(item.id,
                     item.version)">
                       Delete
                     </v-btn>
@@ -104,6 +104,7 @@
   
   <script lang="ts">
   import Vue from 'vue'
+  import { mapState } from 'vuex'
   import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
   
   interface HistoryItem {
@@ -111,6 +112,7 @@
     version: number
     author: string
     createdAt: string
+    authorId: number
   }
   
   export default Vue.extend({
@@ -138,7 +140,8 @@
           this.history.length > 0 &&
           this.currentVersion === this.history[0].version
         )
-      }
+      },
+      ...mapState({ currentUser: (state: any) => state.auth.user })
     },
   
     async mounted() {
@@ -156,7 +159,8 @@
             id: g.id,
             version: g.version,
             author: g.createdBy,
-            createdAt: g.createdAt
+            createdAt: g.createdAt,
+            authorId: g.createdBy
           }))
           if (grids.length) {
             this.currentRules = grids[0].rules
@@ -203,9 +207,10 @@
       },
 
       goToEdit(rev: number) {
-        this.$router.push(
-          `/projects/${this.projectId}/annotation-rules/edit/${rev}`
-        )
+        this.$router.push({
+          path: `/projects/${this.projectId}/annotation-rules/add`,
+          query: { from: rev }
+        })
       },
 
       showDeleteDialog(id: number, version: number) {
