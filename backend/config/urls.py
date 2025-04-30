@@ -74,4 +74,5 @@ urlpatterns += [
     path("v1/projects/<int:project_id>/category-types/", CategoryTypeList.as_view(), name="project_category_types"),
     path("v1/projects/<int:project_id>/category-types/<int:label_id>/", CategoryTypeDetail.as_view(), name="project_category_type"),
     path("v1/", include("discussions.urls")),
+    path("v1/", include("annotation_rules.urls")),
 ]

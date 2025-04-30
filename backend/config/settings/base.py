@@ -75,8 +75,8 @@ INSTALLED_APPS = [
     "perspectives",
     "annotations",
     "discussions.apps.DiscussionsConfig",
+    "annotation_rules.apps.AnnotationRulesConfig",
 ]
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

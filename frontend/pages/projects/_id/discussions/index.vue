@@ -4,7 +4,7 @@
 
       <v-card-title class="chat-header">
         <v-icon left class="mr-2">mdi-chat-processing</v-icon>
-        <span class="headline">Discuss about the project here!</span>
+        <span class="headline">Discuss about the annotation rules here!</span>
       </v-card-title>
 
       <v-card-text class="chat-window">
@@ -74,7 +74,6 @@ export default Vue.extend({
     }
   },
   async mounted() {
-    // ← use the correct getter name
     this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
     console.log('🟢 current userId =', this.userId)
     await this.fetchMessages()
@@ -90,7 +89,6 @@ export default Vue.extend({
       try {
         const projectId = Number(this.$route.params.id)
         const raw = await discussionRepository.list(projectId)
-        // normalize senderId → number
         this.messages = raw.map(m => ({
           ...m,
           senderId: Number(m.senderId)
@@ -205,5 +203,34 @@ export default Vue.extend({
 .chat-input {
   background-color: #ffffff !important;
   border-radius: 50px;
+}
+
+.theme--dark .chat-card {
+  background-color: #2a2a2e !important;
+}
+.theme--dark .chat-window {
+  background-color: #2a2a2e !important;
+}
+.theme--dark .message-bubble {
+  background-color: #44464f !important;
+}
+.theme--dark .chat-message.sent .message-bubble {
+  background-color: #57578c !important;
+}
+.theme--dark .message-sender {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.theme--dark .message-text {
+  color: #e0e0e0 !important;
+}
+.theme--dark .message-time {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.theme--dark .chat-input-area {
+  background-color: #3c3c3f !important;
+  border-top-color: #555 !important;
+}
+.theme--dark .chat-input {
+  background-color: #424245 !important;
 }
 </style>

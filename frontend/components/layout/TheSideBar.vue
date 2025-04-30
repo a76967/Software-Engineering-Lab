@@ -37,10 +37,12 @@ import {
   mdiCommentAccountOutline,
   mdiDatabase,
   mdiEyeOutline,
+  mdiGavel,
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
-  mdiThumbDownOutline
+  mdiThumbDownOutline,
+  mdiVote
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -63,6 +65,7 @@ export default {
       selected: 0,
       mdiPlayCircleOutline,
       mdiThumbDownOutline,
+      mdiVote
     }
   },
 
@@ -125,6 +128,18 @@ export default {
           icon: mdiAccountGroup,
           text: 'Discussions',
           link: 'discussions',
+          isVisible: true
+        },
+        {
+          icon: mdiGavel,
+          text: 'Annotation Rules',
+          link: 'annotation-rules',
+          isVisible: true
+        },
+        {
+          icon: mdiVote,
+          text: 'Voting',
+          link: 'voting',
           isVisible: true
         },
         {
