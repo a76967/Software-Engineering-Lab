@@ -60,8 +60,9 @@
                     </v-btn>
                   </td>
                   <td>
-                    <v-btn small text color="error" :disabled="item.authorId !== currentUser.id" @click="showDeleteDialog(item.id,
-                    item.version)">
+                    <v-btn small text color="error"
+                      :disabled="item.author !== currentUsername"
+                      @click="showDeleteDialog(item.id, item.version)">
                       Delete
                     </v-btn>
                   </td>
@@ -104,7 +105,7 @@
   
   <script lang="ts">
   import Vue from 'vue'
-  import { mapState } from 'vuex'
+  import { mapGetters } from 'vuex'
   import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
   
   interface HistoryItem {
@@ -141,7 +142,10 @@
           this.currentVersion === this.history[0].version
         )
       },
-      ...mapState({ currentUser: (state: any) => state.auth.user })
+      ...mapGetters('auth', {
+        currentUserId: 'getUserId',
+        currentUsername: 'getUsername'
+      })
     },
   
     async mounted() {
