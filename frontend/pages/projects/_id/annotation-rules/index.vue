@@ -211,10 +211,9 @@
       },
 
       goToEdit(rev: number) {
-        this.$router.push({
-          path: `/projects/${this.projectId}/annotation-rules/add`,
-          query: { from: rev }
-        })
+        this.$router.push(
+          `/projects/${this.projectId}/annotation-rules/edit/${rev}`
+        )
       },
 
       showDeleteDialog(id: number, version: number) {
