@@ -37,6 +37,7 @@ import {
   mdiCommentAccountOutline,
   mdiDatabase,
   mdiEyeOutline,
+  mdiGavel,
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
@@ -125,6 +126,12 @@ export default {
           icon: mdiAccountGroup,
           text: 'Discussions',
           link: 'discussions',
+          isVisible: true
+        },
+        {
+          icon: mdiGavel,
+          text: 'Annotation Rules',
+          link: 'annotation-rules',
           isVisible: true
         },
         {

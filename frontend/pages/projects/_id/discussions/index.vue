@@ -206,4 +206,33 @@ export default Vue.extend({
   background-color: #ffffff !important;
   border-radius: 50px;
 }
+
+.theme--dark .chat-card {
+  background-color: #2a2a2e !important;
+}
+.theme--dark .chat-window {
+  background-color: #2a2a2e !important;
+}
+.theme--dark .message-bubble {
+  background-color: #44464f !important;
+}
+.theme--dark .chat-message.sent .message-bubble {
+  background-color: #57578c !important;
+}
+.theme--dark .message-sender {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+.theme--dark .message-text {
+  color: #e0e0e0 !important;
+}
+.theme--dark .message-time {
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+.theme--dark .chat-input-area {
+  background-color: #3c3c3f !important;
+  border-top-color: #555 !important;
+}
+.theme--dark .chat-input {
+  background-color: #424245 !important;
+}
 </style>
