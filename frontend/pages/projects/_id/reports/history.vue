@@ -143,20 +143,18 @@
                 {{ users.find((u) => u.id === ann.annotator)?.name || 'Unknown' }}
               </span>
               :
-              <span class="text-justify">"{{ ann.text }}"</span>
+              <span class="text-justify">"{{ ann.extracted_labels.text }}"</span>
+
+              <div class="mt-1">
+                <strong>Spans:</strong>
+                {{ getSpansSummary(ann) }}
+              </div>
             </div>
           </div>
 
           <v-btn color="primary" class="mb-4" @click="downloadPdf">
             Download PDF
           </v-btn>
-
-          <v-data-table
-            :headers="headers"
-            :items="historyData"
-            class="elevation-1"
-            :items-per-page="10"
-          />
         </div>
         <div v-else class="text-center grey--text my-6">
           No entries. Adjust filters and click “Generate Report.”
@@ -190,7 +188,7 @@ import {
 } from 'vuetify/lib'
 
 import { jsPDF as JsPDF } from 'jspdf'
-import 'jspdf-autotable'
+import autoTable from 'jspdf-autotable'
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
@@ -341,38 +339,89 @@ export default Vue.extend({
       this.filteredAnnotations = []
       this.historyData = []
     },
-    formatDate(ts: string) {
-      return new Date(ts).toLocaleString('en-GB', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-      })
+    formatDate(ts: string): string {
+      const d = new Date(ts)
+      const pad = (n: number) => n.toString().padStart(2,'0')
+      return [
+        pad(d.getDate()),
+        pad(d.getMonth()+1),
+        d.getFullYear()
+      ].join('/') + ' ' + [
+        pad(d.getHours()),
+        pad(d.getMinutes()),
+        pad(d.getSeconds())
+      ].join(':')
+    },
+    getSpansSummary(ann: any): string {
+      const text = ann.extracted_labels.text || ''
+      return (ann.extracted_labels.spans || [])
+        .map((s: any) => {
+          const label = ann.extracted_labels.labelTypes
+            .find((lt: any) => lt.id === s.label)
+          const snippet = text.slice(s.start_offset, s.end_offset).trim()
+          return `${label?.text || s.label}: ${snippet}`
+        })
+        .join(', ')
     },
     downloadPdf() {
       const doc = new JsPDF()
+
       const title = [
         'Annotations History',
         `Perspective: ${this.filters.perspective}`,
         `Resolution: ${this.filters.resolution}`,
       ].join(' – ')
       doc.setFontSize(18)
+      doc.setTextColor('#1976D2')
       doc.text(title, 14, 20)
-      const cols = this.headers.map((h) => h.text)
-      const rows = this.historyData.map((r) =>
-        this.headers.map((h) => String(r[h.value] || ''))
-      )
-      ;(doc as any).autoTable({
-        head: [cols],
-        body: rows,
-        startY: 30,
-        margin: { left: 14, right: 14 },
+
+      const annotators = this.users
+        .filter((u) => this.filters.annotators.includes(u.id))
+        .map((u) => u.name)
+        .join(', ')
+      doc.setFontSize(12)
+      doc.setTextColor(0)
+      doc.text(`Annotators: ${annotators}`, 14, 30)
+
+      let y = 40
+      this.filteredAnnotations.forEach((ann, index) => {
+        if (y > 270) {
+          doc.addPage()
+          y = 20
+        }
+
+        doc.setFontSize(10)
+        doc.setTextColor('#1976D2')
+        doc.text(`${index + 1}. ${this.formatDate(ann.created_at)}`, 14, y)
+        doc.setTextColor(0)
+        doc.text(` by ${this.users.find((u) => u.id === ann.annotator)?.name || 'Unknown'}`, 80, y)
+
+        y += 6
+        doc.setFontSize(10)
+        doc.setTextColor(0)
+        const text = doc.splitTextToSize(`"${ann.extracted_labels.text}"`, 180)
+        doc.text(text, 14, y)
+        y += text.length * 6
+
+        if (ann.extracted_labels.spans?.length) {
+          doc.setFontSize(10)
+          doc.setTextColor('#1976D2')
+          doc.text('Spans:', 14, y)
+          y += 6
+          doc.setFontSize(10)
+          doc.setTextColor(0)
+          const spans = this.getSpansSummary(ann)
+          const spanLines = doc.splitTextToSize(spans, 180)
+          doc.text(spanLines, 14, y)
+          y += spanLines.length * 6
+        }
+
+        y += 4
       })
-      doc.save('history.pdf')
-    }
-  }
+
+      doc.save('DoccanaAnnotationHistory.pdf')
+    },
+  },
 })
 </script>
 
