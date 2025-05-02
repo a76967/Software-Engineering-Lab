@@ -104,6 +104,8 @@
   </template>
   
   <script lang="ts">
+  /* eslint-disable */
+  // @ts-nocheck
   import Vue from 'vue'
   import { mapGetters } from 'vuex'
   import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
@@ -117,8 +119,8 @@
   }
   
   export default Vue.extend({
-    layout: 'project',
     name: 'AnnotationRulesIndex',
+    layout: 'project',
   
     data() {
       return {

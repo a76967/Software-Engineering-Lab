@@ -42,7 +42,8 @@ import {
   mdiLabel,
   mdiPlayCircleOutline,
   mdiThumbDownOutline,
-  mdiVote
+  mdiVote,
+  mdiFileChartOutline // <-- importa um ícone para “Reports”
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -140,6 +141,12 @@ export default {
           icon: mdiVote,
           text: 'Voting',
           link: 'voting',
+          isVisible: true
+        },
+        {
+          icon: mdiFileChartOutline,
+          text: 'Reports',
+          link: 'reports',
           isVisible: true
         },
         {

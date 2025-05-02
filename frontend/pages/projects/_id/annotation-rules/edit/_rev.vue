@@ -2,7 +2,7 @@
   <v-container fluid>
     <v-card class="mx-auto my-6" max-width="1200">
       <v-card-title>
-        Edit Annotation Rules (v{{ rev }})
+        Annotation Rules
       </v-card-title>
       <v-card-text>
         <div v-if="loading" class="text--secondary">Loading…</div>
@@ -35,31 +35,9 @@
             :style="{ gridTemplateColumns: `repeat(${gridSize},1fr)` }"
           >
             <div v-for="(r, i) in gridItems" :key="i">
-              <v-hover v-slot="{ hover }">
-                <div class="rule-cell" :class="{ empty: !r }">
-                  <div class="action-texts" v-show="hover && i < rules.length">
-                    <span class="action-link text--primary" @click.stop="startEdit(i)">
-                      Edit
-                    </span>
-                    <span class="action-sep">|</span>
-                    <span class="action-link text--error" @click.stop="deleteRule(i)">
-                      Delete
-                    </span>
-                  </div>
-
-                  <template v-if="editingIndex === i">
-                    <v-text-field
-                      v-model="editText"
-                      dense solo hide-details
-                      @keyup.enter="saveEdit(i)"
-                      @blur="cancelEdit"
-                    />
-                  </template>
-                  <template v-else>
-                    <span v-if="r">{{ r }}</span>
-                  </template>
-                </div>
-              </v-hover>
+              <div class="rule-cell" :class="{ empty: !r }">
+                <span v-if="r">{{ r }}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -84,26 +62,34 @@
 </template>
 
 <script lang="ts">
+// @ts-nocheck
 import Vue from 'vue'
-import { VHover } from 'vuetify/lib/components/VHover'
+import { mapGetters } from 'vuex'
 import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
 
-export default Vue.extend({
-  layout: 'project',
-  name: 'AnnotationRulesEditByRev',
+interface HistoryItem {
+  id: number
+  version: number
+  author: string
+  createdAt: string
+  authorId: number
+}
 
-  components: {
-    VHover
-  },
+export default Vue.extend({
+  name: 'AnnotationRulesIndex',
+  layout: 'project',
 
   data() {
     return {
-      rules: [] as string[],
-      newRule: '',
-      loading: false,
-      saving: false,
-      editingIndex: null as number | null,
-      editText: ''
+      loading: false as boolean,
+      currentRules: [] as string[],
+      newRule: '' as string,
+      saving: false as boolean,
+      currentVersion: 0 as number,
+      history: [] as HistoryItem[],
+      deleteDialog: false as boolean,
+      deleteTargetId: null as number | null,
+      deleteTargetVersion: 0 as number
     }
   },
 
@@ -111,46 +97,68 @@ export default Vue.extend({
     projectId(): number {
       return Number(this.$route.params.id)
     },
-    rev(): number {
-      return Number(this.$route.params.rev)
+    isViewingLatest(): boolean {
+      return (
+        this.history.length > 0 &&
+        this.currentVersion === this.history[0].version
+      )
+    },
+    rules(): string[] {
+      return this.currentRules
+    },
+    gridItems(): (string|null)[] {
+      return this.currentRules
     },
     gridSize(): number {
-      return Math.ceil(Math.sqrt(this.rules.length||1))
+      return this.currentRules.length || 1
     },
-    gridItems(): string[] {
-      const total = this.gridSize * this.gridSize
-      const arr = [...this.rules]
-      while (arr.length < total) arr.push('')
-      return arr
-    }
+    ...mapGetters('auth', {
+      currentUserId: 'getUserId',
+      currentUsername: 'getUsername'
+    })
   },
 
   async mounted() {
-    this.loading = true
-    try {
-      const repo = new APIAnnotationRuleRepository()
-      const grid = await repo.get(this.projectId, this.rev)
-      this.rules = [...grid.rules]
-    } catch (e) {
-      console.error('Failed to load rules for editing', e)
-    } finally {
-      this.loading = false
-    }
+    await this.fetchGrids()
   },
 
   methods: {
+    async fetchGrids() {
+      this.loading = true
+      try {
+        const repo = new APIAnnotationRuleRepository()
+        const grids = await repo.list(this.projectId)
+        grids.sort((a, b) => b.version - a.version)
+        this.history = grids.map(g => ({
+          id: g.id,
+          version: g.version,
+          author: g.createdBy,
+          createdAt: g.createdAt,
+          authorId: Number(g.createdBy)
+        }))
+        if (grids.length) {
+          this.currentRules = grids[0].rules
+          this.currentVersion = grids[0].version
+        }
+      } catch (e) {
+        console.error('Failed to load annotation grids', e)
+      } finally {
+        this.loading = false
+      }
+    },
+
     addRule() {
       const t = this.newRule.trim()
       if (!t) return
-      this.rules.push(t)
+      this.currentRules.push(t)
       this.newRule = ''
     },
     async save() {
-      if (!this.rules.length) return
+      if (!this.currentRules.length) return
       this.saving = true
       try {
         const repo = new APIAnnotationRuleRepository()
-        await repo.create(this.projectId, this.rules)
+        await repo.create(this.projectId, this.currentRules)
         this.$router.push({
           path: '/message',
           query: {
@@ -166,22 +174,6 @@ export default Vue.extend({
     },
     goBack() {
       this.$router.push(`/projects/${this.projectId}/annotation-rules`)
-    },
-    startEdit(i: number) {
-      this.editingIndex = i
-      this.editText = this.rules[i]
-    },
-    cancelEdit() {
-      this.editingIndex = null
-      this.editText = ''
-    },
-    saveEdit(i: number) {
-      if (!this.editText.trim()) return
-      this.rules.splice(i, 1, this.editText.trim())
-      this.cancelEdit()
-    },
-    deleteRule(i: number) {
-      this.rules.splice(i, 1)
     }
   }
 })

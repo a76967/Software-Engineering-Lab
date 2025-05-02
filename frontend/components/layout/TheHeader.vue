@@ -18,6 +18,23 @@
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
     <locale-menu />
+
+    <!-- Bell notifications button -->
+    <v-btn icon @click="dialogNotifications = true">
+      <v-icon>{{ mdiBell }}</v-icon>
+    </v-btn>
+
+    <!-- Notifications dialog -->
+    <v-dialog v-model="dialogNotifications" max-width="300">
+      <v-card>
+        <v-card-title>No notifications</v-card-title>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="dialogNotifications = false">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-btn
       v-if="isAuthenticated"
       text
@@ -91,7 +108,7 @@
 </template>
 
 <script>
-import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple } from '@mdi/js'
+import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple, mdiBell } from '@mdi/js'
 import { mapGetters, mapActions } from 'vuex'
 import TheColorModeSwitcher from './TheColorModeSwitcher'
 import LocaleMenu from './LocaleMenu'
@@ -119,10 +136,12 @@ export default {
         { title: this.$t('home.demoPolygSegm'), link: 'segmentation' },
         { title: this.$t('home.demoSTT'), link: 'speech-to-text' }
       ],
+      dialogNotifications: false,
       mdiLogout,
       mdiDotsVertical,
       mdiMenuDown,
-      mdiHexagonMultiple
+      mdiHexagonMultiple,
+      mdiBell
     }
   },
 
