@@ -5,126 +5,103 @@
     style="min-height: calc(100vh - 64px);"
   >
     <div class="mt-12"></div>
-
-    <h2 class="mt-4  mb-6">Annotations Report</h2>
+    <h2 class="mt-4 mb-6">Annotations Report</h2>
 
     <v-card elevation="2" class="mb-6">
-      <v-card-title>Annotation Filters</v-card-title>
+      <v-card-title>Report Filters</v-card-title>
       <v-divider/>
       <v-card-text>
         <v-form @submit.prevent="generateReport">
           <v-row dense>
-            <v-col cols="12" sm="6" md="3">
-              <v-text-field
-                v-model="filters.item"
-                label="Item ID or Text"
+            <!-- Annotation IDs with text snippet -->
+            <v-col cols="12" sm="6" md="4">
+              <v-autocomplete
+                v-model="filters.annotationIds"
+                :items="annotationOptions"
+                item-text="text"
+                item-value="id"
+                label="Annotation IDs"
+                multiple
                 clearable
               />
             </v-col>
-            <v-col cols="12" sm="6" md="3">
+
+            <!-- Annotators -->
+            <v-col cols="12" sm="6" md="4">
               <v-autocomplete
-                v-model="filters.annotator"
-                :items="annotators"
+                v-model="filters.annotators"
+                :items="annotatorOptions"
                 item-text="name"
                 item-value="id"
-                label="Annotator"
+                label="Annotators"
+                multiple
                 clearable
               />
             </v-col>
-            <v-col cols="12" sm="6" md="3">
+
+            <v-col cols="12" sm="6" md="4">
               <v-select
                 v-model="filters.label"
-                :items="labels"
-                label="Assigned Label"
+                :items="labelOptions"
+                item-text="text"
+                item-value="id"
+                label="Labels"
                 clearable
               />
             </v-col>
-            <v-col cols="12" sm="6" md="3">
-              <v-menu
-                v-model="dateMenu"
-                :close-on-content-click="false"
-                offset-y
-              >
-                <template #activator="{ on, attrs }">
-                  <v-text-field
-                    v-model="filters.dateRangeText"
-                    label="Date Range"
-                    readonly
-                    clearable
-                    v-bind="attrs"
-                    v-on="on"
-                  />
-                </template>
-                <v-date-picker
-                  v-model="filters.dateRange"
-                  range
-                  scrollable
-                  @change="updateDateText"
-                />
-              </v-menu>
-            </v-col>
           </v-row>
-
           <v-row>
             <v-spacer/>
-            <v-btn color="primary" type="submit">
-              Generate Report
-            </v-btn>
+            <v-btn color="primary" type="submit">Generate Report</v-btn>
           </v-row>
         </v-form>
       </v-card-text>
     </v-card>
 
-    <v-card elevation="2" class="mt-6">
-      <v-card-title>
-        <span class="subtitle-1">Results</span>
-        <v-spacer/>
-        <v-btn
-          icon
-          :disabled="!tableData.length"
-          @click="exportCsv"
-        >
-          <v-icon>mdi-file-delimited</v-icon>
-        </v-btn>
-        <v-btn
-          icon
-          class="ml-2"
-          :disabled="!tableData.length"
-          @click="exportPdf"
-        >
-          <v-icon>mdi-file-pdf</v-icon>
-        </v-btn>
-      </v-card-title>
+    <v-card elevation="2" class="mb-6">
+      <v-card-title>Preview</v-card-title>
       <v-divider/>
       <v-card-text>
         <div v-if="loading" class="text-center my-6">
           <v-progress-circular indeterminate color="primary"/>
         </div>
-
-        <v-data-table
-          v-else-if="tableData.length"
-          :headers="headers"
-          :items="tableData"
-          :search="search"
-          class="elevation-1"
-          :items-per-page="10"
-        >
-          <template #top>
-            <v-text-field
-              v-model="search"
-              append-icon="mdi-magnify"
-              label="Search"
-              single-line
-              hide-details
-            />
-          </template>
-          <template #[`item.timestamp`]="{ item }">
-            {{ formatDate(item.timestamp) }}
-          </template>
-        </v-data-table>
-
+        <div v-else-if="filteredAnnotations.length">
+          <div class="annotation-preview mb-6 pa-4">
+            <div
+              v-for="(ann, idx) in filteredAnnotations"
+              :key="ann.id"
+              class="annotation-item"
+            >
+              <div class="d-flex align-start">
+                <span class="annotation-num">{{ idx + 1 }}.</span>
+                <div class="flex-grow-1">
+                  <span class="annotation-timestamp">
+                    {{ formatDate(ann.created_at) }}
+                  </span>
+                  <span>
+                    by
+                    <strong>
+                      {{
+                        users.find(u => u.id === ann.annotator)?.name
+                        || 'Unknown'
+                      }}
+                    </strong>
+                  </span>
+                  <div class="annotation-text pa-2">
+                    "{{ ann.extracted_labels.text }}"
+                  </div>
+                  <div class="annotation-spans">
+                    <span class="annotation-span-label">Spans:</span>
+                    {{ getSpansSummary(ann) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <v-btn color="primary" @click="downloadPdf">Download PDF</v-btn>
+        </div>
         <div v-else class="text-center grey--text my-6">
-          No results. Adjust filters and click “Generate Report.”
+          No annotations. Adjust filters and click “Generate Report.”
         </div>
       </v-card-text>
     </v-card>
@@ -134,87 +111,212 @@
 <script lang="ts">
 import Vue from 'vue'
 import {
-  VContainer, VForm, VRow, VCol, VTextField,
-  VSelect, VMenu, VDatePicker, VBtn, VDataTable,
-  VDivider, VCard, VCardTitle, VCardText
+  VContainer, VCard, VCardTitle, VDivider, VCardText,
+  VForm, VRow, VCol, VAutocomplete,
+  VBtn, VSpacer, VProgressCircular
 } from 'vuetify/lib'
+import { jsPDF as JsPDF } from 'jspdf'
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
+  name: 'ReportsAnnotationsGeneral',
+  components: {
+    VContainer, VCard, VCardTitle, VDivider, VCardText,
+    VForm, VRow, VCol, VAutocomplete,
+    VBtn, VSpacer, VProgressCircular
+  },
   layout: 'workspace',
-  name: 'ReportsAnnotations',
-  components: 
-  { VContainer, VForm, VRow, VCol, VTextField, 
-    VSelect, VMenu, VDatePicker, VBtn, VDataTable, 
-    VDivider, VCard, VCardTitle, VCardText },
   data() {
     return {
       loading: false,
       filters: {
-        item: '',
-        annotator: null as number|null,
-        label: '',
-        dateRange: { start: '', end: '' },
-        dateRangeText: ''
+        annotationIds: [] as number[],
+        annotators: [] as number[],
+        label: null as number | null
       },
-      dateMenu: false,
-      annotators: [] as Array<{ id: number; name: string }>,
-      labels: [] as string[],
-      tableData: [] as any[],
-      headers: [
-        { text: 'Item', value: 'item' },
-        { text: 'Annotator', value: 'annotator' },
-        { text: 'Label', value: 'label' },
-        { text: 'Perspective', value: 'perspective' },
-        { text: 'Timestamp', value: 'timestamp' }
-      ],
-      search: ''
+      allAnnotationsRaw: [] as any[],
+      filteredAnnotations: [] as any[],
+      users: [] as { id: number; name: string }[],
+      // holds only the labels from the last Generate Report
+      labelOptions: [] as Array<{ id: number; text: string }>
+    }
+  },
+  computed: {
+    annotationOptions(): Array<{ id: number; text: string }> {
+      // build list with snippet
+      const opts = this.allAnnotationsRaw.map(a => {
+        const txt = a.extracted_labels.text || ''
+        const snippet = txt.slice(0, 50) + (txt.length > 50 ? '…' : '')
+        return { id: a.id, text: `#${a.id} – ${snippet}` }
+      })
+      // sort by id ascending
+      return opts.sort((a, b) => a.id - b.id)
+    },
+    annotatorOptions(): Array<{ id: number; name: string }> {
+      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
+      return this.users.filter(u => used.has(u.id))
+    }
+  },
+  watch: {
+    'filters.annotationIds'(v: number[]) {
+      if (v.length) {
+        this.filters.annotators = []
+        this.filters.label      = null
+      }
+    },
+    'filters.annotators'(v: number[]) {
+      if (v.length) {
+        this.filters.annotationIds = []
+        this.filters.label         = null
+      }
+    },
+    'filters.label'(v: number|null) {
+      if (v !== null) {
+        this.filters.annotationIds = []
+        this.filters.annotators    = []
+      }
     }
   },
   async mounted() {
-    try {
-      const [membersRes, labelsRes] = await Promise.all([
-        ApiService.get(`/projects/${this.$route.params.id}/members`),
-        ApiService.get(`/projects/${this.$route.params.id}/labels`)
-      ])
-      this.annotators = membersRes.data
-      this.labels     = labelsRes.data
-    } catch (err) {
-      console.error('Failed to load annotators or labels:', err)
-      this.annotators = []
-      this.labels     = []
-    }
+    const pid = Number(this.$route.params.id)
+    const [annRes, usrRes] = await Promise.all([
+      ApiService.get('/annotations/', { params: { project: pid } }),
+      ApiService.get('/users/')
+    ])
+
+    const raw = annRes.data.results || annRes.data
+    this.allAnnotationsRaw = raw.map((a: any) => ({
+      id: a.id,
+      annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
+      extracted_labels: a.extracted_labels,
+      created_at: a.created_at,
+      updated_at: a.updated_at
+    }))
+
+    const list = usrRes.data.results || usrRes.data
+    this.users = list.map((u: any) => ({
+      id: u.id,
+      name: u.username || u.name || `User ${u.id}`
+    }))
+
+    // initial labels dropdown: all labelTypes in this project
+    const allTypes = this.allAnnotationsRaw
+      .flatMap(a => a.extracted_labels.labelTypes || [])
+    const uniqTypes = Array.from(
+      new Map(allTypes.map((t: any) => [t.id, t])).values()
+    )
+    this.labelOptions = uniqTypes.map((t: any) => ({ id: t.id, text: t.text }))
   },
   methods: {
-    updateDateText() {
-      const { start, end } = this.filters.dateRange
-      this.filters.dateRangeText = start && end ? `${start} → ${end}` : ''
+    formatDate(ts: string): string {
+      const d = new Date(ts)
+      const pad = (n: number) => n.toString().padStart(2,'0')
+      return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
+           + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
-    async generateReport() {
+    generateReport() {
       this.loading = true
-      const params: any = { ...this.filters }
-      delete params.dateMenu
-      delete params.dateRangeText
-      const res = await ApiService.get(
-        `/projects/${this.$route.params.id}/reports/annotations`,
-        { params }
+      // filter annotations
+      this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
+        if (this.filters.annotationIds.length) {
+          if (!this.filters.annotationIds.includes(a.id)) return false
+        } else if (this.filters.annotators.length) {
+          if (!this.filters.annotators.includes(a.annotator)) return false
+        } else if (this.filters.label !== null) {
+          if (!(a.extracted_labels.labelTypes || [])
+                .some((lt: any) => lt.id === this.filters.label)
+          ) return false
+        }
+        return true
+      })
+
+      // rebuild labelOptions based on current filteredAnnotations (or all if none)
+      const src = this.filteredAnnotations.length
+        ? this.filteredAnnotations
+        : this.allAnnotationsRaw
+      const usedSpanIds = new Set<number>(
+        src.flatMap(a => (a.extracted_labels.spans || []).map((s: any) => s.label))
       )
-      this.tableData = res.data
+      const types = src
+        .flatMap(a => a.extracted_labels.labelTypes || [])
+        .filter((t: any) => usedSpanIds.has(t.id))
+      const uniq = Array.from(new Map(types.map((t: any) => [t.id, t])).values())
+      this.labelOptions = uniq.map((t: any) => ({ id: t.id, text: t.text }))
+
       this.loading = false
     },
-    formatDate(ts: string) {
-      return new Date(ts).toLocaleString()
-    },
-    exportCsv() {
-    
-    },
-    exportPdf() {
+    downloadPdf() {
+      const doc = new JsPDF({ unit: 'pt', format: 'letter' })
+      const m = 40
+      const lh = 14
+      const ph = doc.internal.pageSize.getHeight()
+      let y = m
 
+      doc.setFontSize(18).setTextColor('#333')
+      doc.text('Annotations Report', m, y); y += lh * 1.5
+
+      if (this.filters.annotationIds.length) {
+        doc.setFontSize(12).setTextColor('#000')
+        doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, m, y); y += lh
+      }
+      if (this.filters.annotators.length) {
+        const names = this.users
+          .filter((u) => this.filters.annotators.includes(u.id))
+          .map((u) => u.name)
+          .join(', ')
+        doc.setFontSize(12).setTextColor('#000')
+        doc.text(`Annotators: ${names}`, m, y)
+        y += lh
+      }
+      if (this.filters.label !== null) {
+        const lbl = this.labelOptions
+          .find((l: { id: number; text: string }) => l.id === this.filters.label)
+          ?.text
+        doc.text(`Label: ${lbl || this.filters.label}`, m, y)
+        y += lh
+      }
+      y += lh
+
+      this.filteredAnnotations.forEach((ann, i) => {
+        if (y + 4 * lh > ph - m) { doc.addPage(); y = m }
+        doc.setFontSize(10).setTextColor('#6376AB')
+        doc.text(`${i+1}. ${this.formatDate(ann.created_at)}`, m, y)
+        y += lh
+        const author = this.users.find(u=>u.id===ann.annotator)?.name || 'Unknown'
+        doc.setFontSize(10).setTextColor('#000')
+        doc.text(`by ${author}`, m + 10, y)
+        y += lh
+        const snippet = ann.extracted_labels.text.slice(0, 100) +
+          (ann.extracted_labels.text.length > 100 ? '…' : '')
+        doc.setFontSize(11).setTextColor('#333')
+        doc.text(snippet, m + 20, y)
+        y += lh * 1.5
+      })
+
+      doc.save('Annotations-Report.pdf')
+    },
+    getSpansSummary(ann: any): string {
+      const txt = ann.extracted_labels.text || ''
+      return (ann.extracted_labels.spans || [])
+        .map((s: any) => {
+          const lbl = ann.extracted_labels.labelTypes
+            .find((lt: any) => lt.id === s.label)
+          const snippet = txt.slice(s.start_offset, s.end_offset).trim()
+          return `${lbl?.text || s.label}: ${snippet}`
+        })
+        .join(', ')
     }
   }
 })
 </script>
 
 <style scoped>
-
+.annotation-preview    { background: #f5f5f5; border-radius: 4px; }
+.annotation-item       { margin-bottom: 16px; }
+.annotation-num        { font-weight: 500; margin-right: 12px; }
+.annotation-timestamp  { color: #6376AB; font-weight: 500; margin-right: 4px; }
+.annotation-text       { margin-top: 4px; padding-left: 24px;
+  white-space: pre-wrap; word-wrap: break-word; }
+.annotation-spans      { margin-top: 4px; padding-left: 24px; }
+.annotation-span-label { color: #6376AB; font-weight: 500; margin-right: 4px; }
 </style>
