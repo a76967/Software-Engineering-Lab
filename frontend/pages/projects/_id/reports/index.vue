@@ -21,7 +21,7 @@
             class="pa-6 text-center cursor-pointer"
             @click="navigate(tab.slug)"
           >
-            <v-icon size="48" color="primary darken-2">
+            <v-icon size="48" color="primary">
               {{ tab.icon }}
             </v-icon>
             <h3 class="headline mt-4">{{ tab.label }}</h3>
@@ -53,51 +53,27 @@ import {
 
 export default Vue.extend({
   name: 'ReportsIndex',
-  layout: 'project',
   components: {
     VContainer, VSheet, VRow, VCol,
     VCard, VIcon, VDivider, VHover
   },
-
+  layout: 'project',
   computed: {
     projectId(): string {
       return this.$route.params.id as string
     },
     tabs(): Array<{ slug: string; label: string; desc: string; icon: string }> {
       return [
-        {
-          slug: 'statistics',
-          label: 'Statistics',
-          desc: 'Metrics and charts for annotations',
-          icon: mdiChartBar
-        },
-        {
-          slug: 'history',
-          label: 'History',
-          desc: 'Previous versions and timestamps',
-          icon: mdiHistory
-        },
-        {
-          slug: 'annotators',
-          label: 'Annotators',
-          desc: 'User performance metrics',
-          icon: mdiAccountGroup
-        },
-        {
-          slug: 'annotations',
-          label: 'Annotations',
-          desc: 'Detailed list with filters',
-          icon: mdiTable
-        }
+        { slug: 'statistics', label: 'Statistics', desc: 'Metrics and charts for annotations', icon: mdiChartBar },
+        { slug: 'history',     label: 'History',     desc: 'Previous versions and timestamps', icon: mdiHistory },
+        { slug: 'annotators',  label: 'Annotators',  desc: 'User performance metrics',         icon: mdiAccountGroup },
+        { slug: 'annotations', label: 'Annotations', desc: 'Detailed list with filters',        icon: mdiTable }
       ]
     }
   },
-
   methods: {
     navigate(slug: string) {
-      this.$router.push(
-        `/projects/${this.projectId}/reports/${slug}`
-      )
+      this.$router.push(`/projects/${this.projectId}/reports/${slug}`)
     }
   }
 })
