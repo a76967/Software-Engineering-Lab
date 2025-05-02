@@ -22,8 +22,8 @@
               <v-btn
                 color="primary"
                 class="add-btn white--text"
-                @click="addRule"
                 :disabled="!newRule.trim()"
+                @click="addRule"
               >
                 Add new rule
               </v-btn>
@@ -50,9 +50,9 @@
         </v-btn>
         <v-btn
           color="success"
-          @click="save"
           :loading="saving"
           :disabled="rules.length===0||saving"
+          @click="save"
         >
           Save
         </v-btn>

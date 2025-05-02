@@ -141,12 +141,12 @@ import {
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
-  layout: 'workspace',
   name: 'ReportsAnnotations',
   components: 
   { VContainer, VForm, VRow, VCol, VTextField, 
     VSelect, VMenu, VDatePicker, VBtn, VDataTable, 
     VDivider, VCard, VCardTitle, VCardText },
+  layout: 'workspace',
   data() {
     return {
       loading: false,

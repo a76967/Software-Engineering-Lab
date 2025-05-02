@@ -102,6 +102,8 @@ interface Annotation {
 
 export default Vue.extend({
   name: 'DisagreementsPage',
+
+  layout: 'project',
   data() {
     return {
       disagreements: [] as Array<{
@@ -120,8 +122,6 @@ export default Vue.extend({
       }
     }
   },
-
-  layout: 'project',
 
   computed: {
     filteredDisagreements() {

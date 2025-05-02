@@ -183,8 +183,8 @@
           <v-btn
             color="secondary"
             text
-            @click="confirmLink"
             :disabled="!!annotationFetchError"
+            @click="confirmLink"
           >
             Confirm
           </v-btn>
@@ -198,9 +198,9 @@
     <!-- Usa o componente DeleteDialog -->
     <delete-dialog
       v-model="dialogDelete"
-      :dbError="dbError"
-      :deleteDialogText="deleteDialogText"
-      :isDeleting="isDeleting"
+      :db-error="dbError"
+      :delete-dialog-text="deleteDialogText"
+      :is-deleting="isDeleting"
       @confirm-delete="removePerspective"
       @cancel-delete="closeDeleteDialog"
     />
@@ -219,10 +219,10 @@ import DeleteDialog from '~/pages/projects/_id/perspectives/delete.vue'
 
 export default Vue.extend({
   name: 'PerspectivesTable',
-  layout: 'project',
   components: {
     DeleteDialog
   },
+  layout: 'project',
   data() {
     return {
       dialogDelete: false,

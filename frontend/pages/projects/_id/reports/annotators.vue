@@ -108,13 +108,13 @@
   import ApiService from '~/services/api.service'
   
   export default Vue.extend({
+    name: 'ReportsAnnotators',
     components: {
       VContainer, VCard, VCardTitle, VDivider, VCardText,
       VForm, VRow, VCol, VMenu, VDatePicker, VTextField,
       VSelect, VCheckbox, VBtn,
       VSpacer, VDataTable, VProgressCircular
     },
-    name: 'ReportsAnnotators',
     layout: 'workspace',
     data() {
       return {

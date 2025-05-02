@@ -13,9 +13,9 @@
             solo
             hide-details
             class="elevation-0"
+            autofocus
             @blur="editingSubject = false"
             @keyup.enter="editingSubject = false"
-            autofocus
           />
         </template>
         <template v-else>
@@ -29,15 +29,15 @@
     <v-card-text>
       <v-form ref="form" v-model="isValid">
         <v-select
-          class="custom-input"
           v-model="form.category"
+          class="custom-input"
           :items="categories"
           :label="$t('Category')"
           required
         />
         <v-textarea
-          class="custom-input"
           v-model="form.text"
+          class="custom-input"
           :label="$t('Text')"
           counter="2000"
           required

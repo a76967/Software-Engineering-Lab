@@ -35,14 +35,14 @@
             Left
           </v-card-title>
           <v-card-text class="diff-canvas">
-            <div class="diff-annotation-text" v-if="leftAnnotation"
+            <div v-if="leftAnnotation" class="diff-annotation-text"
               v-html="formattedLeftText"></div>
           </v-card-text>
           <v-card-actions class="justify-center">
-            <v-btn small @click="prevLeft" :disabled="navigationDisabled ||
-            leftIndex === 0">Prev</v-btn>
-            <v-btn small @click="nextLeft" :disabled="navigationDisabled ||
-            leftIndex === annotations.length - 1">Next</v-btn>
+            <v-btn small :disabled="navigationDisabled ||
+            leftIndex === 0" @click="prevLeft">Prev</v-btn>
+            <v-btn small :disabled="navigationDisabled ||
+            leftIndex === annotations.length - 1" @click="nextLeft">Next</v-btn>
           </v-card-actions>
         </v-card>
 
@@ -57,14 +57,14 @@
             Right
           </v-card-title>
           <v-card-text class="diff-canvas">
-            <div class="diff-annotation-text" v-if="rightAnnotation"
+            <div v-if="rightAnnotation" class="diff-annotation-text"
               v-html="formattedRightText"></div>
           </v-card-text>
           <v-card-actions class="justify-center">
-            <v-btn small @click="prevRight" :disabled="navigationDisabled ||
-            rightIndex === 0">Prev</v-btn>
-            <v-btn small @click="nextRight" :disabled="navigationDisabled ||
-            rightIndex === annotations.length - 1">Next</v-btn>
+            <v-btn small :disabled="navigationDisabled ||
+            rightIndex === 0" @click="prevRight">Prev</v-btn>
+            <v-btn small :disabled="navigationDisabled ||
+            rightIndex === annotations.length - 1" @click="nextRight">Next</v-btn>
           </v-card-actions>
         </v-card>
       </div>
@@ -109,6 +109,7 @@ interface AnnotationTransformed {
 
 export default Vue.extend({
   name: 'DiffsPage',
+  layout: 'project',
   data() {
     return {
       annotations: [] as AnnotationTransformed[],
@@ -121,7 +122,6 @@ export default Vue.extend({
       showDifferences: false
     }
   },
-  layout: 'project',
   computed: {
     navigationDisabled(): boolean {
       return this.annotations.length === 2;

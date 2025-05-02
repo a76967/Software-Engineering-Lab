@@ -22,8 +22,8 @@
               color="primary"
               dark
               class="add-btn"
-              @click="addRule"
               :disabled="!newRule.trim()"
+              @click="addRule"
             >
               Add new rule
             </v-btn>
@@ -51,9 +51,9 @@
         </v-btn>
         <v-btn
           color="success"
-          @click="submitRules"
           :loading="saving"
           :disabled="rules.length===0||saving"
+          @click="submitRules"
         >
           Submit
         </v-btn>
@@ -67,8 +67,8 @@ import Vue from 'vue'
 import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
 
 export default Vue.extend({
-  layout: 'project',
   name: 'AnnotationRulesAdd',
+  layout: 'project',
 
   data() {
     return {

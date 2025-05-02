@@ -12,8 +12,8 @@
           No discussions yet..
         </div>
         <div
-          v-else
           v-for="msg in messages"
+          v-else
           :key="msg.id"
           :class="{
             'chat-message': true,
@@ -64,8 +64,8 @@ interface ChatMessage {
 }
 
 export default Vue.extend({
-  layout: 'project',
   name: 'DiscussionsPage',
+  layout: 'project',
   data() {
     return {
       messages: [] as ChatMessage[],
@@ -73,15 +73,15 @@ export default Vue.extend({
       userId: 0
     }
   },
-  async mounted() {
-    this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
-    console.log('🟢 current userId =', this.userId)
-    await this.fetchMessages()
-  },
   computed: {
     validMessages(): ChatMessage[] {
       return this.messages
     }
+  },
+  async mounted() {
+    this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
+    console.log('🟢 current userId =', this.userId)
+    await this.fetchMessages()
   },
   methods: {
     async fetchMessages() {

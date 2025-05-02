@@ -12,7 +12,7 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer />
-        <v-btn color="red" text @click="confirmDelete" :disabled="isDeleting || !!dbError">
+        <v-btn color="red" text :disabled="isDeleting || !!dbError" @click="confirmDelete">
           Delete
         </v-btn>
         <v-btn color="grey" text @click="cancelDelete">

@@ -61,13 +61,13 @@ export default {
             ]
         }
     },
-    async created() {
-        await this.fetchUsers()
-    },
     computed: {
         sortedUsers() {
             return [...this.users].sort((a, b) => a.id - b.id)
         }
+    },
+    async created() {
+        await this.fetchUsers()
     },
     methods: {
         async fetchUsers() {
