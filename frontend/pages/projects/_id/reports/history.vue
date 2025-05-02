@@ -110,11 +110,11 @@
       <v-divider/>
       <v-card-text>
         <v-alert
+          class="mb-4"
           v-if="showNoAnnotationsError"
           type="error"
           dismissible
           @input="showNoAnnotationsError = false"
-          class="mb-4"
         >
           <v-icon left>mdi-alert-circle</v-icon>
           No annotations were found for the selected filters. Form has been reset.
@@ -188,7 +188,6 @@ import {
 } from 'vuetify/lib'
 
 import { jsPDF as JsPDF } from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
