@@ -136,9 +136,7 @@ export default Vue.extend({
       },
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
-      users: [] as { id: number; name: string }[],
-      // holds only the labels from the last Generate Report
-      labelOptions: [] as Array<{ id: number; text: string }>
+      users: [] as { id: number; name: string }[]
     }
   },
   computed: {
@@ -155,6 +153,31 @@ export default Vue.extend({
     annotatorOptions(): Array<{ id: number; name: string }> {
       const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
       return this.users.filter(u => used.has(u.id))
+    },
+    // dynamic labels dropdown
+    labelOptions(): Array<{ id: number; text: string }> {
+      // pick data‐set depending on whether a report has been generated
+      const src = this.filteredAnnotations.length
+        ? this.filteredAnnotations
+        : this.allAnnotationsRaw
+
+      // only include labels that actually occur in spans
+      const usedSpanIds = new Set<number>(
+        src.flatMap(a =>
+          (a.extracted_labels.spans || []).map((s: any) => s.label)
+        )
+      )
+      const types = src
+        .flatMap(a => a.extracted_labels.labelTypes || [])
+        .filter((t: any) => usedSpanIds.has(t.id))
+
+      // dedupe & exclude unwanted
+      const uniq = Array.from(
+        new Map(types.map((t: any) => [t.id, t])).values()
+      )
+      return uniq
+        .filter((t: any) => t.text !== 'Dog' && t.text !== 'Cat')
+        .map((t: any) => ({ id: t.id, text: t.text }))
     }
   },
   watch: {
@@ -198,14 +221,6 @@ export default Vue.extend({
       id: u.id,
       name: u.username || u.name || `User ${u.id}`
     }))
-
-    // initial labels dropdown: all labelTypes in this project
-    const allTypes = this.allAnnotationsRaw
-      .flatMap(a => a.extracted_labels.labelTypes || [])
-    const uniqTypes = Array.from(
-      new Map(allTypes.map((t: any) => [t.id, t])).values()
-    )
-    this.labelOptions = uniqTypes.map((t: any) => ({ id: t.id, text: t.text }))
   },
   methods: {
     formatDate(ts: string): string {
@@ -228,18 +243,6 @@ export default Vue.extend({
         }
         return true
       })
-
-      const src = this.filteredAnnotations.length
-        ? this.filteredAnnotations
-        : this.allAnnotationsRaw
-      const usedSpanIds = new Set<number>(
-        src.flatMap(a => (a.extracted_labels.spans || []).map((s: any) => s.label))
-      )
-      const types = src
-        .flatMap(a => a.extracted_labels.labelTypes || [])
-        .filter((t: any) => usedSpanIds.has(t.id))
-      const uniq = Array.from(new Map(types.map((t: any) => [t.id, t])).values())
-      this.labelOptions = uniq.map((t: any) => ({ id: t.id, text: t.text }))
 
       this.loading = false
     },
@@ -276,19 +279,37 @@ export default Vue.extend({
       y += lh
 
       this.filteredAnnotations.forEach((ann, i) => {
-        if (y + 4 * lh > ph - m) { doc.addPage(); y = m }
+        if (y + 6 * lh > ph - m) { doc.addPage(); y = m }
         doc.setFontSize(10).setTextColor('#6376AB')
         doc.text(`${i+1}. ${this.formatDate(ann.created_at)}`, m, y)
         y += lh
+
         const author = this.users.find(u=>u.id===ann.annotator)?.name || 'Unknown'
         doc.setFontSize(10).setTextColor('#000')
         doc.text(`by ${author}`, m + 10, y)
         y += lh
+
         const snippet = ann.extracted_labels.text.slice(0, 100) +
           (ann.extracted_labels.text.length > 100 ? '…' : '')
         doc.setFontSize(11).setTextColor('#333')
         doc.text(snippet, m + 20, y)
         y += lh * 1.5
+
+        // print spans summary
+        const spansLine = this.getSpansSummary(ann)
+        if (spansLine) {
+          // label
+          doc.setFontSize(10).setTextColor('#6376AB')
+          doc.text('Spans:', m + 20, y)
+          y += lh
+
+          // span snippets
+          doc.setFontSize(10).setTextColor('#000')
+          const maxW = doc.internal.pageSize.getWidth() - (m + 60)
+          const spanLines = doc.splitTextToSize(spansLine, maxW)
+          doc.text(spanLines, m + 30, y)
+          y += spanLines.length * lh + lh
+        }
       })
 
       doc.save('Annotations-Report.pdf')
