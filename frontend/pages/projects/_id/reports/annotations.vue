@@ -112,7 +112,7 @@
 import Vue from 'vue'
 import {
   VContainer, VCard, VCardTitle, VDivider, VCardText,
-  VForm, VRow, VCol, VAutocomplete,
+  VForm, VRow, VCol, VAutocomplete, VSelect,
   VBtn, VSpacer, VProgressCircular
 } from 'vuetify/lib'
 import { jsPDF as JsPDF } from 'jspdf'
@@ -122,7 +122,7 @@ export default Vue.extend({
   name: 'ReportsAnnotationsGeneral',
   components: {
     VContainer, VCard, VCardTitle, VDivider, VCardText,
-    VForm, VRow, VCol, VAutocomplete,
+    VForm, VRow, VCol, VAutocomplete, VSelect,
     VBtn, VSpacer, VProgressCircular
   },
   layout: 'workspace',
@@ -216,21 +216,19 @@ export default Vue.extend({
     },
     generateReport() {
       this.loading = true
-      // filter annotations
       this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
         if (this.filters.annotationIds.length) {
           if (!this.filters.annotationIds.includes(a.id)) return false
         } else if (this.filters.annotators.length) {
           if (!this.filters.annotators.includes(a.annotator)) return false
         } else if (this.filters.label !== null) {
-          if (!(a.extracted_labels.labelTypes || [])
-                .some((lt: any) => lt.id === this.filters.label)
+          if (!(a.extracted_labels.spans || [])
+                .some((s: any) => s.label === this.filters.label)
           ) return false
         }
         return true
       })
 
-      // rebuild labelOptions based on current filteredAnnotations (or all if none)
       const src = this.filteredAnnotations.length
         ? this.filteredAnnotations
         : this.allAnnotationsRaw
