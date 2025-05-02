@@ -110,8 +110,8 @@
       <v-divider/>
       <v-card-text>
         <v-alert
-          class="mb-4"
           v-if="showNoAnnotationsError"
+          class="mb-4"
           type="error"
           dismissible
           @input="showNoAnnotationsError = false"
@@ -125,8 +125,8 @@
         </div>
 
         <div v-else-if="historyData.length">
-          <div class="mb-6 pa-4 grey lighten-4">
-            <h3 class="font-weight-bold">Doccana – Annotations History</h3>
+          <div class="annotation-preview mb-6 pa-4">
+            <h3 class="font-weight-bold">Doccana - Annotations History</h3>
             <p class="mb-4">
               <strong>Annotators:</strong>
               {{
@@ -136,18 +136,28 @@
                   .join(', ')
               }}
             </p>
-            <div v-for="ann in filteredAnnotations" :key="ann.id" class="mb-3">
-              <strong>{{ formatDate(ann.created_at) }}</strong>
-              by
-              <span class="font-weight-medium">
-                {{ users.find((u) => u.id === ann.annotator)?.name || 'Unknown' }}
-              </span>
-              :
-              <span class="text-justify">"{{ ann.extracted_labels.text }}"</span>
 
-              <div class="mt-1">
-                <strong>Spans:</strong>
-                {{ getSpansSummary(ann) }}
+            <div
+              v-for="(ann, idx) in filteredAnnotations"
+              :key="ann.id"
+              class="annotation-item"
+            >
+              <div class="d-flex align-start">
+                <span class="annotation-num">{{ idx + 1 }}.</span>
+                <div class="flex-grow-1">
+                  <span class="annotation-timestamp">{{ formatDate(ann.created_at) }}</span>
+                  <span>
+                    by
+                    <span class="font-weight-medium">
+                      {{ users.find(u=>u.id===ann.annotator)?.name||'Unknown' }}
+                    </span>
+                  </span>
+                  <div class="annotation-text">"{{ ann.extracted_labels.text }}"</div>
+                  <div class="annotation-spans">
+                    <span class="annotation-span-label">Spans:</span>
+                    {{ getSpansSummary(ann) }}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -363,66 +373,115 @@ export default Vue.extend({
         .join(', ')
     },
     downloadPdf() {
-      const doc = new JsPDF()
+    const doc = new JsPDF({ unit: 'pt', format: 'letter' })
+    const margin = 40
+    const maxLineWidth = doc.internal.pageSize.getWidth() - margin * 2
+    const lineHeight = 14
+    const pageHeight = doc.internal.pageSize.getHeight()
 
-      const title = [
-        'Annotations History',
-        `Perspective: ${this.filters.perspective}`,
-        `Resolution: ${this.filters.resolution}`,
-      ].join(' – ')
-      doc.setFontSize(18)
-      doc.setTextColor('#1976D2')
-      doc.text(title, 14, 20)
+    let cursorY = margin
 
-      const annotators = this.users
-        .filter((u) => this.filters.annotators.includes(u.id))
-        .map((u) => u.name)
-        .join(', ')
-      doc.setFontSize(12)
-      doc.setTextColor(0)
-      doc.text(`Annotators: ${annotators}`, 14, 30)
+    doc.setFontSize(18)
+    doc.setTextColor('#6376AB')
+    doc.text('Annotations History', margin, cursorY)
+    cursorY += lineHeight * 1.5
 
-      let y = 40
-      this.filteredAnnotations.forEach((ann, index) => {
-        if (y > 270) {
-          doc.addPage()
-          y = 20
-        }
+    doc.setFontSize(12)
+    doc.setTextColor('#333')
+    doc.text(`Perspective: ${this.filters.perspective}`, margin, cursorY)
+    cursorY += lineHeight
+    doc.text(`Resolution: ${this.filters.resolution}`, margin, cursorY)
+    cursorY += lineHeight * 1.5
+
+    const annotators = this.users
+      .filter(u => this.filters.annotators.includes(u.id))
+      .map(u => u.name)
+      .join(', ')
+    doc.setFontSize(12)
+    doc.text(`Annotators: ${annotators}`, margin, cursorY)
+    cursorY += lineHeight * 2
+
+    this.filteredAnnotations.forEach((ann, idx) => {
+      if (cursorY + 4 * lineHeight > pageHeight - margin) {
+        doc.addPage()
+        cursorY = margin
+      }
+
+      doc.setFontSize(11)
+      doc.setTextColor('#6376AB')
+      doc.text(
+        `${idx + 1}. ${this.formatDate(ann.created_at)}`,
+        margin,
+        cursorY
+      )
+      doc.setTextColor('#000')
+      cursorY += lineHeight
+
+      const author = this.users.find(u => u.id === ann.annotator)?.name || 'Unknown'
+      doc.setFontSize(10)
+      doc.text(`by ${author}`, margin + 10, cursorY)
+      cursorY += lineHeight * 1.2
+
+      doc.setFontSize(10)
+      const textLines = doc.splitTextToSize(
+        `"${ann.extracted_labels.text}"`,
+        maxLineWidth
+      )
+      doc.text(textLines, margin, cursorY)
+      cursorY += textLines.length * lineHeight + lineHeight * 0.5
+
+      const spansLine = this.getSpansSummary(ann)
+      if (spansLine) {
+        doc.setFontSize(10)
+        doc.setTextColor('#6376AB')
+        doc.text('Spans:', margin, cursorY)
+        cursorY += lineHeight
 
         doc.setFontSize(10)
-        doc.setTextColor('#1976D2')
-        doc.text(`${index + 1}. ${this.formatDate(ann.created_at)}`, 14, y)
-        doc.setTextColor(0)
-        doc.text(` by ${this.users.find((u) => u.id === ann.annotator)?.name || 'Unknown'}`, 80, y)
+        doc.setTextColor('#000')
+        const spanLines = doc.splitTextToSize(spansLine, maxLineWidth)
+        doc.text(spanLines, margin + 10, cursorY)
+        cursorY += spanLines.length * lineHeight + lineHeight
+      }
+    })
 
-        y += 6
-        doc.setFontSize(10)
-        doc.setTextColor(0)
-        const text = doc.splitTextToSize(`"${ann.extracted_labels.text}"`, 180)
-        doc.text(text, 14, y)
-        y += text.length * 6
-
-        if (ann.extracted_labels.spans?.length) {
-          doc.setFontSize(10)
-          doc.setTextColor('#1976D2')
-          doc.text('Spans:', 14, y)
-          y += 6
-          doc.setFontSize(10)
-          doc.setTextColor(0)
-          const spans = this.getSpansSummary(ann)
-          const spanLines = doc.splitTextToSize(spans, 180)
-          doc.text(spanLines, 14, y)
-          y += spanLines.length * 6
-        }
-
-        y += 4
-      })
-
-      doc.save('DoccanaAnnotationHistory.pdf')
-    },
+    doc.save('Doccana-Annotations-History.pdf')
+  },
   },
 })
 </script>
 
 <style scoped>
+.annotation-preview {
+  background-color: #f5f5f5;
+  border-radius: 4px;
+}
+.annotation-item {
+  margin-bottom: 16px;
+}
+.annotation-num {
+  color: #6376AB;
+  font-weight: 500;
+  margin-right: 8px;
+}
+.annotation-timestamp {
+  color: #6376AB;
+  font-weight: 500;
+  margin-right: 4px;
+}
+.annotation-text {
+  margin-top: 4px;
+  padding-left: 24px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.annotation-spans {
+  margin-top: 4px;
+  padding-left: 24px;
+}
+.annotation-span-label {
+  color: #6376AB;
+  font-weight: 500;
+  margin-right: 4px;
+}
 </style>
