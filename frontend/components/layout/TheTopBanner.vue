@@ -14,7 +14,7 @@
               large
               outlined
               color="black"
-              href="https://github.com/GONCALOUNI/Software-Engineering-Lab"
+              href="https://github.com/a76967/Software-Engineering-Lab"
             >
               <v-icon left>
                 {{ mdiGithub }}
