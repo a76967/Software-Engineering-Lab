@@ -5,7 +5,7 @@
 ## Sumário
 
 1. [Casos de Uso](#casos-de-uso)  
-2. [Sobre o Doccana](#sobre-o-doccana)  
+2. [Sobre a Doccana](#sobre-o-doccana)  
 3. [Instalação e Quickstart](#instalação-e-quickstart)  
 4. [Arquitetura do Projeto](#arquitetura-do-projeto)  
 5. [Estrutura de Diretórios](#estrutura-de-diretórios)  
@@ -59,9 +59,9 @@
 
 ---
 
-## Sobre o Doccana
+## Sobre a Doccana
 
-**Bem-vindo ao Doccana**, a nossa solução moderna e intuitiva para anotação de documentos.  
+**Bem-vindo à Doccana**, a nossa solução moderna e intuitiva para anotação de documentos.  
 
 - **Quem somos**  
   Somos Daniel Palma, Gonçalo Cordeiro, Juary Neto e Steve Rocha, alunos da unidade de Laboratório de Engenharia de Software (LES) na UAlg.  
@@ -177,4 +177,4 @@ Por favor, cita-nos assim:
 - Juary Neto – a76931@ualg.pt  
 - Steve Rocha – a76924@ualg.pt  
 
-Obrigado por usar o **Doccana**!
+Obrigado por usar a **Doccana**!
