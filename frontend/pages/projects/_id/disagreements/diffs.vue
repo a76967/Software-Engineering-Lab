@@ -484,8 +484,8 @@ export default Vue.extend({
   line-height: 1.5rem;
   font-family: 'Roboto', sans-serif !important;
   color: black;
-  white-space: pre-wrap; /* Preserve spaces and line breaks */
-  word-wrap: break-word; /* Break long words if necessary */
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 .label-legend {
   display: flex;
