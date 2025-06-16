@@ -1,6 +1,15 @@
 <template>
   <v-container fluid>
     <v-card class="mx-auto my-6" max-width="1200">
+      <v-alert
+        v-if="error"
+        type="error"
+        dense
+        class="mx-4 mt-4"
+      >
+        {{ error }}
+      </v-alert>
+
       <v-card-title class="headline font-weight-medium">
         Annotation Rules
       </v-card-title>
@@ -19,14 +28,25 @@
           </v-col>
           <v-col cols="12" md="3" class="text-right">
             <v-btn
-              color="primary"
+              :color="isAddDisabled ? 'grey lighten-1' : 'primary'"
               dark
               class="add-btn"
               @click="addRule"
-              :disabled="!newRule.trim()"
+              :disabled="isAddDisabled"
             >
               Add new rule
             </v-btn>
+          </v-col>
+
+          <v-col cols="12">
+            <v-alert
+              v-if="newRule.length > charLimit"
+              type="error"
+              dense
+              text
+            >
+              Rule must be at most {{ charLimit }} characters.
+            </v-alert>
           </v-col>
         </v-row>
 
@@ -75,7 +95,9 @@ export default Vue.extend({
       rules: [] as string[],
       newRule: '',
       saving: false,
-      loading: false
+      loading: false,
+      charLimit: 25,
+      error: ''
     }
   },
 
@@ -91,6 +113,9 @@ export default Vue.extend({
     },
     gridSize(): number {
       return this.rules.length || 1
+    },
+    isAddDisabled(): boolean {
+      return !this.newRule.trim() || this.newRule.length > this.charLimit
     }
   },
 
@@ -112,7 +137,7 @@ export default Vue.extend({
   methods: {
     addRule() {
       const txt = this.newRule.trim()
-      if (!txt) return
+      if (!txt || txt.length > this.charLimit) return
       this.rules.push(txt)
       this.newRule = ''
     },
@@ -120,6 +145,7 @@ export default Vue.extend({
     async submitRules() {
       if (!this.rules.length) return
       this.saving = true
+      this.error = '' // limpa erro anterior
       try {
         const repo = new APIAnnotationRuleRepository()
         await repo.create(this.projectId, this.rules)
@@ -132,6 +158,7 @@ export default Vue.extend({
         })
       } catch (e) {
         console.error('Failed to submit rules', e)
+        this.error = "Error: Can't access our database!" // exibe no UI
       } finally {
         this.saving = false
       }
