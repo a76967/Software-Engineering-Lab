@@ -23,6 +23,10 @@
                 label="Annotation IDs"
                 multiple
                 clearable
+                :menu-props="{
+                  'max-height': '200px',
+                  contentClass: 'annotation-menu__content'
+                }"
               />
             </v-col>
 
@@ -39,13 +43,16 @@
               />
             </v-col>
 
+            <!-- Labels agora múltiplos -->
             <v-col cols="12" sm="6" md="4">
+              <!-- permite selecionar várias -->
               <v-select
-                v-model="filters.label"
+                v-model="filters.labels"
                 :items="labelOptions"
                 item-text="text"
                 item-value="id"
                 label="Labels"
+                multiple
                 clearable
               />
             </v-col>
@@ -132,7 +139,7 @@ export default Vue.extend({
       filters: {
         annotationIds: [] as number[],
         annotators: [] as number[],
-        label: null as number | null
+        labels: [] as number[]      // agora array
       },
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
@@ -180,30 +187,16 @@ export default Vue.extend({
         .map((t: any) => ({ id: t.id, text: t.text }))
     }
   },
-  watch: {
-    'filters.annotationIds'(v: number[]) {
-      if (v.length) {
-        this.filters.annotators = []
-        this.filters.label      = null
-      }
-    },
-    'filters.annotators'(v: number[]) {
-      if (v.length) {
-        this.filters.annotationIds = []
-        this.filters.label         = null
-      }
-    },
-    'filters.label'(v: number|null) {
-      if (v !== null) {
-        this.filters.annotationIds = []
-        this.filters.annotators    = []
-      }
-    }
-  },
   async mounted() {
     const pid = Number(this.$route.params.id)
     const [annRes, usrRes] = await Promise.all([
-      ApiService.get('/annotations/', { params: { project: pid } }),
+      ApiService.get('/annotations/', {
+        params: {
+          project: pid,
+          limit: 1000,    // aumenta o número de resultados retornados
+          offset: 0
+        }
+      }),
       ApiService.get('/users/')
     ])
 
@@ -232,18 +225,26 @@ export default Vue.extend({
     generateReport() {
       this.loading = true
       this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
-        if (this.filters.annotationIds.length) {
-          if (!this.filters.annotationIds.includes(a.id)) return false
-        } else if (this.filters.annotators.length) {
-          if (!this.filters.annotators.includes(a.annotator)) return false
-        } else if (this.filters.label !== null) {
-          if (!(a.extracted_labels.spans || [])
-                .some((s: any) => s.label === this.filters.label)
-          ) return false
+        // 1) filtra por Annotation IDs, se houver
+        if (this.filters.annotationIds.length &&
+            !this.filters.annotationIds.includes(a.id)) {
+          return false
+        }
+        // 2) filtra por Annotators, se houver
+        if (this.filters.annotators.length &&
+            !this.filters.annotators.includes(a.annotator)) {
+          return false
+        }
+        // 3) filtra por Labels selecionadas
+        if (this.filters.labels.length) {
+          const spans = a.extracted_labels.spans || []
+          // mantém se tiver pelo menos 1 das labels escolhidas
+          if (!spans.some((s: any) => this.filters.labels.includes(s.label))) {
+            return false
+          }
         }
         return true
       })
-
       this.loading = false
     },
     downloadPdf() {
@@ -269,11 +270,12 @@ export default Vue.extend({
         doc.text(`Annotators: ${names}`, m, y)
         y += lh
       }
-      if (this.filters.label !== null) {
-        const lbl = this.labelOptions
-          .find((l: { id: number; text: string }) => l.id === this.filters.label)
-          ?.text
-        doc.text(`Label: ${lbl || this.filters.label}`, m, y)
+      if (this.filters.labels.length) {
+        const lbls = this.filters.labels
+          .map((id) => this.labelOptions
+            .find((l: { id: number; text: string }) => l.id === id)?.text || id)
+          .join(', ')
+        doc.text(`Labels: ${lbls}`, m, y)
         y += lh
       }
       y += lh
@@ -316,7 +318,13 @@ export default Vue.extend({
     },
     getSpansSummary(ann: any): string {
       const txt = ann.extracted_labels.text || ''
-      return (ann.extracted_labels.spans || [])
+      // aplica filtro de labels selecionadas (se houver)
+      const spans = (ann.extracted_labels.spans || [])
+        .filter((s: any) =>
+          // se não há filtro de labels, inclui todas; senão só as escolhidas
+          !this.filters.labels.length || this.filters.labels.includes(s.label)
+        )
+      return spans
         .map((s: any) => {
           const lbl = ann.extracted_labels.labelTypes
             .find((lt: any) => lt.id === s.label)
@@ -338,4 +346,8 @@ export default Vue.extend({
   white-space: pre-wrap; word-wrap: break-word; }
 .annotation-spans      { margin-top: 4px; padding-left: 24px; }
 .annotation-span-label { color: #6376AB; font-weight: 500; margin-right: 4px; }
+.annotation-menu__content {
+  max-height: 200px !important;
+  overflow-y: auto !important;
+}
 </style>
