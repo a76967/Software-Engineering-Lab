@@ -85,6 +85,12 @@ export default Vue.extend({
     },
     fromRev(): number {
       return Number(this.$route.query.from || 0)
+    },
+    gridItems(): (string|null)[] {
+      return this.rules
+    },
+    gridSize(): number {
+      return this.rules.length || 1
     }
   },
 
