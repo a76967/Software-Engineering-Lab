@@ -80,7 +80,7 @@ export default Vue.extend({
       messages: [] as ChatMessage[],
       newMessage: '',
       userId: 0,
-      error: ''        // ← add error state
+      error: ''
     }
   },
   async mounted() {
@@ -95,7 +95,7 @@ export default Vue.extend({
   },
   methods: {
     async fetchMessages() {
-      this.error = ''  // clear previous
+      this.error = ''
       console.log('🔄 fetching discussions…')
       try {
         const projectId = Number(this.$route.params.id)
