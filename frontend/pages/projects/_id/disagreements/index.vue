@@ -59,6 +59,27 @@
 
             <div class="mb-2 text-center">
               <strong>Annotations in conflict:</strong> {{ disagreement.count }}
+              <div class="mt-1">
+                <small>
+                  Left by:
+                  <span :class="{ 'font-weight-bold': disagreement.annotators[0] === 
+                  currentUsername }">
+                    {{ disagreement.annotators[0] === currentUsername
+                      ? currentUsername + ' (You)'
+                      : (disagreement.annotators[0] || '–')
+                    }}
+                  </span>
+                  ·
+                  Right by:
+                  <span :class="{ 'font-weight-bold': disagreement.annotators[1] === 
+                  currentUsername }">
+                    {{ disagreement.annotators[1] === currentUsername
+                      ? currentUsername + ' (You)'
+                      : (disagreement.annotators[1] || '–')
+                    }}
+                  </span>
+                </small>
+              </div>
             </div>
             <v-card-actions class="justify-center">
               <v-btn color="secondary" small @click="checkDisagreement(disagreement)">
@@ -75,6 +96,7 @@
 <script lang="ts">
 // @ts-nocheck
 import Vue from 'vue'
+import { mapState } from 'vuex'
 import axios from 'axios'
 import { mdiMagnify, mdiAlertCircle } from '@mdi/js'
 
@@ -110,6 +132,7 @@ export default Vue.extend({
         labels: Array<{ text: string; backgroundColor: string }>;
         count: number;
         annotations: Annotation[];
+        annotators: string[];
       }>,
       search: '',
       isLoading: false,
@@ -133,7 +156,11 @@ export default Vue.extend({
     },
     canDelete(): boolean {
       return false;
-    }
+    },
+    // puxa o username do utilizador logado
+    ...mapState('auth', {
+      currentUsername: (state: any) => state.username
+    })
   },
   mounted() {
     this.fetchDisagreements();
@@ -143,19 +170,30 @@ export default Vue.extend({
       this.isLoading = true;
       const projectId = Number(this.$route.params.id);
       try {
-        const response = await axios.get(`/v1/annotations/`, { params: { project: projectId } });
-        const annotations: Annotation[] = response.data.results || response.data;
+        const resp = await axios.get(`/v1/annotations/`, { params: { project: projectId } });
+        const annotations: Annotation[] = resp.data.results || resp.data;
 
-        const disagreementsMap: { [key: string]: any } = {};
+        // 1) cache de usernames
+        const userCache: Record<number, string> = {};
+        await Promise.all(
+          annotations
+            .map(a => a.annotator)
+            .filter((id, i, arr) => id && arr.indexOf(id) === i)
+            .map(id =>
+              axios.get(`/v1/users/${id}/`).then(r => {
+                userCache[id] = r.data.username;
+              })
+            )
+        );
 
-        annotations.forEach(annotation => {
-          const extracted = annotation.extracted_labels;
-          if (!extracted || !extracted.text || !extracted.labelTypes || !extracted.spans) return;
+        // 2) agrupar por signature
+        const map: Record<string, any> = {};
+        annotations.forEach(a => {
+          const ex = a.extracted_labels;
+          if (!ex || !ex.text || !ex.spans || !ex.labelTypes) return;
 
-          const usedLabelIds = extracted.spans.map((span: any) => span.label);
-          
-          const usedLabels = extracted.labelTypes.filter(label => usedLabelIds.includes(label.id));
-          
+          const usedLabelIds = ex.spans.map((span: any) => span.label);
+          const usedLabels = ex.labelTypes.filter(label => usedLabelIds.includes(label.id));
           const dedupedUsedLabels = Array.from(new Set(
             usedLabels.map(label => JSON.stringify({
               id: label.id,
@@ -163,18 +201,17 @@ export default Vue.extend({
               background_color: label.background_color
             }))
           )).map(str => JSON.parse(str));
-          
           const sortedLabels = dedupedUsedLabels.sort((a, b) => a.id - b.id);
-          
+
           const signatureKey = JSON.stringify({
-            text: extracted.text,
+            text: ex.text,
             labelTypes: sortedLabels.map(label => ({ id: label.id, text: label.text }))
           });
-          
-          if (!disagreementsMap[signatureKey]) {
-            disagreementsMap[signatureKey] = {
+
+          if (!map[signatureKey]) {
+            map[signatureKey] = {
               signature: signatureKey,
-              snippet: extracted.text.substring(0, 100),
+              snippet: ex.text.substring(0, 100),
               labels: sortedLabels.map(label => ({
                 text: label.text,
                 backgroundColor: label.background_color
@@ -182,39 +219,33 @@ export default Vue.extend({
               annotations: []
             };
           }
-          disagreementsMap[signatureKey].annotations.push(annotation);
+          map[signatureKey].annotations.push(a);
         });
 
-        const disagreements: any[] = [];
-        Object.keys(disagreementsMap).forEach(signature => {
-          const disagreement = disagreementsMap[signature];
-          if (disagreement.annotations.length < 2) return;
-
-          let spansDiffer = false;
-          for (let i = 0; i < disagreement.annotations.length; i++) {
-            for (let j = i + 1; j < disagreement.annotations.length; j++) {
-              const spans1 = disagreement.annotations[i].extracted_labels.spans;
-              const spans2 = disagreement.annotations[j].extracted_labels.spans;
-              if (JSON.stringify(spans1) !== JSON.stringify(spans2)) {
-                spansDiffer = true;
-                break;
+        // 3) montar array final e injetar annotators
+        this.disagreements = Object.values(map)
+          .filter(d => d.annotations.length > 1 && (() => {
+            let spansDiffer = false;
+            for (let i = 0; i < d.annotations.length; i++) {
+              for (let j = i + 1; j < d.annotations.length; j++) {
+                const spans1 = d.annotations[i].extracted_labels.spans;
+                const spans2 = d.annotations[j].extracted_labels.spans;
+                if (JSON.stringify(spans1) !== JSON.stringify(spans2)) {
+                  spansDiffer = true;
+                  break;
+                }
               }
+              if (spansDiffer) break;
             }
-            if (spansDiffer) break;
-          }
-          if (spansDiffer) {
-            disagreements.push({
-              signature: disagreement.signature,
-              snippet: disagreement.snippet,
-              labels: disagreement.labels,
-              count: disagreement.annotations.length,
-              annotations: disagreement.annotations
-            });
-          }
-        });
-        this.disagreements = disagreements;
-      } catch (err: any) {
-        console.error('Error fetching annotations:', err.response || err.message);
+            return spansDiffer;
+          })())
+          .map(d => ({
+            ...d,
+            count: d.annotations.length,
+            annotators: d.annotations.map((a: Annotation) => userCache[a.annotator] || '–')
+          }));
+
+      } catch (err) {
         this.error = "Error: Can't access our database!";
       } finally {
         this.isLoading = false;

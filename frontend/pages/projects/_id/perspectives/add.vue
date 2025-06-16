@@ -3,37 +3,16 @@
     <v-alert v-if="dbError" type="error" dense>
       {{ dbError }}
     </v-alert>
-    <v-card-title>
-      <div>
-        <template v-if="editingSubject">
-          <v-text-field
-            v-model="form.subject"
-            label="Subject"
-            dense
-            solo
-            hide-details
-            class="elevation-0"
-            @blur="editingSubject = false"
-            @keyup.enter="editingSubject = false"
-            autofocus
-          />
-        </template>
-        <template v-else>
-          <span class="headline" @click="editingSubject = true">
-            {{ form.subject || 'Perspective Title' }}
-            <v-icon class="edit-icon">{{ mdiPencil }}</v-icon>
-          </span>
-        </template>
-      </div>
-    </v-card-title>
+
     <v-card-text>
-      <v-form ref="form" v-model="isValid">
+      <v-form ref="form" v-model="isValid" lazy-validation>
         <v-select
           class="custom-input"
           v-model="form.category"
           :items="categories"
           :label="$t('Category')"
           required
+          :rules="[v => !!v || 'Categoria obrigatória']"
         />
         <v-textarea
           class="custom-input"
@@ -43,11 +22,13 @@
           required
           rows="10"
           auto-grow
+          :rules="[v => !!v || 'Texto obrigatório']"
         />
       </v-form>
     </v-card-text>
+
     <v-card-actions>
-      <v-spacer></v-spacer>
+      <v-spacer />
       <v-btn text @click="goBack">{{ $t('generic.cancel') }}</v-btn>
       <v-btn color="primary" :disabled="!isValid" @click="submitPerspective">
         {{ $t('generic.add') }}
@@ -58,7 +39,6 @@
 
 <script lang="ts">
 import Vue from 'vue'
-import { mdiPencil } from '@mdi/js'
 import { mapGetters } from 'vuex'
 
 export default Vue.extend({
@@ -66,10 +46,7 @@ export default Vue.extend({
   layout: 'project',
   data() {
     return {
-      mdiPencil,
-      editingSubject: false,
       form: {
-        subject: '',
         text: '',
         category: 'subjective'
       },
@@ -90,18 +67,16 @@ export default Vue.extend({
   },
   methods: {
     async submitPerspective() {
+      if (!(this.$refs.form as any).validate()) {
+        return
+      }
       const projectId = Number(this.$route.params.id)
       const userId = this.$store.state.auth.id
       if (!userId) {
-        console.error('User ID is missing. Ensure the user is logged in.')
+        console.error('User ID is missing.')
         return
       }
-      if (!this.form.text || !this.form.category || !this.form.subject) {
-        console.error('Form is invalid. Ensure all required fields are filled.')
-        return
-      }
-      const payload = {
-        subject: this.form.subject,
+      const payload: any = {
         text: this.form.text,
         category: this.form.category,
         user: userId,
@@ -109,19 +84,17 @@ export default Vue.extend({
         roleOverride: true,
         role: this.userRole
       }
-      
-      console.log('Submitting perspective payload:', payload)
       try {
         await this.$repositories.perspective.create(projectId, payload)
         this.$router.push({
-          path: '/message',
+          path: this.localePath('/message'),
           query: {
             message: 'Perspective added successfully!',
-            redirect: `/projects/${projectId}/perspectives`
+            redirect: this.localePath(`/projects/${projectId}/perspectives`)
           }
         })
       } catch (error: any) {
-        console.error('Error submitting perspective:', error.response || error.message)
+        console.error(error)
         this.dbError = "Can't access our database!"
       }
     },
