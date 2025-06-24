@@ -8,7 +8,7 @@
         <v-card-text>
           <div>
             <p v-if="isViewingLatest">
-              The current rules for the project are the following:
+              The latest rules proposed for the project are the following:
               (v{{ currentVersion }}):
             </p>
             <p v-else>
@@ -32,7 +32,7 @@
           <v-divider class="my-6"/>
   
           <div>
-            <h3>History of chosen rules</h3>
+            <h3>History of proposed rules</h3>
             <v-simple-table v-if="history.length">
               <thead>
                 <tr>

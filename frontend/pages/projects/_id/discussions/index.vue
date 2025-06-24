@@ -7,6 +7,15 @@
         <span class="headline">Discuss about the annotation rules here!</span>
       </v-card-title>
 
+      <v-alert
+        v-if="error"
+        type="error"
+        dense
+        class="mx-4 mt-4"
+      >
+        {{ error }}
+      </v-alert>
+
       <v-card-text class="chat-window">
         <div v-if="!messages.length" class="no-messages">
           No discussions yet..
@@ -70,7 +79,8 @@ export default Vue.extend({
     return {
       messages: [] as ChatMessage[],
       newMessage: '',
-      userId: 0
+      userId: 0,
+      error: ''
     }
   },
   computed: {
@@ -85,6 +95,7 @@ export default Vue.extend({
   },
   methods: {
     async fetchMessages() {
+      this.error = ''
       console.log('🔄 fetching discussions…')
       try {
         const projectId = Number(this.$route.params.id)
@@ -97,11 +108,13 @@ export default Vue.extend({
       } catch (err) {
         console.error('❌ fetchMessages failed:', err)
         this.messages = []
+        this.error = "Error: Can't access our database!"
       }
       this.$nextTick(this.scrollToBottom)
       console.log('✅ got', this.messages.length, 'messages')
     },
     async sendMessage() {
+      this.error = ''
       const text = this.newMessage.trim()
       if (!text) return
       this.newMessage = ''
@@ -112,13 +125,17 @@ export default Vue.extend({
         await this.fetchMessages()
       } catch (err) {
         console.error('❌ sendMessage failed:', err)
+        this.error = "Error: Can't access our database!"
       }
     },
     formatTime(ts: string) {
-      return new Date(ts).toLocaleTimeString('en-US', {
-        hour: 'numeric',
+      return new Date(ts).toLocaleString('en-US', {
+        day:   '2-digit',
+        month: '2-digit',
+        year:  'numeric',
+        hour:   '2-digit',
         minute: '2-digit',
-        hour12: true
+        hour12: false
       })
     },
     scrollToBottom() {

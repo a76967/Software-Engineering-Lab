@@ -6,12 +6,20 @@ from django.db.models import JSONField
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.apps import apps
+from projects.models import Project
 
 class Annotation(models.Model):
     dataset_item_id = models.IntegerField()
     annotator = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="annotations",
+        null=True,
+        blank=True
     )
     extracted_labels = JSONField(null=True, blank=True)
     additional_info = JSONField(null=True, blank=True)

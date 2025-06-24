@@ -70,6 +70,72 @@
       </div>
       <v-checkbox v-model="showDifferences" label="Toggle Differences" class="mt-2"></v-checkbox>
     </v-card-text>
+
+    <!-- indicadores de votos -->
+    <v-card-text>
+      <div class="text-center mb-4">
+        <div>
+          Left side: 
+          <strong>{{ leftCount }}</strong>
+          <span v-if="userVotedSide==='left'"> (You) </span>
+        </div>
+        <div>
+          Right side: 
+          <strong>{{ rightCount }}</strong>
+          <span v-if="userVotedSide==='right'"> (You) </span>
+        </div>
+      </div>
+
+      <div class="text-center mb-2">
+        <strong>Winner: </strong>
+        <span v-if="winner==='left'">Left side</span>
+        <span v-else-if="winner==='right'">Right side</span>
+        <span v-else>Tie</span>
+      </div>
+
+      <!-- escolha -->
+      <v-radio-group 
+        v-model="selectedSide" 
+        row 
+        :disabled="!!userVotedSide"
+      >
+        <v-radio label="Left side"  value="left"  />
+        <v-radio label="Right side" value="right" />
+      </v-radio-group>
+    </v-card-text>
+
+    <v-card-actions>
+      <v-spacer/>
+      <v-btn 
+        color="primary" 
+        @click="confirmResolve"
+        :disabled="!selectedSide || !!userVotedSide"
+      >
+        Solve
+      </v-btn>
+    </v-card-actions>
+
+    <!-- diálogo de resolução -->
+    <v-dialog v-model="showResolveDialog" max-width="400px">
+      <v-card>
+        <v-card-title class="headline">Solve Disagreement</v-card-title>
+        <v-card-text>
+          <v-radio-group
+            v-model="selectedSide"
+            row
+            class="justify-space-between"
+          >
+            <v-radio label="Left side" value="left" />
+            <v-radio label="Right side" value="right" />
+          </v-radio-group>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="showResolveDialog = false">Cancel</v-btn>
+          <v-btn color="primary" @click="confirmResolve">Confirm</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-card>
 </template>
 
@@ -78,6 +144,7 @@
 import Vue from 'vue'
 import axios from 'axios'
 import { mdiSwapHorizontal } from '@mdi/js'
+import { mapState } from 'vuex'
 
 interface AnnotationBackend {
   id: number;
@@ -119,10 +186,18 @@ export default Vue.extend({
       error: '',
       icons: { mdiSwapHorizontal },
       isRTL: false,
-      showDifferences: false
+      showDifferences: false,
+      showResolveDialog: false,
+      selectedSide: '' as 'left'|'right'|'',
+      userVotedSide: '' as 'left'|'right'|'',
+      leftCount: 0,
+      rightCount: 0
     }
   },
   computed: {
+    ...mapState('auth', {
+      currentUsername: (s: any) => s.username
+    }),
     navigationDisabled(): boolean {
       return this.annotations.length === 2;
     },
@@ -152,10 +227,16 @@ export default Vue.extend({
         }));
       }
       return [];
+    },
+    winner(): 'left'|'right'|'tie' {
+      if (this.leftCount > this.rightCount)  return 'left'
+      if (this.rightCount > this.leftCount) return 'right'
+      return 'tie'
     }
   },
-  mounted() {
-    this.fetchAnnotations();
+  async mounted() {
+    await this.fetchAnnotations();
+    this.initVoteState();
   },
   methods: {
     async fetchAnnotations() {
@@ -329,6 +410,45 @@ export default Vue.extend({
       const b = parseInt(color.slice(5, 7), 16);
       const brightness = (r * 299 + g * 587 + b * 114) / 1000;
       return brightness > 125 ? 'black' : 'white';
+    },
+    openResolveDialog() {
+      this.showResolveDialog = true;
+    },
+    initVoteState() {
+      const projectId = this.$route.params.id as string
+      const leftId    = String(this.leftAnnotation?.id||'')
+      const rightId   = String(this.rightAnnotation?.id||'')
+      const votesKey  = `votes_${projectId}_${leftId}_${rightId}`
+
+      // carrega o registo de votos ou {} vazio
+      const votesRec = JSON.parse(
+        localStorage.getItem(votesKey) || '{}'
+      ) as Record<string,'left'|'right'>
+
+      // conta quantos left/right
+      this.leftCount  = Object.values(votesRec).filter(v => v==='left').length
+      this.rightCount = Object.values(votesRec).filter(v => v==='right').length
+
+      // voto do utilizador actual (se existir)
+      this.userVotedSide = votesRec[this.currentUsername] || ''
+    },
+    confirmResolve() {
+      if (this.userVotedSide) return
+
+      const projectId = this.$route.params.id as string
+      const leftId    = String(this.leftAnnotation!.id)
+      const rightId   = String(this.rightAnnotation!.id)
+      const votesKey  = `votes_${projectId}_${leftId}_${rightId}`
+
+      // carrega, adiciona este utilizador e grava
+      const votesRec = JSON.parse(
+        localStorage.getItem(votesKey) || '{}'
+      ) as Record<string,'left'|'right'>
+      votesRec[this.currentUsername] = this.selectedSide as 'left'|'right'
+      localStorage.setItem(votesKey, JSON.stringify(votesRec))
+
+      // reinicializa contadores e estado de voto
+      this.initVoteState()
     }
   }
 });
@@ -364,8 +484,8 @@ export default Vue.extend({
   line-height: 1.5rem;
   font-family: 'Roboto', sans-serif !important;
   color: black;
-  white-space: pre-wrap; /* Preserve spaces and line breaks */
-  word-wrap: break-word; /* Break long words if necessary */
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 .label-legend {
   display: flex;

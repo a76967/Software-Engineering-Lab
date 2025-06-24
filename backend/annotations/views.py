@@ -97,17 +97,23 @@ class AnnotationView(viewsets.ModelViewSet):
         return aggregated
 
     def perform_create(self, serializer):
-        dataset_item_id = serializer.validated_data.get("dataset_item_id")
-        new_labels = self.aggregate_extracted_labels(dataset_item_id, self.request)
+        ds_id = serializer.validated_data["dataset_item_id"]
+        example = Example.objects.get(pk=ds_id)
+        new_labels = self.aggregate_extracted_labels(ds_id, self.request)
         serializer.save(
             annotator=self.request.user,
+            project=example.project,         # ← attach project
             extracted_labels=new_labels
         )
 
     def perform_update(self, serializer):
-        dataset_item_id = serializer.validated_data.get("dataset_item_id")
-        new_labels = self.aggregate_extracted_labels(dataset_item_id, self.request)
-        serializer.save(extracted_labels=new_labels)
+        ds_id = serializer.validated_data.get("dataset_item_id")
+        example = Example.objects.get(pk=ds_id)
+        new_labels = self.aggregate_extracted_labels(ds_id, self.request)
+        serializer.save(
+            project=example.project,         # ← keep project on edit
+            extracted_labels=new_labels
+        )
 
 async def getByDatasetItem(dataset_item_id: int) -> Optional[Annotation]:
     url = "/annotations/"
