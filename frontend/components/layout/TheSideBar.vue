@@ -98,8 +98,7 @@ export default {
           text: 'Relations',
           link: 'links',
           isVisible:
-            (this.isProjectAdmin || this.project.allowMemberToCreateLabelType) &&
-            this.project.canDefineRelation
+            false
         },
         {
           icon: mdiAccount,
