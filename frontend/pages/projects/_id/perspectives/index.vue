@@ -33,19 +33,6 @@
         style="margin-bottom: 1rem"
       />
 
-      <v-select
-        v-model="filters.category"
-        :items="categoryTypes"
-        item-text="text"
-        item-value="value"
-        label="Category"
-        clearable
-        dense
-        solo
-        class="ms-2"
-        style="max-width: 200px; margin-bottom: 1rem"
-      />
-
       <v-progress-circular
         v-if="isLoading"
         class="ma-3"
@@ -57,11 +44,10 @@
         {{ dbError }}
       </v-alert>
 
-      <!-- Display perspectives with checkboxes on their left -->
       <div v-if="!isLoading && !dbError" class="d-flex justify-center">
         <div style="max-width: 800px; width: 100%;">
           <div
-            v-for="item in items"
+            v-for="(item) in filteredItems"
             :key="item.id"
             class="mb-4 d-flex align-center"
           >
@@ -85,10 +71,7 @@
                 class="py-3 px-4 rounded-t-lg d-flex flex-column"
               >
                 <div class="text-h6 font-weight-medium">
-                  {{ item.user.username }}:
-                  <span v-if="item.subject">
-                    {{ item.subject }}
-                  </span>
+                  {{ item.user.username }}'s perspective nº{{ getUserPerspectiveIndex(item) }}
                 </div>
                 <div class="text-body-2">
                   {{ formatTime(item.created_at) }}
@@ -130,7 +113,7 @@
                       icon
                       small
                       color="primary"
-                      :disabled="user.username !== ann.linkedBy && !isProjectAdmin"
+                      :disabled="!canEditAnnotation(item, ann)"
                       @click="editAnnotation(item, ann)"
                     >
                       <v-icon>{{ icons.mdiPencil }}</v-icon>
@@ -138,8 +121,8 @@
                     <v-btn
                       icon
                       small
-                      :disabled="!canDeleteAnnotation(ann)"
                       color="red"
+                      :disabled="!canDeleteAnnotation(item, ann)"
                       @click="removeAnnotation(item, ann)"
                     >
                       <v-icon>{{ icons.mdiTrashCan }}</v-icon>
@@ -171,7 +154,6 @@
       </div>
     </v-card-text>
 
-    <!-- Link Annotation Dialog -->
     <v-dialog v-model="dialogLink" persistent max-width="600px">
       <v-card>
         <v-card-title>
@@ -209,7 +191,6 @@
       </v-card>
     </v-dialog>
 
-    <!-- Usa o componente DeleteDialog -->
     <delete-dialog
       v-model="dialogDelete"
       :dbError="dbError"
@@ -245,10 +226,10 @@ export default Vue.extend({
       datasetItems: [] as any[],
       annotationFetchError: "",
       currentPerspective: null as any,
-      selected: [] as any[], // holds the selected perspective(s)
+      selected: [] as any[],
       search: '',
       filters: {
-        category: '' // ← adiciona aqui
+        category: ''
       },
       options: {
         page: 1,
@@ -259,9 +240,9 @@ export default Vue.extend({
       items: [] as any[],
       total: 0,
       isLoading: false,
-      categoryTypes: [] as Array<{ text: string; value: string }>, // ← e aqui
+      categoryTypes: [] as Array<{ text: string; value: string }>,
       dbError: '',
-      isDeleting: false, // Flag para controlar o estado da deleção
+      isDeleting: false,
       icons: {
         mdiMagnify,
         mdiPencil,
@@ -281,15 +262,12 @@ export default Vue.extend({
     isProjectAdmin(): boolean {
       return (this.user.role || '').toLowerCase() === 'project_admin'
     },
-    // List perspectives that you can delete (used previously; may be retained if needed)
     deletablePerspectives(): any[] {
       return this.items.filter((item: any) => item.user.username === this.user.username)
     },
-    // Enable Edit and Delete only when exactly one perspective is selected
     canEdit(): boolean {
       return this.selected.length === 1
     },
-    // Allow deletion when one or more items are selected
     canDelete(): boolean {
       return this.selected.length > 0
     },
@@ -297,6 +275,18 @@ export default Vue.extend({
       return this.selected.length > 1
         ? "Are you sure you want to delete these perspectives?"
         : "Are you sure you want to delete this perspective?"
+    },
+    filteredItems(): any[] {
+      const term = this.search.trim().toLowerCase()
+      if (!term) return this.items
+      return this.items.filter(item => {
+        const user  = item.user.username?.toLowerCase() || ''
+        const subj  = (item.subject || '').toLowerCase()
+        const text  = (item.text    || '').toLowerCase()
+        return user.includes(term)
+            || subj.includes(term)
+            || text.includes(term)
+      })
     }
   },
   watch: {
@@ -307,17 +297,15 @@ export default Vue.extend({
       deep: true
     },
     search() {
-      this.options.page = 1
-      this.updateQuery()
     },
-    'filters.category'() { // ← dispara o filtro
+    'filters.category'() {
       this.options.page = 1
       this.updateQuery()
     }
   },
   mounted() {
     this.fetchPerspectives()
-    this.fetchCategoryTypes() // ← busca as categorias ao montar
+    this.fetchCategoryTypes()
   },
   methods: {
     goToAdd() {
@@ -333,8 +321,6 @@ export default Vue.extend({
       }
       const projectId = this.$route.params.id
       const perspective = this.selected[0]
-      // Using query parameter to pass the perspective id.
-      // Adjust if you prefer a dynamic segment route.
       this.$router.push(
         this.localePath(
           `/projects/${projectId}/perspectives/edit?perspectiveId=${perspective.id}`
@@ -382,12 +368,9 @@ export default Vue.extend({
         offset: ((this.options.page ? this.options.page - 1 : 0) *
           this.options.itemsPerPage)
       }
-      if (this.search) {
-        query.q = this.search
-      }
-      if (this.filters.category) query.category = this.filters.category // ← envia o filtro
+      if (this.filters.category) query.category = this.filters.category
       this.isLoading = true
-      this.dbError = '' // Clear previous DB error
+      this.dbError = ''
       axios.get(`/v1/projects/${projectId}/perspectives/`, { params: query })
         .then((_response: any) => {
           const data = _response.data
@@ -414,7 +397,6 @@ export default Vue.extend({
             'Error fetching perspectives:',
             error.response || error.message
           )
-          // Set error message for display in v-alert
           this.dbError = "Can't access our database!"
           this.items = []
         })
@@ -521,12 +503,13 @@ export default Vue.extend({
       }
       const annotation = {
         id: datasetItem.id,
-        uniqueId: `${datasetItem.id}-${new Date().getTime()}`,
+        uniqueId: `${datasetItem.id}-${Date.now()}`,
         text: truncatedText,
         label,
         categoryId,
         category: fullCategory,
-        linkedBy: this.user.username
+        linkedBy: this.user.username,
+        linkedByRole: this.user.role
       }
       this.items.forEach((item: any, index: number) => {
         if (item.id === this.currentPerspective.id) {
@@ -589,9 +572,53 @@ export default Vue.extend({
         (ann: any) => ann.id === item.id
       )
     },
+    canEditAnnotation(perspective: any, ann: any): boolean {
+      const role   = this.user.role
+      const author = perspective.user.username
+      const by     = ann.linkedBy
+      const byRole = ann.linkedByRole || 'annotator'
+      // annotator only on own perspective and own links
+      if (role === 'annotator') {
+        return author === this.user.username && by === this.user.username
+      }
+      // project_admin any non-admin link
+      if (role === 'project_admin') {
+        return byRole !== 'project_admin'
+      }
+      return false
+    },
+    canDeleteAnnotation(perspective: any, ann: any): boolean {
+      const role = this.user.role
+      const author = perspective.user.username
+      const byRole = ann.linkedByRole || 'annotator'
+      // annotator can remove ann. in own perspective if by annotator
+      if (role === 'annotator') {
+        return author === this.user.username && byRole === 'annotator'
+      }
+      // project_admin can remove any non-admin annotation
+      if (role === 'project_admin') {
+        return byRole !== 'project_admin'
+      }
+      return false
+    },
+    removeAnnotation(item: any, ann: any) {
+      if (!this.canDeleteAnnotation(item, ann)) {
+        console.error("No permission to delete this annotation.")
+        return
+      }
+      const updated = item.linkedAnnotations.filter((a: any) => a.uniqueId !== ann.uniqueId)
+      const idx = this.items.findIndex((it: any) => it.id === item.id)
+      this.$set(this.items, idx, { ...item, linkedAnnotations: updated })
+      axios.patch(
+        `/v1/projects/${this.$route.params.id}/perspectives/${item.id}/`,
+        { linkedAnnotations: updated }
+      )
+        .then(() => this.fetchPerspectives())
+        .catch(err => console.error(err))
+    },
     editAnnotation(item: any, ann: any) {
-      if (this.user.username !== ann.linkedBy && !this.isProjectAdmin) {
-        console.error("Only project admins or the owner of the annotation can edit linked annotations.")
+      if (!this.canEditAnnotation(item, ann)) {
+        console.error("No permission to edit this annotation.")
         return
       }
       const projectId = this.$route.params.id
@@ -602,53 +629,6 @@ export default Vue.extend({
         path: this.localePath(link),
         query: { page: page.toString() }
       })
-    },
-    canDeleteAnnotation(annotation: any): boolean {
-      const role = this.user.role
-      if (role === 'project_admin') {
-        return true
-      } else if (role === 'annotation_approver') {
-        return (
-          annotation.linkedBy === this.user.username ||
-          annotation.linkedByRole === 'annotator'
-        )
-      } else if (role === 'annotator') {
-        return annotation.linkedBy === this.user.username
-      }
-      return false
-    },
-    removeAnnotation(item: any, ann: any) {
-      if (!this.canDeleteAnnotation(ann)) {
-        console.error("You do not have permission to delete this annotation.")
-        return
-      }
-      const updatedAnnotations = item.linkedAnnotations.filter(
-        (a: any) => a.uniqueId !== ann.uniqueId
-      )
-      const index = this.items.findIndex((it: any) => it.id === item.id)
-      if (index !== -1) {
-        this.$set(this.items, index, {
-          ...item,
-          linkedAnnotations: updatedAnnotations
-        })
-      }
-      axios.patch(
-        `/v1/projects/${this.$route.params.id}/perspectives/${item.id}/`,
-        { linkedAnnotations: updatedAnnotations }
-      )
-        .then((_response: any) => {
-          this.fetchPerspectives()
-          this.$router.push({
-            path: '/message',
-            query: {
-              message: 'Annotation removed successfully!',
-              redirect: `/projects/${this.$route.params.id}/perspectives`
-            }
-          })
-        })
-        .catch((error: any) => {
-          console.error("Error removing annotation:", error.response || error.message)
-        })
     },
     viewAnnotation(item: any, ann: any) {
       const projectId = this.$route.params.id
@@ -673,7 +653,6 @@ export default Vue.extend({
       return perspective.subject || perspective.text || 'Perspective'
     },
     selectPerspective(item: any) {
-      // If item is already selected, deselect it; otherwise, select it
       if (this.isSelected(item)) {
         this.selected = []
       } else {
@@ -682,6 +661,12 @@ export default Vue.extend({
     },
     isSelected(item: any): boolean {
       return this.selected.length === 1 && this.selected[0].id === item.id
+    },
+    getUserPerspectiveIndex(item: any): number {
+      const userItems = this.filteredItems
+        .filter(i => i.user.username === item.user.username)
+      const pos = userItems.findIndex(i => i.id === item.id)
+      return pos >= 0 ? pos + 1 : 0
     }
   }
 })

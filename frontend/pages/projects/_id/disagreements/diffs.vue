@@ -133,7 +133,6 @@
             <span v-else>Tie</span>
           </div>
 
-          <!-- escolha -->
           <v-radio-group 
             v-model="selectedSide" 
             row 
@@ -184,10 +183,11 @@
         dark
         fab
         small
+        class="comment-btn"
         @click="drawer = true"
         style="top: 50vh; transform: translateY(-50%);"
       >
-        <v-icon>mdi-comment-plus</v-icon>
+        <span class="comment-text">COMMENT</span>
       </v-btn>
 
       <v-navigation-drawer
@@ -198,47 +198,60 @@
         temporary
         width="300"
         elevation="2"
+        class="d-flex flex-column pa-0"
       >
         <v-toolbar flat dense>
-          <v-toolbar-title>Comentários</v-toolbar-title>
-          <v-spacer/>
-          <v-btn icon @click="drawer = false">
-            <v-icon>mdi-close</v-icon>
-          </v-btn>
+          <v-toolbar-title>Comments</v-toolbar-title>
         </v-toolbar>
         <v-divider/>
 
-        <v-list dense two-line subheader>
-          <v-subheader>Últimos comentários</v-subheader>
+        <v-list dense two-line subheader class="comments-list">
+          <v-subheader>Last comments</v-subheader>
           <v-list-item
             v-for="c in comments"
             :key="c.id"
           >
             <v-list-item-content>
-              <v-list-item-title>{{ c.text }}</v-list-item-title>
-              <v-list-item-subtitle>
-                {{ new Date(c.created_at).toLocaleString() }}</v-list-item-subtitle>
+              <v-list-item-title>
+                <strong>{{ c.user_name }}</strong>
+                <span class="grey--text text--darken-1" style="font-size:0.75rem; margin-left:4px;">
+                  {{ formatDate(c.created_at) }}
+                </span>
+              </v-list-item-title>
+              <v-list-item-subtitle>{{ c.text }}</v-list-item-subtitle>
             </v-list-item-content>
           </v-list-item>
         </v-list>
 
         <v-divider class="my-2"/>
-        <v-card-text>
-          <v-textarea
-            v-model="commentText"
-            label="Escreva um comentário"
-            auto-grow
-            rows="3"
-          />
-          <v-btn
-            class="mt-4"
-            block
-            color="primary"
-            :disabled="!commentText.trim()"
-            @click="sendComment"
-          >
-            Enviar
-          </v-btn>
+        <v-card-text class="form-container">
+          <v-form @submit.prevent="sendComment">
+            <v-textarea
+              v-model="commentText"
+              label="Write a comment here…"
+              auto-grow
+              rows="3"
+              outlined
+            />
+            <v-row class="mt-4" dense>
+              <v-col cols="6">
+                <v-btn
+                  block
+                  color="primary"
+                  type="submit"
+                  :disabled="!commentText.trim()"
+                >Send</v-btn>
+              </v-col>
+              <v-col cols="6">
+                <v-btn
+                  block
+                  text
+                  color="primary"
+                  @click="drawer = false"
+                >Cancel</v-btn>
+              </v-col>
+            </v-row>
+          </v-form>
         </v-card-text>
       </v-navigation-drawer>
     </div>
@@ -249,7 +262,7 @@
 // @ts-nocheck
 import Vue from 'vue'
 import axios from 'axios'
-import { mdiSwapHorizontal } from '@mdi/js'
+import { mdiSwapHorizontal, mdiChatOutline } from '@mdi/js'
 import { mapState } from 'vuex'
 
 export default Vue.extend({
@@ -264,7 +277,7 @@ export default Vue.extend({
       rightIndex: 1,
       isLoading: false,
       error: '',
-      icons: { mdiSwapHorizontal },
+      icons: { mdiSwapHorizontal, mdiChatOutline },
       isRTL: false,
       showDifferences: false,
       showResolveDialog: false,
@@ -274,7 +287,12 @@ export default Vue.extend({
       rightCount: 0,
       drawer: false,
       commentText: '',
-      comments: [] as Array<{ id: number, text: string, created_at: string }>
+      comments: [] as Array<{
+        id: number,
+        text: string,
+        created_at: string,
+        user_name: string
+      }>
     }
   },
 
@@ -319,6 +337,7 @@ export default Vue.extend({
     }
   },
   async mounted() {
+    this.loadCachedComments()
     await this.fetchAnnotations()
     this.initVoteState()
     await this.fetchComments()
@@ -393,18 +412,39 @@ export default Vue.extend({
         this.isLoading = false;
       }
     },
+    cacheKey(): string {
+      const pid = this.$route.params.id   as string
+      const ex  = this.$route.query.left  as string
+      return `comments_${pid}_${ex}`
+    },
+    loadCachedComments() {
+      try {
+        this.comments = JSON.parse(
+          localStorage.getItem(this.cacheKey()) || '[]'
+        )
+      } catch {
+        this.comments = []
+      }
+    },
+    saveCommentsToCache(list: any[]) {
+      localStorage.setItem(this.cacheKey(), JSON.stringify(list))
+    },
     async fetchComments() {
-      const projectId = this.$route.params.id as string
-      const exampleId = this.$route.query.left as string
       try {
         const res = await axios.get(
-          `/v1/projects/${projectId}/comments/`,
-          { params: { example: exampleId } }
+          `/v1/projects/${this.$route.params.id}/comments/`,
+          { params: { example: this.$route.query.left } }
         )
-        this.comments = res.data.results || res.data
-      } catch (err) {
-        console.warn('Não foi possível carregar comentários', err)
-        this.comments = []
+        const list = (res.data.results || res.data).map((c: any) => ({
+          id:         c.id,
+          text:       c.text,
+          created_at: c.created_at,
+          user_name:  c.user?.username || c.username || 'Unknown'
+        }))
+        this.comments = list
+        this.saveCommentsToCache(list)
+      } catch {
+        this.loadCachedComments()
       }
     },
     generateAnnotatedText(annotation: AnnotationTransformed, other: AnnotationTransformed): string {
@@ -543,18 +583,42 @@ export default Vue.extend({
 
       this.initVoteState()
     },
+    formatDate(dt: string): string {
+      return new Date(dt).toLocaleString('en-US', {
+        month: '2-digit',
+        day:   '2-digit',
+        year:  'numeric',
+        hour:        '2-digit',
+        minute:      '2-digit',
+        hour12:      false
+      })
+    },
     async sendComment() {
-      const projectId = this.$route.params.id as string
-      const exampleId = this.$route.query.left as string
+      const text = this.commentText.trim()
+      if (!text) return
+
+      const localC = {
+        id:         Date.now(),
+        text,
+        created_at: new Date().toISOString(),
+        user_name:  this.currentUsername || 'Me'
+      }
+      this.comments.unshift(localC)
+      this.saveCommentsToCache(this.comments)
+      this.commentText = ''
+
       try {
-        await axios.post(
-          `/v1/projects/${projectId}/comments/`,
-          { example: exampleId, text: this.commentText }
+        const { data } = await axios.post(
+          `/v1/projects/${this.$route.params.id}/comments/`,
+          { example: this.$route.query.left, text }
         )
-        this.commentText = ''
-        await this.fetchComments()
+        Object.assign(localC, {
+          id:         data.id,
+          created_at: data.created_at
+        })
+        this.saveCommentsToCache(this.comments)
       } catch (err) {
-        console.error('Erro ao enviar comentário', err)
+        console.warn('Não foi possível sincronizar:', err)
       }
     }
   }
@@ -613,5 +677,40 @@ export default Vue.extend({
 }
 .non-clickable {
   pointer-events: none;
+}
+.comment-btn {
+  width: 48px !important;
+  height: 48px !important;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  right: 14px !important;
+}
+
+.comment-text {
+  font-size: 0.45rem;
+  line-height: 1;
+  color: white;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: normal;
+  word-break: break-word;
+}
+.cancel-btn {
+  color: black !important;
+  text-transform: none;
+  justify-content: flex-start;
+}
+
+.comments-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.form-container {
+  flex-shrink: 0;
+  padding: 0 16px 16px;
 }
 </style>
