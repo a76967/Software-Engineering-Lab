@@ -72,23 +72,6 @@
               />
             </v-col>
 
-            <v-col cols="12" sm="6">
-              <v-select
-                v-model="filters.perspective"
-                :items="perspectives"
-                label="Perspective"
-                clearable
-              />
-            </v-col>
-
-            <v-col cols="12" sm="6">
-              <v-select
-                v-model="filters.resolution"
-                :items="resolutionStates"
-                label="Resolution State"
-                clearable
-              />
-            </v-col>
           </v-row>
 
           <v-row>
@@ -189,7 +172,6 @@ import {
   VDatePicker,
   VTextField,
   VAutocomplete,
-  VSelect,
   VBtn,
   VSpacer,
   VCardActions,
@@ -215,7 +197,6 @@ export default Vue.extend({
     VDatePicker,
     VTextField,
     VAutocomplete,
-    VSelect,
     VBtn,
     VSpacer,
     VCardActions,
@@ -230,13 +211,9 @@ export default Vue.extend({
       filters: {
         dateRange: [] as string[],
         dateRangeText: '',
-        annotators: [] as number[],
-        perspective: '',
-        resolution: ''
+        annotators: [] as number[]
       },
       users: [] as Array<{ id: number; name: string }>,
-      perspectives: ['Portugal', 'Generation X', 'Generation Y', 'Generation Z'],
-      resolutionStates: ['Before Rules', 'After Rules'],
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as Array<any>,
       historyData: [] as any[],
@@ -244,8 +221,7 @@ export default Vue.extend({
         { text: 'Timestamp', value: 'timestamp' },
         { text: 'Annotator', value: 'user' },
         { text: 'Action', value: 'action' },
-        { text: 'Details', value: 'details' },
-        { text: 'Perspective', value: 'perspective' }
+        { text: 'Details', value: 'details' }
       ],
       showNoAnnotationsError: false as boolean
     }
@@ -258,9 +234,7 @@ export default Vue.extend({
     canGenerate(): boolean {
       return (
         this.filters.dateRange.length === 2 &&
-        this.filters.annotators.length > 0 &&
-        !!this.filters.perspective &&
-        !!this.filters.resolution
+        this.filters.annotators.length > 0
       )
     }
   },
@@ -333,8 +307,7 @@ export default Vue.extend({
         timestamp: a.created_at,
         user: this.users.find(u=>u.id===a.annotator)?.name||String(a.annotator),
         action: 'Created',
-        details: JSON.stringify(a.extracted_labels||a.additional_info||{}),
-        perspective: this.filters.perspective||'All'
+        details: JSON.stringify(a.extracted_labels||a.additional_info||{})
       }))
 
       this.loading = false
@@ -343,8 +316,6 @@ export default Vue.extend({
       this.filters.dateRange = []
       this.filters.dateRangeText = ''
       this.filters.annotators = []
-      this.filters.perspective = ''
-      this.filters.resolution = ''
       this.filteredAnnotations = []
       this.historyData = []
     },
@@ -388,10 +359,6 @@ export default Vue.extend({
 
     doc.setFontSize(12)
     doc.setTextColor('#333')
-    doc.text(`Perspective: ${this.filters.perspective}`, margin, cursorY)
-    cursorY += lineHeight
-    doc.text(`Resolution: ${this.filters.resolution}`, margin, cursorY)
-    cursorY += lineHeight * 1.5
 
     const annotators = this.users
       .filter(u => this.filters.annotators.includes(u.id))
