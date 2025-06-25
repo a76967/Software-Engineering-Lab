@@ -177,8 +177,8 @@ export default Vue.extend({
         },
         plugins: {
           legend: {
-            display: false,   // ← força remover qualquer legenda
-            labels: { filter: () => false } // opcional: filtra tudo
+            display: false,
+            labels: { filter: () => false }
           },
           tooltip: { enabled: true }
         }
