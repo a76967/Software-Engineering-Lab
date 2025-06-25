@@ -32,6 +32,20 @@
         filled
         style="margin-bottom: 1rem"
       />
+
+      <v-select
+        v-model="filters.category"
+        :items="categoryTypes"
+        item-text="text"
+        item-value="value"
+        label="Category"
+        clearable
+        dense
+        solo
+        class="ms-2"
+        style="max-width: 200px; margin-bottom: 1rem"
+      />
+
       <v-progress-circular
         v-if="isLoading"
         class="ma-3"
@@ -233,6 +247,9 @@ export default Vue.extend({
       currentPerspective: null as any,
       selected: [] as any[], // holds the selected perspective(s)
       search: '',
+      filters: {
+        category: '' // ← adiciona aqui
+      },
       options: {
         page: 1,
         itemsPerPage: 10,
@@ -242,7 +259,7 @@ export default Vue.extend({
       items: [] as any[],
       total: 0,
       isLoading: false,
-      categoryTypes: [] as any[],
+      categoryTypes: [] as Array<{ text: string; value: string }>, // ← e aqui
       dbError: '',
       isDeleting: false, // Flag para controlar o estado da deleção
       icons: {
@@ -292,11 +309,15 @@ export default Vue.extend({
     search() {
       this.options.page = 1
       this.updateQuery()
+    },
+    'filters.category'() { // ← dispara o filtro
+      this.options.page = 1
+      this.updateQuery()
     }
   },
   mounted() {
     this.fetchPerspectives()
-    this.fetchCategoryTypes()
+    this.fetchCategoryTypes() // ← busca as categorias ao montar
   },
   methods: {
     goToAdd() {
@@ -364,6 +385,7 @@ export default Vue.extend({
       if (this.search) {
         query.q = this.search
       }
+      if (this.filters.category) query.category = this.filters.category // ← envia o filtro
       this.isLoading = true
       this.dbError = '' // Clear previous DB error
       axios.get(`/v1/projects/${projectId}/perspectives/`, { params: query })

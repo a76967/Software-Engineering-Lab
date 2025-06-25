@@ -55,10 +55,8 @@
           </v-col>
         </v-row>
 
-        <div
-          class="rules-grid"
-          :style="{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }"
-        >
+        <!-- 1) Lista vertical -->
+        <div class="rules-list">
           <div
             v-for="(cell, idx) in gridItems"
             :key="idx"
@@ -143,7 +141,7 @@ export default Vue.extend({
     addRule() {
       const txt = this.newRule.trim()
       if (!txt || txt.length > this.charLimit) return
-      this.rules.push(txt)
+      this.rules.unshift(txt)   // insere no início em vez do fim
       this.newRule = ''
     },
 
@@ -177,14 +175,16 @@ export default Vue.extend({
 </script>
 
 <style scoped>
-.rules-grid {
-  display: grid;
+.rules-list {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   margin-top: 16px;
 }
 
+/* mantém as regras visuais das células */
 .rule-cell {
-  border: 1px solid rgba(0, 0, 0, 0.12);
+  border: 1px solid rgba(0,0,0,0.12);
   border-radius: 4px;
   padding: 12px;
   min-height: 80px;
@@ -194,28 +194,12 @@ export default Vue.extend({
   background-color: #fafafa;
   transition: background-color 0.2s;
 }
-
 .rule-cell.empty {
   background-color: #e0e0e0;
 }
-
 .rule-text {
   font-size: 0.95rem;
   text-align: center;
   word-break: break-word;
-}
-
-::v-deep .theme--dark .rule-cell {
-  background-color: #424245 !important;
-  border-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-::v-deep .theme--dark .rule-cell.empty {
-  background-color: #2e2e33 !important;
-}
-
-.add-btn {
-  width: 100%;
-  margin-left: 0.5vw;
 }
 </style>

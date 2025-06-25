@@ -1,4 +1,5 @@
 <template>
+<<<<<<< HEAD
   <v-card>
     <v-card-title class="black--text text-center">
       <span class="headline">Differences</span>
@@ -117,26 +118,252 @@
 
     <!-- diálogo de resolução -->
     <v-dialog v-model="showResolveDialog" max-width="400px">
+=======
+  <div class="diffs-container">
+    <div id="diffs-wrapper" style="position: relative;">
+>>>>>>> origin/DoccanaProject
       <v-card>
-        <v-card-title class="headline">Solve Disagreement</v-card-title>
+        <v-card-title class="black--text text-center">
+          <span class="headline">Differences</span>
+          <v-chip-group column>
+            <v-chip
+              v-for="(label, idx) in allLabels"
+              :key="idx"
+              :color="label.color"
+              :text-color="contrastColor(label.color)"
+              small
+              class="ma-1 non-clickable"
+            >
+              {{ label.text }}
+            </v-chip>
+          </v-chip-group>
+        </v-card-title>
         <v-card-text>
-          <v-radio-group
-            v-model="selectedSide"
-            row
-            class="justify-space-between"
+          <v-progress-circular
+            v-if="isLoading"
+            indeterminate
+            color="primary"
+            class="ma-3"
+          />
+          <v-alert v-if="error" type="error" dense class="mb-4">
+            {{ error }}
+          </v-alert>
+          <div v-if="!isLoading && annotations.length < 2">
+            <p>Not enough annotations to compare.</p>
+          </div>
+          <div v-if="!isLoading && annotations.length >= 2" class="diff-container">
+
+            <v-card class="diff-card" outlined>
+              <v-card-title class="primary white--text text-center">
+                Left
+              </v-card-title>
+              <v-card-text class="diff-canvas">
+                <div
+                  v-if="leftAnnotation"
+                  class="diff-annotation-text"
+                  v-html="formattedLeftText"
+                ></div>
+              </v-card-text>
+              <v-card-actions class="justify-center">
+                <v-btn
+                  small
+                  :disabled="
+                    navigationDisabled ||
+                    leftIndex === 0
+                  "
+                  @click="prevLeft"
+                >
+                  Prev
+                </v-btn>
+                <v-btn
+                  small
+                  :disabled="
+                    navigationDisabled ||
+                    leftIndex === annotations.length - 1
+                  "
+                  @click="nextLeft"
+                >
+                  Next
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+
+            <div class="switch-button">
+              <v-btn icon @click="swapAnnotations">
+                <v-icon>{{ icons.mdiSwapHorizontal }}</v-icon>
+              </v-btn>
+            </div>
+
+            <v-card class="diff-card" outlined>
+              <v-card-title class="primary white--text text-center">
+                Right
+              </v-card-title>
+              <v-card-text class="diff-canvas">
+                <div
+                  v-if="rightAnnotation"
+                  class="diff-annotation-text"
+                  v-html="formattedRightText"
+                ></div>
+              </v-card-text>
+              <v-card-actions class="justify-center">
+                <v-btn
+                  small
+                  :disabled="
+                    navigationDisabled ||
+                    rightIndex === 0
+                  "
+                  @click="prevRight"
+                >
+                  Prev
+                </v-btn>
+                <v-btn
+                  small
+                  :disabled="
+                    navigationDisabled ||
+                    rightIndex === annotations.length - 1
+                  "
+                  @click="nextRight"
+                >
+                  Next
+                </v-btn>
+              </v-card-actions>
+            </v-card>
+          </div>
+          <v-checkbox v-model="showDifferences" 
+          label="Toggle Differences" class="mt-2"></v-checkbox>
+        </v-card-text>
+
+        <v-card-text>
+          <div class="text-center mb-4">
+            <div>
+              Left side: 
+              <strong>{{ leftCount }}</strong>
+              <span v-if="userVotedSide==='left'"> (You) </span>
+            </div>
+            <div>
+              Right side: 
+              <strong>{{ rightCount }}</strong>
+              <span v-if="userVotedSide==='right'"> (You) </span>
+            </div>
+          </div>
+
+          <div class="text-center mb-2">
+            <strong>Winner: </strong>
+            <span v-if="winner==='left'">Left side</span>
+            <span v-else-if="winner==='right'">Right side</span>
+            <span v-else>Tie</span>
+          </div>
+
+          <!-- escolha -->
+          <v-radio-group 
+            v-model="selectedSide" 
+            row 
+            :disabled="!!userVotedSide"
           >
-            <v-radio label="Left side" value="left" />
+            <v-radio label="Left side"  value="left"  />
             <v-radio label="Right side" value="right" />
           </v-radio-group>
         </v-card-text>
+
         <v-card-actions>
-          <v-spacer />
-          <v-btn text @click="showResolveDialog = false">Cancel</v-btn>
-          <v-btn color="primary" @click="confirmResolve">Confirm</v-btn>
+          <v-spacer/>
+          <v-btn 
+            color="primary" 
+            @click="confirmResolve"
+            :disabled="!selectedSide || !!userVotedSide"
+          >
+            Solve
+          </v-btn>
         </v-card-actions>
+
+        <v-dialog v-model="showResolveDialog" max-width="400px">
+          <v-card>
+            <v-card-title class="headline">Solve Disagreement</v-card-title>
+            <v-card-text>
+              <v-radio-group
+                v-model="selectedSide"
+                row
+                class="justify-space-between"
+              >
+                <v-radio label="Left side" value="left" />
+                <v-radio label="Right side" value="right" />
+              </v-radio-group>
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn text @click="showResolveDialog = false">Cancel</v-btn>
+              <v-btn color="primary" @click="confirmResolve">Confirm</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
       </v-card>
-    </v-dialog>
-  </v-card>
+
+      <v-btn
+        fixed
+        right
+        color="primary"
+        dark
+        fab
+        small
+        @click="drawer = true"
+        style="top: 50vh; transform: translateY(-50%);"
+      >
+        <v-icon>mdi-comment-plus</v-icon>
+      </v-btn>
+
+      <v-navigation-drawer
+        v-model="drawer"
+        attach="#diffs-wrapper"
+        absolute
+        right
+        temporary
+        width="300"
+        elevation="2"
+      >
+        <v-toolbar flat dense>
+          <v-toolbar-title>Comentários</v-toolbar-title>
+          <v-spacer/>
+          <v-btn icon @click="drawer = false">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
+        </v-toolbar>
+        <v-divider/>
+
+        <v-list dense two-line subheader>
+          <v-subheader>Últimos comentários</v-subheader>
+          <v-list-item
+            v-for="c in comments"
+            :key="c.id"
+          >
+            <v-list-item-content>
+              <v-list-item-title>{{ c.text }}</v-list-item-title>
+              <v-list-item-subtitle>
+                {{ new Date(c.created_at).toLocaleString() }}</v-list-item-subtitle>
+            </v-list-item-content>
+          </v-list-item>
+        </v-list>
+
+        <v-divider class="my-2"/>
+        <v-card-text>
+          <v-textarea
+            v-model="commentText"
+            label="Escreva um comentário"
+            auto-grow
+            rows="3"
+          />
+          <v-btn
+            class="mt-4"
+            block
+            color="primary"
+            :disabled="!commentText.trim()"
+            @click="sendComment"
+          >
+            Enviar
+          </v-btn>
+        </v-card-text>
+      </v-navigation-drawer>
+    </div>
+  </div>
 </template>
 
 <script lang="ts">
@@ -146,37 +373,15 @@ import axios from 'axios'
 import { mdiSwapHorizontal } from '@mdi/js'
 import { mapState } from 'vuex'
 
-interface AnnotationBackend {
-  id: number;
-  extracted_labels: {
-    text: string;
-    spans: Array<{ label: number; start_offset: number; end_offset: number }>;
-    labelTypes: Array<{
-      id: number;
-      text: string;
-      background_color: string;
-      text_color?: string;
-      suffixKey?: string;
-    }>;
-  };
-}
-
-interface AnnotationTransformed {
-  id: number;
-  text: string;
-  entities: Array<{
-    id: number;
-    start: number;
-    end: number;
-    label: { id: number; text: string; color: string; textColor: string; suffixKey: string };
-  }>;
-  entityLabels: Array<{ id: number; text: string; color: string;
-    textColor: string; suffixKey: string }>;
-}
-
 export default Vue.extend({
   name: 'DiffsPage',
+<<<<<<< HEAD
   layout: 'project',
+=======
+
+  layout: 'project',
+
+>>>>>>> origin/DoccanaProject
   data() {
     return {
       annotations: [] as AnnotationTransformed[],
@@ -191,9 +396,16 @@ export default Vue.extend({
       selectedSide: '' as 'left'|'right'|'',
       userVotedSide: '' as 'left'|'right'|'',
       leftCount: 0,
-      rightCount: 0
+      rightCount: 0,
+      drawer: false,
+      commentText: '',
+      comments: [] as Array<{ id: number, text: string, created_at: string }>
     }
   },
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/DoccanaProject
   computed: {
     ...mapState('auth', {
       currentUsername: (s: any) => s.username
@@ -235,8 +447,9 @@ export default Vue.extend({
     }
   },
   async mounted() {
-    await this.fetchAnnotations();
-    this.initVoteState();
+    await this.fetchAnnotations()
+    this.initVoteState()
+    await this.fetchComments()
   },
   methods: {
     async fetchAnnotations() {
@@ -308,6 +521,20 @@ export default Vue.extend({
         this.isLoading = false;
       }
     },
+    async fetchComments() {
+      const projectId = this.$route.params.id as string
+      const exampleId = this.$route.query.left as string
+      try {
+        const res = await axios.get(
+          `/v1/projects/${projectId}/comments/`,
+          { params: { example: exampleId } }
+        )
+        this.comments = res.data.results || res.data
+      } catch (err) {
+        console.warn('Não foi possível carregar comentários', err)
+        this.comments = []
+      }
+    },
     generateAnnotatedText(annotation: AnnotationTransformed, other: AnnotationTransformed): string {
       const escapeHTML = (str: string) =>
         str.replace(/&/g, "&amp;")
@@ -315,7 +542,6 @@ export default Vue.extend({
            .replace(/>/g, "&gt;");
       const text = annotation.text;
 
-      // Gather all unique boundaries (start and end positions) from both annotations
       const boundaries = new Set<number>();
       annotation.entities.forEach(span => {
         boundaries.add(span.start);
@@ -420,16 +646,13 @@ export default Vue.extend({
       const rightId   = String(this.rightAnnotation?.id||'')
       const votesKey  = `votes_${projectId}_${leftId}_${rightId}`
 
-      // carrega o registo de votos ou {} vazio
       const votesRec = JSON.parse(
         localStorage.getItem(votesKey) || '{}'
       ) as Record<string,'left'|'right'>
 
-      // conta quantos left/right
       this.leftCount  = Object.values(votesRec).filter(v => v==='left').length
       this.rightCount = Object.values(votesRec).filter(v => v==='right').length
 
-      // voto do utilizador actual (se existir)
       this.userVotedSide = votesRec[this.currentUsername] || ''
     },
     confirmResolve() {
@@ -440,15 +663,27 @@ export default Vue.extend({
       const rightId   = String(this.rightAnnotation!.id)
       const votesKey  = `votes_${projectId}_${leftId}_${rightId}`
 
-      // carrega, adiciona este utilizador e grava
       const votesRec = JSON.parse(
         localStorage.getItem(votesKey) || '{}'
       ) as Record<string,'left'|'right'>
       votesRec[this.currentUsername] = this.selectedSide as 'left'|'right'
       localStorage.setItem(votesKey, JSON.stringify(votesRec))
 
-      // reinicializa contadores e estado de voto
       this.initVoteState()
+    },
+    async sendComment() {
+      const projectId = this.$route.params.id as string
+      const exampleId = this.$route.query.left as string
+      try {
+        await axios.post(
+          `/v1/projects/${projectId}/comments/`,
+          { example: exampleId, text: this.commentText }
+        )
+        this.commentText = ''
+        await this.fetchComments()
+      } catch (err) {
+        console.error('Erro ao enviar comentário', err)
+      }
     }
   }
 });
@@ -482,10 +717,6 @@ export default Vue.extend({
   font-size: 1rem !important;
   font-weight: 500;
   line-height: 1.5rem;
-  font-family: 'Roboto', sans-serif !important;
-  color: black;
-  white-space: pre-wrap;
-  word-wrap: break-word;
 }
 .label-legend {
   display: flex;
