@@ -1,127 +1,6 @@
 <template>
-<<<<<<< HEAD
-  <v-card>
-    <v-card-title class="black--text text-center">
-      <span class="headline">Differences</span>
-      <v-chip-group column>
-        <v-chip
-          v-for="(label, idx) in allLabels"
-          :key="idx"
-          :color="label.color"
-          :text-color="contrastColor(label.color)"
-          small
-          class="ma-1 non-clickable"
-        >
-          {{ label.text }}
-        </v-chip>
-      </v-chip-group>
-    </v-card-title>
-    <v-card-text>
-      <v-progress-circular
-        v-if="isLoading"
-        indeterminate
-        color="primary"
-        class="ma-3"
-      />
-      <v-alert v-if="error" type="error" dense class="mb-4">
-        {{ error }}
-      </v-alert>
-      <div v-if="!isLoading && annotations.length < 2">
-        <p>Not enough annotations to compare.</p>
-      </div>
-      <div v-if="!isLoading && annotations.length >= 2" class="diff-container">
-
-        <v-card class="diff-card" outlined>
-          <v-card-title class="primary white--text text-center">
-            Left
-          </v-card-title>
-          <v-card-text class="diff-canvas">
-            <div v-if="leftAnnotation" class="diff-annotation-text"
-              v-html="formattedLeftText"></div>
-          </v-card-text>
-          <v-card-actions class="justify-center">
-            <v-btn small :disabled="navigationDisabled ||
-            leftIndex === 0" @click="prevLeft">Prev</v-btn>
-            <v-btn small :disabled="navigationDisabled ||
-            leftIndex === annotations.length - 1" @click="nextLeft">Next</v-btn>
-          </v-card-actions>
-        </v-card>
-
-        <div class="switch-button">
-          <v-btn icon @click="swapAnnotations">
-            <v-icon>{{ icons.mdiSwapHorizontal }}</v-icon>
-          </v-btn>
-        </div>
-
-        <v-card class="diff-card" outlined>
-          <v-card-title class="primary white--text text-center">
-            Right
-          </v-card-title>
-          <v-card-text class="diff-canvas">
-            <div v-if="rightAnnotation" class="diff-annotation-text"
-              v-html="formattedRightText"></div>
-          </v-card-text>
-          <v-card-actions class="justify-center">
-            <v-btn small :disabled="navigationDisabled ||
-            rightIndex === 0" @click="prevRight">Prev</v-btn>
-            <v-btn small :disabled="navigationDisabled ||
-            rightIndex === annotations.length - 1" @click="nextRight">Next</v-btn>
-          </v-card-actions>
-        </v-card>
-      </div>
-      <v-checkbox v-model="showDifferences" label="Toggle Differences" class="mt-2"></v-checkbox>
-    </v-card-text>
-
-    <!-- indicadores de votos -->
-    <v-card-text>
-      <div class="text-center mb-4">
-        <div>
-          Left side: 
-          <strong>{{ leftCount }}</strong>
-          <span v-if="userVotedSide==='left'"> (You) </span>
-        </div>
-        <div>
-          Right side: 
-          <strong>{{ rightCount }}</strong>
-          <span v-if="userVotedSide==='right'"> (You) </span>
-        </div>
-      </div>
-
-      <div class="text-center mb-2">
-        <strong>Winner: </strong>
-        <span v-if="winner==='left'">Left side</span>
-        <span v-else-if="winner==='right'">Right side</span>
-        <span v-else>Tie</span>
-      </div>
-
-      <!-- escolha -->
-      <v-radio-group 
-        v-model="selectedSide" 
-        row 
-        :disabled="!!userVotedSide"
-      >
-        <v-radio label="Left side"  value="left"  />
-        <v-radio label="Right side" value="right" />
-      </v-radio-group>
-    </v-card-text>
-
-    <v-card-actions>
-      <v-spacer/>
-      <v-btn 
-        color="primary" 
-        @click="confirmResolve"
-        :disabled="!selectedSide || !!userVotedSide"
-      >
-        Solve
-      </v-btn>
-    </v-card-actions>
-
-    <!-- diálogo de resolução -->
-    <v-dialog v-model="showResolveDialog" max-width="400px">
-=======
   <div class="diffs-container">
     <div id="diffs-wrapper" style="position: relative;">
->>>>>>> origin/DoccanaProject
       <v-card>
         <v-card-title class="black--text text-center">
           <span class="headline">Differences</span>
@@ -375,13 +254,9 @@ import { mapState } from 'vuex'
 
 export default Vue.extend({
   name: 'DiffsPage',
-<<<<<<< HEAD
-  layout: 'project',
-=======
 
   layout: 'project',
 
->>>>>>> origin/DoccanaProject
   data() {
     return {
       annotations: [] as AnnotationTransformed[],
@@ -402,10 +277,6 @@ export default Vue.extend({
       comments: [] as Array<{ id: number, text: string, created_at: string }>
     }
   },
-<<<<<<< HEAD
-=======
-
->>>>>>> origin/DoccanaProject
   computed: {
     ...mapState('auth', {
       currentUsername: (s: any) => s.username

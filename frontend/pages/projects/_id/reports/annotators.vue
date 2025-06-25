@@ -77,54 +77,6 @@ export default Vue.extend({
   name: 'ReportsAnnotators',
   components: {
     VContainer, VCard, VCardTitle, VDivider, VCardText,
-<<<<<<< HEAD
-    VForm, VRow, VCol, VMenu, VDatePicker, VTextField,
-    VSelect, VCheckbox, VBtn,
-    VSpacer, VDataTable, VProgressCircular
-  } from 'vuetify/lib'
-  import ApiService from '~/services/api.service'
-  
-  export default Vue.extend({
-    name: 'ReportsAnnotators',
-    components: {
-      VContainer, VCard, VCardTitle, VDivider, VCardText,
-      VForm, VRow, VCol, VMenu, VDatePicker, VTextField,
-      VSelect, VCheckbox, VBtn,
-      VSpacer, VDataTable, VProgressCircular
-    },
-    layout: 'workspace',
-    data() {
-      return {
-        loading: false,
-        filters: {
-          dateRange: { start: '', end: '' },
-          dateRangeText: '',
-          perspective: '',
-          metrics: [] as string[]
-        },
-        dateMenu: false,
-        perspectives: ['Country', 'Generation', 'Age'],
-        metricsOptions: [
-          { text: 'Total Annotations', value: 'total' },
-          { text: 'Agreement Rate', value: 'agreement' },
-          { text: 'Avg. Time per Annotation', value: 'avg_time' }
-        ],
-        reportData: [] as any[],
-        headers: [
-          { text: 'Annotator', value: 'annotator' },
-          { text: 'Total', value: 'total' },
-          { text: 'Agreement %', value: 'agreement' },
-          { text: 'Avg Time', value: 'avg_time' }
-        ]
-      }
-    },
-    methods: {
-      updateDateText() {
-        const { start, end } = this.filters.dateRange
-        this.filters.dateRangeText = start && end
-          ? `${start} → ${end}`
-          : ''
-=======
     VForm, VRow, VCol, VSelect,
     VCheckbox,
     VBtn, VDataTable, VProgressCircular
@@ -135,7 +87,6 @@ export default Vue.extend({
       filters: {
         perspective: '',
         metrics: [] as string[]
->>>>>>> origin/ProjetoDoccana
       },
       perspectives: ['Country', 'Generation', 'Age'],
       metricsOptions: [

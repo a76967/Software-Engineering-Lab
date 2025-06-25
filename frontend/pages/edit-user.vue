@@ -168,30 +168,6 @@
   
   export default {
     data() {
-<<<<<<< HEAD
-        return {
-            valid: false,
-            users: [],
-            selectedUser: null,
-            name: '',
-            email: '',
-            role: '',
-            showError: false,
-            errorMessage: '',
-            nameRules: [
-                (v) => !!v || 'Name is required',
-                (v) => (v && v.length >= 3) || 'Name must be at least 3 characters'
-            ],
-            emailRules: [
-                (v) => !!v || 'Email is required',
-                (v) => /.+@.+\..+/.test(v) || 'E-mail must be valid'
-            ],
-            roleOptions: [
-                { text: 'Admin', value: 'admin' },
-                { text: 'Annotator', value: 'annotator' }
-            ]
-        }
-=======
       return {
         users: [],
         search: '',
@@ -222,7 +198,6 @@
         editingUser: {},
         originalEditingUser: {}
       }
->>>>>>> origin/ProjetoDoccana
     },
     computed: {
       ...mapState('auth', {

@@ -126,20 +126,12 @@ import { jsPDF as JsPDF } from 'jspdf'
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
-<<<<<<< HEAD
-  name: 'ReportsAnnotations',
-  components: 
-  { VContainer, VForm, VRow, VCol, VTextField, 
-    VSelect, VMenu, VDatePicker, VBtn, VDataTable, 
-    VDivider, VCard, VCardTitle, VCardText },
-=======
   name: 'ReportsAnnotationsGeneral',
   components: {
     VContainer, VCard, VCardTitle, VDivider, VCardText,
     VForm, VRow, VCol, VAutocomplete, VSelect,
     VBtn, VSpacer, VProgressCircular
   },
->>>>>>> origin/ProjetoDoccana
   layout: 'workspace',
   data() {
     return {

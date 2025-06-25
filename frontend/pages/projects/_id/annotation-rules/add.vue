@@ -31,13 +31,8 @@
               :color="isAddDisabled ? 'grey lighten-1' : 'primary'"
               dark
               class="add-btn"
-<<<<<<< HEAD
-              :disabled="!newRule.trim()"
-              @click="addRule"
-=======
               @click="addRule"
               :disabled="isAddDisabled"
->>>>>>> origin/ProjetoDoccana
             >
               Add new rule
             </v-btn>
