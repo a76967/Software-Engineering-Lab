@@ -55,6 +55,20 @@
           </div>
 
           <div v-else-if="statsData.length">
+            <div class="legend-tags">
+              <span
+                v-for="(label, idx) in chartData.labels"
+                :key="label"
+                class="legend-tag"
+              >
+                <span
+                  class="legend-color"
+                  :style="{ backgroundColor: chartData.datasets[0].backgroundColor[idx] }"
+                />
+                {{ label }}
+              </span>
+            </div>
+
             <div class="chart-wrapper">
               <bar-chart
                 v-if="filters.chartType==='bar'"
@@ -68,18 +82,6 @@
                 :chart-data="chartData"
                 :options="chartOptions"
               />
-            </div>
-
-            <!-- default sort: descending by count -->
-            <div class="stat-list">
-              <div
-                v-for="r in sortedStats"
-                :key="r.category"
-                class="stat-item"
-              >
-                <span class="stat-author">{{ r.category }}</span>
-                <span class="stat-count">{{ r.count }}</span>
-              </div>
             </div>
 
             <v-btn class="mt-4" color="primary" @click="downloadPdf">
@@ -149,7 +151,7 @@ export default Vue.extend({
       },
       users: [] as Array<{ id: number; name: string }>,
       allAnnotationsRaw: [] as any[],
-      statsData: [] as { category: string; count: number }[],
+      statsData: [] as { id: number; category: string; count: number }[],
 
       chartData: {
         labels: [] as string[],
@@ -158,10 +160,28 @@ export default Vue.extend({
           backgroundColor: [] as string[]
         }]
       },
+      userColors: {} as Record<number, string>,
       chartOptions: {
         responsive: true,
         maintainAspectRatio: false,
-        layout: { padding: 0 }
+        layout: { padding: 0 },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              callback: (value: any) => `${value}`
+            },
+            max: undefined as number | undefined
+          }
+        },
+        plugins: {
+          legend: {
+            display: false,   // ← força remover qualquer legenda
+            labels: { filter: () => false } // opcional: filtra tudo
+          },
+          tooltip: { enabled: true }
+        }
       }
     }
   },
@@ -201,6 +221,19 @@ export default Vue.extend({
   },
 
   methods: {
+    getColor(id: number): string {
+      if (!this.userColors[id]) {
+        this.userColors[id] = this.randomColor()
+      }
+      return this.userColors[id]
+    },
+    randomColor(): string {
+      const r = Math.floor(Math.random() * 156 + 100)
+      const g = Math.floor(Math.random() * 156 + 100)
+      const b = Math.floor(Math.random() * 156 + 100)
+      return `rgb(${r},${g},${b})`
+    },
+
     generateReport() {
       this.loading = true
       const chosen = this.filters.annotators.length
@@ -213,24 +246,26 @@ export default Vue.extend({
           counts[a.annotator] = (counts[a.annotator] || 0) + 1
         }
       })
-      const data = Object.entries(counts).map(([uid, c]) => ({
-        category: this.users.find(u => u.id === +uid)?.name || uid,
-        count: c
-      }))
+
+      const data = Object.entries(counts).map(([uid, c]) => {
+        const id = +uid
+        return {
+          id,
+          category: this.users.find(u => u.id === id)?.name || uid,
+          count: c
+        }
+      })
       this.statsData = data
 
-      const colors = [
-        '#42A5F5', '#66BB6A', '#FFA726',
-        '#AB47BC', '#EC407A'
-      ]
+      const maxCount = Math.max(...data.map(r => r.count), 0)
+      ;(this.chartOptions.scales.y as any).max = maxCount + 3
+
       this.chartData = {
         labels: data.map(r => r.category),
-        datasets: [
-          {
-            data: data.map(r => r.count),
-            backgroundColor: data.map((_, i) => colors[i % colors.length])
-          }
-        ]
+        datasets: [{
+          data: data.map(r => r.count),
+          backgroundColor: data.map(r => this.getColor(r.id))
+        }]
       }
 
       this.loading = false
@@ -284,31 +319,37 @@ export default Vue.extend({
 
 .chart-wrapper {
   width: 300px;
-  height: 300px;    
+  height: 300px;
   margin: 0 auto 16px;
   position: relative;
 }
 
 .chart-wrapper canvas {
-  width: 300px !important;
-  height: 300px !important;
+  width: 100% !important;
+  height: 100% !important;
 }
 
-.stat-list {
-  position: relative;
-  z-index: 1;
+.legend-tags {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  justify-content: center;
 }
-.stat-item {
+.legend-tag {
   display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
+  align-items: center;
+  padding: 4px 8px;
+  background-color: #f0f0f0;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  color: #333;
 }
-.stat-author {
-  font-weight: 500;
-}
-.stat-count {
-  font-family: monospace;
+.legend-color {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 6px;
 }
 </style>
