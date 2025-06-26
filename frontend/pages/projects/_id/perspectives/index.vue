@@ -6,7 +6,7 @@
       </v-btn>
       <v-btn
         class="text-capitalize ms-2"
-        :disabled="!canEdit"
+        :disabled="!canEdit || !canDeletePerspective(selected[0])"
         outlined
         @click="editPerspective"
       >
@@ -57,13 +57,17 @@
               hide-details
               class="mr-2"
               :ripple="false"
+              :disabled="selected.length > 0 && !isSelected(item) && !canDeletePerspective(item)"
             />
             <v-card
               class="flex-grow-1"
               outlined
               elevation="2"
               rounded
-              :class="{ 'selected-card': isSelected(item) }"
+              :class="{
+                'selected-card': isSelected(item),
+                'disabled-card': selected.length > 0 && !canDeletePerspective(item)
+              }"
             >
               <v-sheet
                 color="primary"
@@ -82,9 +86,7 @@
               </v-sheet>
 
               <v-card-text>
-                <div>
-                  {{ item.text }}
-                </div>
+                <div v-html="formatPerspectiveText(item.text)"></div>
                 <div
                   v-if="item.linkedAnnotations && item.linkedAnnotations.length"
                 >
@@ -269,7 +271,8 @@ export default Vue.extend({
       return this.selected.length === 1
     },
     canDelete(): boolean {
-      return this.selected.length > 0
+      if (!this.selected.length) return false
+      return this.selected.every(item => this.canDeletePerspective(item))
     },
     deleteDialogText(): string {
       return this.selected.length > 1
@@ -283,9 +286,11 @@ export default Vue.extend({
         const user  = item.user.username?.toLowerCase() || ''
         const subj  = (item.subject || '').toLowerCase()
         const text  = (item.text    || '').toLowerCase()
+        const cat  = (item.category || '').toLowerCase()
         return user.includes(term)
             || subj.includes(term)
             || text.includes(term)
+            || cat.includes(term)
       })
     }
   },
@@ -330,16 +335,30 @@ export default Vue.extend({
     closeDeleteDialog() {
       this.dialogDelete = false
     },
+    canDeletePerspective(item: any): boolean {
+      const role   = this.user.role.toLowerCase()
+      const author = item.user.username
+      const authorRole = (item.user.role || 'annotator').toLowerCase()
+      if (role === 'annotator') {
+        return author === this.user.username
+      }
+      if (role === 'project_admin') {
+        return author === this.user.username || authorRole === 'annotator'
+      }
+      return false
+    },
     removePerspective() {
       if (!this.canDelete) {
-        console.error("No perspective selected for deletion.")
+        console.error("No permission to delete selected perspectives.")
         return
       }
       const projectId = this.$route.params.id
       this.isDeleting = true
-      const deletePromises = this.selected.map((perspective: any) =>
-        axios.delete(`/v1/projects/${projectId}/perspectives/${perspective.id}/`)
-      )
+      const deletePromises = this.selected
+        .filter(item => this.canDeletePerspective(item))
+        .map((perspective: any) =>
+          axios.delete(`/v1/projects/${projectId}/perspectives/${perspective.id}/`)
+        )
       Promise.all(deletePromises)
         .then(() => {
           this.fetchPerspectives()
@@ -577,11 +596,9 @@ export default Vue.extend({
       const author = perspective.user.username
       const by     = ann.linkedBy
       const byRole = ann.linkedByRole || 'annotator'
-      // annotator only on own perspective and own links
       if (role === 'annotator') {
         return author === this.user.username && by === this.user.username
       }
-      // project_admin any non-admin link
       if (role === 'project_admin') {
         return byRole !== 'project_admin'
       }
@@ -591,11 +608,9 @@ export default Vue.extend({
       const role = this.user.role
       const author = perspective.user.username
       const byRole = ann.linkedByRole || 'annotator'
-      // annotator can remove ann. in own perspective if by annotator
       if (role === 'annotator') {
         return author === this.user.username && byRole === 'annotator'
       }
-      // project_admin can remove any non-admin annotation
       if (role === 'project_admin') {
         return byRole !== 'project_admin'
       }
@@ -667,6 +682,18 @@ export default Vue.extend({
         .filter(i => i.user.username === item.user.username)
       const pos = userItems.findIndex(i => i.id === item.id)
       return pos >= 0 ? pos + 1 : 0
+    },
+    formatPerspectiveText(text: string = ''): string {
+      const end = text.lastIndexOf(',') + 1
+      if (end > 0) {
+        const rawMeta = text.slice(0, end - 1).trim()
+        const rest = text.slice(end).trim()
+        if (!rest) {
+          return `<span class="persp-meta">${rawMeta}</span>`
+        }
+        return `<span class="persp-meta">${rawMeta}</span><br>${rest}`
+      }
+      return text
     }
   }
 })
@@ -675,5 +702,13 @@ export default Vue.extend({
 <style scoped>
 .selected-card {
   border: 2px solid #1976D2;
+}
+.disabled-card {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+::v-deep .persp-meta {
+  font-weight: bold;
 }
 </style>
