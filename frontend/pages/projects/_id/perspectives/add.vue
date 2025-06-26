@@ -425,7 +425,7 @@ export default Vue.extend({
       ]
       if (this.form.nationality) {
         const dem = DEMONYMS[this.form.nationality] || this.form.nationality
-        segments.push(`Nationality: ${dem}:`)
+        segments.push(`Nationality: ${dem}`)
       }
       const meta = segments.map(s => `${s},`).join(' ')
       const text = this.form.text.trim()
