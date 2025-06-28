@@ -6,7 +6,6 @@ from django.shortcuts import get_object_or_404
 from rest_framework import generics, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.generics import ListAPIView
 
 from .permissions import CanEditLabel
 from .serializers import (
@@ -16,7 +15,6 @@ from .serializers import (
     SegmentationSerializer,
     SpanSerializer,
     TextLabelSerializer,
-    LabelSpanSerializer,
 )
 from labels.models import (
     BoundingBox,
@@ -143,12 +141,3 @@ class SegmentationListAPI(BaseListAPI):
 class SegmentationDetailAPI(BaseDetailAPI):
     queryset = Segmentation.objects.all()
     serializer_class = SegmentationSerializer
-
-
-class LabelSpanListAPI(ListAPIView):
-    permission_classes = [IsAuthenticated]
-    serializer_class = LabelSpanSerializer
-
-    def get_queryset(self):
-        pid = self.request.query_params.get('project')
-        return Span.objects.filter(example__project_id=pid)
