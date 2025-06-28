@@ -98,6 +98,8 @@ export default Vue.extend({
         const headers: any[] = [ { text: 'Snippet', value: 'snippet', width: '200' } ]
         const labelHeaders = Array.from(labelSet).sort().map(l => ({ text: l, value: l }))
         headers.push(...labelHeaders)
+        headers.push({ text: 'Abstention', value: 'abstention', sortable: false })
+        headers.push({ text: 'X', value: 'x', sortable: false })
         headers.push({ text: 'Total', value: 'total', sortable: false })
         headers.push({ text: 'Agreement', value: 'agreement', sortable: false })
         headers.push({ text: 'Discussion', value: 'discussion', sortable: false })
@@ -106,6 +108,8 @@ export default Vue.extend({
         this.rows = data.map((r: any) => {
           const obj: Row = { id: r.id, snippet: r.snippet }
           labelSet.forEach(l => { obj[l] = r.labels[l] || 0 })
+          obj.abstention = r.abstention || 0
+          obj.x = r.x || 0
           obj.total = r.total
           obj.agreement = r.agreement
           return obj
