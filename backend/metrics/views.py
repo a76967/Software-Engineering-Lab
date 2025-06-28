@@ -82,8 +82,15 @@ class SpanDisagreementSummary(APIView):
             if len(assigned_users) < 2:
                 continue
 
-            spans = list(Span.objects.filter(example=ex).values("user_id", "label_id", "start_offset", "end_offset"))
-            if not spans:
+            spans = list(
+                Span.objects.filter(example=ex).values(
+                    "user_id",
+                    "label_id",
+                    "start_offset",
+                    "end_offset",
+                )
+            )
+            if not spans and not ExampleState.objects.filter(example=ex).exists():
                 continue
 
             user_spans = {uid: [] for uid in assigned_users}
@@ -111,15 +118,36 @@ class SpanDisagreementSummary(APIView):
                 for lid in labels_used:
                     label_counts[lid] = label_counts.get(lid, 0) + 1
 
+            confirmed_users = set(
+                ExampleState.objects.filter(example=ex).values_list(
+                    "confirmed_by_id", flat=True
+                )
+            )
+            abstention = sum(
+                1 for uid in confirmed_users if len(user_spans.get(uid, [])) == 0
+            )
+            x_count = sum(
+                1
+                for uid in assigned_users
+                if uid not in confirmed_users and len(user_spans.get(uid, [])) == 0
+            )
+
             majority = max(signature_counts.values())
             agreement = round((majority / len(signatures)) * 100)
 
-            rows.append({
-                "id": ex.id,
-                "snippet": (ex.text or "")[:100],
-                "labels": {label_map.get(lid, str(lid)): cnt for lid, cnt in label_counts.items()},
-                "total": len(signatures),
-                "agreement": agreement,
-            })
+            rows.append(
+                {
+                    "id": ex.id,
+                    "snippet": (ex.text or "")[:100],
+                    "labels": {
+                        label_map.get(lid, str(lid)): cnt
+                        for lid, cnt in label_counts.items()
+                    },
+                    "abstention": abstention,
+                    "x": x_count,
+                    "total": len(signatures),
+                    "agreement": agreement,
+                }
+            )
 
         return Response(data=rows, status=status.HTTP_200_OK)
