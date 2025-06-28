@@ -103,10 +103,8 @@ export default {
   },
 
   proxy: {
-    // Use a fake value for use at build-time
-    '/v1/': {
-      target: process.env.API_URL || 'http://127.0.0.1:8000'
-    },
+    // forward any /v1/* call to Django on port 8000
+    '/v1/': 'http://localhost:8000/v1/',
     '/media': {
       target: process.env.API_URL || 'http://127.0.0.1:8000'
     }

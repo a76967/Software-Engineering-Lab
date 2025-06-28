@@ -102,6 +102,9 @@ interface Annotation {
 
 export default Vue.extend({
   name: 'DisagreementsPage',
+
+  layout: 'project',
+
   data() {
     return {
       disagreements: [] as Array<{
@@ -120,8 +123,6 @@ export default Vue.extend({
       }
     }
   },
-
-  layout: 'project',
 
   computed: {
     filteredDisagreements() {
@@ -143,78 +144,72 @@ export default Vue.extend({
       this.isLoading = true;
       const projectId = Number(this.$route.params.id);
       try {
-        const response = await axios.get(`/v1/annotations/`, { params: { project: projectId } });
-        const annotations: Annotation[] = response.data.results || response.data;
+        const [examplesRes, spanTypeRes] = await Promise.all([
+          axios.get(`/v1/projects/${projectId}/examples`, { params: { limit: 10000 } }),
+          axios.get(`/v1/projects/${projectId}/span-types`)
+        ]);
 
-        const disagreementsMap: { [key: string]: any } = {};
-
-        annotations.forEach(annotation => {
-          const extracted = annotation.extracted_labels;
-          if (!extracted || !extracted.text || !extracted.labelTypes || !extracted.spans) return;
-
-          const usedLabelIds = extracted.spans.map((span: any) => span.label);
-          
-          const usedLabels = extracted.labelTypes.filter(label => usedLabelIds.includes(label.id));
-          
-          const dedupedUsedLabels = Array.from(new Set(
-            usedLabels.map(label => JSON.stringify({
-              id: label.id,
-              text: label.text,
-              background_color: label.background_color
-            }))
-          )).map(str => JSON.parse(str));
-          
-          const sortedLabels = dedupedUsedLabels.sort((a, b) => a.id - b.id);
-          
-          const signatureKey = JSON.stringify({
-            text: extracted.text,
-            labelTypes: sortedLabels.map(label => ({ id: label.id, text: label.text }))
-          });
-          
-          if (!disagreementsMap[signatureKey]) {
-            disagreementsMap[signatureKey] = {
-              signature: signatureKey,
-              snippet: extracted.text.substring(0, 100),
-              labels: sortedLabels.map(label => ({
-                text: label.text,
-                backgroundColor: label.background_color
-              })),
-              annotations: []
-            };
-          }
-          disagreementsMap[signatureKey].annotations.push(annotation);
+        const examples = examplesRes.data.results || examplesRes.data;
+        const spanTypes = spanTypeRes.data.results || spanTypeRes.data;
+        const labelMap: Record<number, { text: string; background_color: string }> = {};
+        spanTypes.forEach((lt: any) => {
+          labelMap[lt.id] = { text: lt.text, background_color: lt.background_color };
         });
 
         const disagreements: any[] = [];
-        Object.keys(disagreementsMap).forEach(signature => {
-          const disagreement = disagreementsMap[signature];
-          if (disagreement.annotations.length < 2) return;
 
-          let spansDiffer = false;
-          for (let i = 0; i < disagreement.annotations.length; i++) {
-            for (let j = i + 1; j < disagreement.annotations.length; j++) {
-              const spans1 = disagreement.annotations[i].extracted_labels.spans;
-              const spans2 = disagreement.annotations[j].extracted_labels.spans;
-              if (JSON.stringify(spans1) !== JSON.stringify(spans2)) {
-                spansDiffer = true;
-                break;
-              }
+        for (const ex of examples) {
+          const assignedUsers = (ex.assignments || []).map((a: any) => a.assignee_id);
+          if (assignedUsers.length < 2) continue;
+
+          const spansRes = await axios.get(`/v1/projects/${projectId}/examples/${ex.id}/spans`);
+          const spans = spansRes.data.results || spansRes.data;
+
+          const userSpans: Record<number, any[]> = {};
+          assignedUsers.forEach((uid: number) => { userSpans[uid] = []; });
+          spans.forEach((span: any) => {
+            if (Object.prototype.hasOwnProperty.call(userSpans, span.user)) {
+              userSpans[span.user].push(span);
             }
-            if (spansDiffer) break;
-          }
-          if (spansDiffer) {
+          });
+
+          const signatures = assignedUsers.map(uid => {
+            const list = userSpans[uid] || [];
+            const simple = list
+              .map((s: any) => ({
+                start: s.start_offset,
+                end: s.end_offset,
+                label: s.label
+              }))
+              .sort((a, b) => {
+                if (a.start !== b.start) return a.start - b.start;
+                if (a.end !== b.end) return a.end - b.end;
+                return a.label - b.label;
+              });
+            return JSON.stringify(simple);
+          });
+
+          const uniqueSignatures = new Set(signatures);
+          if (uniqueSignatures.size > 1) {
+            const labelIds = new Set(spans.map((s: any) => s.label));
+            const labels = Array.from(labelIds).map(id => ({
+              text: labelMap[id]?.text || `Label ${id}`,
+              backgroundColor: labelMap[id]?.background_color || '#cccccc'
+            }));
+
             disagreements.push({
-              signature: disagreement.signature,
-              snippet: disagreement.snippet,
-              labels: disagreement.labels,
-              count: disagreement.annotations.length,
-              annotations: disagreement.annotations
+              signature: String(ex.id),
+              snippet: (ex.text || '').substring(0, 100),
+              labels,
+              count: assignedUsers.length,
+              annotations: []
             });
           }
-        });
+        }
+
         this.disagreements = disagreements;
       } catch (err: any) {
-        console.error('Error fetching annotations:', err.response || err.message);
+        console.error('Error fetching spans:', err.response || err.message);
         this.error = "Error: Can't access our database!";
       } finally {
         this.isLoading = false;
@@ -238,16 +233,16 @@ export default Vue.extend({
 
     contrastColor(hexColor: string): string {
       if (!hexColor) return '#000000';
-      const color = hexColor.replace('#', '');
-      let r, g, b;
-      if (color.length === 3) {
-        r = parseInt(color[0] + color[0], 16);
-        g = parseInt(color[1] + color[1], 16);
-        b = parseInt(color[2] + color[2], 16);
+      const hex = hexColor.replace('#', '');
+      let r: number, g: number, b: number;
+      if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
       } else {
-        r = parseInt(color.substring(0, 2), 16);
-        g = parseInt(color.substring(2, 4), 16);
-        b = parseInt(color.substring(4, 6), 16);
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
       }
       const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return brightness < 0.5 ? '#FFFFFF' : '#000000';
