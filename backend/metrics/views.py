@@ -1,4 +1,5 @@
 import abc
+import json
 
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -64,3 +65,61 @@ class SpanTypeDistribution(LabelDistribution):
 class RelationTypeDistribution(LabelDistribution):
     model = Relation
     label_type = RelationType
+    
+    
+class SpanDisagreementSummary(APIView):
+    permission_classes = [IsAuthenticated & (IsProjectAdmin | IsProjectStaffAndReadOnly)]
+
+    def get(self, request, *args, **kwargs):
+        project_id = self.kwargs["project_id"]
+        examples = Example.objects.filter(project_id=project_id).prefetch_related("spans", "assignments")
+        span_types = SpanType.objects.filter(project_id=project_id).values("id", "text")
+        label_map = {st["id"]: st["text"] for st in span_types}
+
+        rows = []
+        for ex in examples:
+            assigned_users = list(ex.assignments.values_list("assignee_id", flat=True))
+            if len(assigned_users) < 2:
+                continue
+
+            spans = list(Span.objects.filter(example=ex).values("user_id", "label_id", "start_offset", "end_offset"))
+            if not spans:
+                continue
+
+            user_spans = {uid: [] for uid in assigned_users}
+            for s in spans:
+                if s["user_id"] in user_spans:
+                    user_spans[s["user_id"]].append(s)
+
+            signatures = []
+            for uid in assigned_users:
+                lst = user_spans.get(uid, [])
+                simple = [(sp["start_offset"], sp["end_offset"], sp["label_id"]) for sp in lst]
+                simple.sort()
+                signatures.append(json.dumps(simple))
+
+            if len(set(signatures)) <= 1:
+                continue
+
+            signature_counts: dict[str, int] = {}
+            for sig in signatures:
+                signature_counts[sig] = signature_counts.get(sig, 0) + 1
+
+            label_counts: dict[int, int] = {}
+            for uid in assigned_users:
+                labels_used = {sp["label_id"] for sp in user_spans.get(uid, [])}
+                for lid in labels_used:
+                    label_counts[lid] = label_counts.get(lid, 0) + 1
+
+            majority = max(signature_counts.values())
+            agreement = round((majority / len(signatures)) * 100)
+
+            rows.append({
+                "id": ex.id,
+                "snippet": (ex.text or "")[:100],
+                "labels": {label_map.get(lid, str(lid)): cnt for lid, cnt in label_counts.items()},
+                "total": len(signatures),
+                "agreement": agreement,
+            })
+
+        return Response(data=rows, status=status.HTTP_200_OK)

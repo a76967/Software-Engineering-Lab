@@ -175,17 +175,13 @@ export default Vue.extend({
 
           const signatures = assignedUsers.map(uid => {
             const list = userSpans[uid] || [];
-            const simple = list
-              .map((s: any) => ({
-                start: s.start_offset,
-                end: s.end_offset,
-                label: s.label
-              }))
-              .sort((a, b) => {
-                if (a.start !== b.start) return a.start - b.start;
-                if (a.end !== b.end) return a.end - b.end;
-                return a.label - b.label;
-              });
+            const simple = list.map((s: any) => ({ start: s.start_offset, end: s.end_offset,
+              label: s.label }));
+            simple.sort((a: any, b: any) => {
+              if (a.start !== b.start) return a.start - b.start;
+              if (a.end !== b.end) return a.end - b.end;
+              return a.label - b.label;
+            });
             return JSON.stringify(simple);
           });
 
@@ -220,11 +216,9 @@ export default Vue.extend({
     },
     checkDisagreement(disagreement: any) {
       const projectId = this.$route.params.id;
-      const leftId = disagreement.annotations[0] ? disagreement.annotations[0].id : null;
-      const rightId = disagreement.annotations[1] ? disagreement.annotations[1].id : null;
       this.$router.push({
         path: `/projects/${projectId}/disagreements/diffs`,
-        query: { left: leftId, right: rightId }
+        query: { example: disagreement.signature }
       });
     },
     goToAdd() {
@@ -233,16 +227,16 @@ export default Vue.extend({
 
     contrastColor(hexColor: string): string {
       if (!hexColor) return '#000000';
-      const hex = hexColor.replace('#', '');
-      let r: number, g: number, b: number;
-      if (hex.length === 3) {
-        r = parseInt(hex[0] + hex[0], 16);
-        g = parseInt(hex[1] + hex[1], 16);
-        b = parseInt(hex[2] + hex[2], 16);
+      const color = hexColor.replace('#', '');
+      let r, g, b;
+      if (color.length === 3) {
+        r = parseInt(color[0] + color[0], 16);
+        g = parseInt(color[1] + color[1], 16);
+        b = parseInt(color[2] + color[2], 16);
       } else {
-        r = parseInt(hex.substring(0, 2), 16);
-        g = parseInt(hex.substring(2, 4), 16);
-        b = parseInt(hex.substring(4, 6), 16);
+        r = parseInt(color.substring(0, 2), 16);
+        g = parseInt(color.substring(2, 4), 16);
+        b = parseInt(color.substring(4, 6), 16);
       }
       const brightness = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
       return brightness < 0.5 ? '#FFFFFF' : '#000000';
