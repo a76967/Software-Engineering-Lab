@@ -28,7 +28,7 @@
           :item-class="rowClass"
         >
           <!-- eslint-disable-next-line vue/valid-v-slot -->
-          <template v-slot:item.agreement="{ item }">
+          <template #item.agreement="{ item }">
             <div class="d-flex justify-center">
               <v-progress-circular
                 :value="item.agreement"
@@ -42,28 +42,19 @@
           </template>
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
-          <template v-slot:item.conflict="{ item }">
-            <v-icon
-              small
-              :color="
-                item.agreement >= threshold      ? 'green'  :
-                item.agreement <  threshold / 2  ? 'red'    :
-                                                   'orange'
-              "
-              :icon="
-                item.agreement >= threshold
-                  ? mdiCheckCircle
-                  : item.agreement < threshold/2
-                    ? mdiCloseCircle
-                    : mdiMinusCircle
-              "
-            />
+          <template #item.conflict="{ item }">
+            <span
+              class="conflict-icon"
+              :class="conflictClass(item.agreement)"
+            >
+              {{ conflictSymbol(item.agreement) }}
+            </span>
           </template>
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
-          <template v-slot:item.snippet="{ item }">
+          <template #item.snippet="{ item }">
             <v-tooltip bottom>
-              <template v-slot:activator="{ on, attrs }">
+              <template #activator="{ on, attrs }">
                 <span
                   class="snippet-text"
                   v-bind="attrs"
@@ -83,7 +74,7 @@
 // @ts-nocheck
 import Vue from 'vue'
 import axios from 'axios'
-import { mdiCheckCircle, mdiCloseCircle, mdiMinusCircle } from '@mdi/js'
+
 export default Vue.extend({
   name: 'AnnotationDifferencesPage',
   layout: 'project',
@@ -91,14 +82,11 @@ export default Vue.extend({
   data () {
     return {
       search: '',
-      rows: [],
-      headers: [],
+      rows: [] as any[],
+      headers: [] as any[],
       threshold: 80,
       isLoading: false,
-      error: '',
-      mdiCheckCircle,
-      mdiCloseCircle,
-      mdiMinusCircle
+      error: ''
     }
   },
 
@@ -114,59 +102,70 @@ export default Vue.extend({
   mounted () {
     const stored = localStorage.getItem('disagreementThreshold')
     if (stored) {
-      const val = parseInt(stored)
-      if (!isNaN(val)) this.threshold = val
+      const v = parseInt(stored)
+      if (!isNaN(v)) this.threshold = v
     }
     this.fetchData()
   },
 
   methods: {
-    rowClass (item) {
+    conflictClass(val:number) {
+      return val >= this.threshold ? 'green'
+           : val <  this.threshold/2 ? 'red'
+           : 'orange'
+    },
+    conflictSymbol(val:number) {
+      return val >= this.threshold ? '✓'
+           : val <  this.threshold/2 ? '✗'
+           : '⚠'
+    },
+
+    rowClass (item:any) {
       return item.agreement < this.threshold / 2 ? 'low-agreement' : ''
     },
-    agreementColor (val: number) {
-      if (val >= this.threshold) return 'green'
-      if (val >= this.threshold / 2) return 'orange'
+    agreementColor (val:number) {
+      if (val >= this.threshold)         return 'green'
+      if (val >= this.threshold / 2)     return 'orange'
       return 'red'
     },
 
     async fetchData () {
       this.isLoading = true
-      const projectId = this.$route.params.id
+      const pid = this.$route.params.id
       try {
         const { data } = await axios.get(
-          `/v1/projects/${projectId}/metrics/span-disagreements`
+          `/v1/projects/${pid}/metrics/span-disagreements`
         )
 
         const labelSet = new Set<string>()
-        data.forEach((row: any) =>
-          Object.keys(row.labels).forEach((l: string) => labelSet.add(l))
+        data.forEach((r:any) =>
+          Object.keys(r.labels).forEach((l:string) => labelSet.add(l))
         )
 
         this.headers = [
-          { text: 'Snippet', value: 'snippet', width: 250 },
-          ...Array.from(labelSet).sort().map(l => ({ text: l, value: l })),
-          { text: 'Abstention', value: 'abstention', sortable: false },
-          { text: 'X',          value: 'x',          sortable: false },
-          { text: 'Assignees',  value: 'total',      sortable: false },
-          { text: 'Agreement',  value: 'agreement',  sortable: false },
-          { text: 'Conflict?',  value: 'conflict',   sortable: false }
+          { text:'Snippet', value:'snippet', width:250 },
+          ...Array.from(labelSet).sort().map(l => ({ text:l, value:l })),
+          { text:'Abstention', value:'abstention', sortable:false },
+          { text:'X',          value:'x',          sortable:false },
+          { text:'Assignees',  value:'total',      sortable:false },
+          { text:'Agreement',  value:'agreement',  sortable:false },
+          { text:'Conflict?',  value:'conflict',   sortable:false }
         ]
 
-        this.rows = data.map((r: any) => {
-          const row: Record<string, any> = {
-            id: r.id,
-            snippet: r.snippet
+        this.rows = data.map((r:any) => {
+          const row:Record<string,any> = {
+            id:        r.id,
+            snippet:   r.snippet,
+            abstention:r.abstention||0,
+            x:         r.x||0,
+            total:     r.total,
+            agreement: r.agreement
           }
           labelSet.forEach(l => { row[l] = r.labels[l] || 0 })
-          row.abstention = r.abstention || 0
-          row.x          = r.x || 0
-          row.total      = r.total
-          row.agreement  = r.agreement
           return row
         })
-      } catch (err: any) {
-        console.error('Error fetching data:', err.response || err.message)
+      } catch(err:any) {
+        console.error(err)
         this.error = "Error: Can't access our database!"
       } finally {
         this.isLoading = false
@@ -174,13 +173,12 @@ export default Vue.extend({
     },
 
     openThreshold () {
-      const projectId = this.$route.params.id
-      this.$router.push(`/projects/${projectId}/disagreements/threshold`)
+      const pid = this.$route.params.id
+      this.$router.push(`/projects/${pid}/disagreements/threshold`)
     },
-
-    toDiscussion (r) {
-      const projectId = this.$route.params.id
-      this.$router.push(`/projects/${projectId}/discussions/${r.id}`)
+    toDiscussion (r:any) {
+      const pid = this.$route.params.id
+      this.$router.push(`/projects/${pid}/discussions/${r.id}`)
     }
   }
 })
@@ -198,10 +196,24 @@ export default Vue.extend({
 tr.v-data-table__tr {
   height: 64px !important;
   background-color: white !important;
-  transition: none !important;
 }
 
-tr.low-agreement {
+.low-agreement {
   background-color: rgba(255,0,0,0.1) !important;
 }
+
+.conflict-icon {
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1;
+  display: inline;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  transition: color 0.3s ease;
+}
+.conflict-icon.green  { color: #4caf50; }
+.conflict-icon.orange { color: #ff9800; }
+.conflict-icon.red    { color: #f44336; }
+
 </style>
