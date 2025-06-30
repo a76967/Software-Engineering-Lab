@@ -58,7 +58,7 @@
             </div>
 
             <div class="mb-2 text-center">
-              <strong>Annotations in conflict:</strong> {{ disagreement.count }}
+              <strong>{{ disagreement.count }} different annotators assigned.</strong> 
             </div>
             <v-card-actions class="justify-center">
               <v-btn color="secondary" small @click="checkDisagreement(disagreement)">
