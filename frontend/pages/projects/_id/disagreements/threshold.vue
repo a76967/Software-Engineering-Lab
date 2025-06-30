@@ -231,7 +231,13 @@
         localStorage.setItem('disagreementThreshold', String(v))
         this.initialThreshold = v
         this.confirmDialog = false
-        this.snackbar = true
+        this.$router.push({
+          path: '/message',
+          query: {
+            message: `Success! Threshold updated to ${v}%`,
+            redirect: this.$route.fullPath
+          }
+        })
       }
     }
   })
