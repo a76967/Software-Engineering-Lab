@@ -223,7 +223,10 @@
         }
       },
   
-      onCancel()  { this.$router.back() },
+      onCancel()  {
+        const pid = this.$route.params.id
+        this.$router.push(`/projects/${pid}/disagreements/diffs`)
+      },
       onRestore() { this.localThreshold = this.initialThreshold },
       openConfirm(){ this.confirmDialog = true },
       onConfirm() {
