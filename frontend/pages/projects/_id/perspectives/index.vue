@@ -698,15 +698,15 @@ export default Vue.extend({
       const pos = userItems.findIndex(i => i.id === item.id)
       return pos >= 0 ? pos + 1 : 0
     },
-    formatPerspectiveText(text: string = ''): string {
-      const end = text.lastIndexOf(',') + 1
-      if (end > 0) {
-        const rawMeta = text.slice(0, end - 1).trim()
-        const rest = text.slice(end).trim()
+    formatPerspectiveText (text: string = ''): string {
+      const dot = text.indexOf('. ')
+      if (dot !== -1) {
+        const meta = text.slice(0, dot).trim()
+        const rest = text.slice(dot + 2).trim()
         if (!rest) {
-          return `<span class="persp-meta">${rawMeta}</span>`
+          return `<span class="persp-meta">${meta}</span>`
         }
-        return `<span class="persp-meta">${rawMeta}</span><br>${rest}`
+        return `<span class="persp-meta">${meta}</span><br>${rest}`
       }
       return text
     }
