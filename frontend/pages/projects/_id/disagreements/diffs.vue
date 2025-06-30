@@ -1,92 +1,82 @@
 <template>
-  <v-card flat class="pa-4">
-    <v-card-title class="d-flex align-center mb-4">
-      <span class="text-h5 font-weight-medium mr-4">Annotation Differences</span>
-      <v-spacer/>
-      <v-text-field
-        v-model="search"
-        dense
-        outlined
-        hide-details
-        append-icon="mdi-magnify"
-        label="Search snippet"
-        class="search-bar"
-        style="max-width: 300px"
-      />
-    </v-card-title>
-
-    <v-progress-circular
-      v-if="isLoading"
-      indeterminate
-      color="primary"
-      class="my-6 mx-auto d-block"
-      size="40"
-      width="5"
-    />
-    <v-alert v-if="error" type="error" border="left" elevation="2" class="mb-4">
-      {{ error }}
-    </v-alert>
-
-    <v-data-table
-      v-if="!isLoading && !error"
-      :headers="headers"
-      :items="filteredRows"
-      dense
-      disable-pagination
-      hide-default-footer
-      class="elevation-1"
-      :item-class="rowClass"
-    >
-      <!-- eslint-disable-next-line vue/valid-v-slot -->
-      <template #item.agreement="{ item }">
-        <div class="d-flex justify-center align-center">
-          <v-progress-circular
-            :value="item.agreement"
-            :size="36"
-            :width="4"
-            :color="agreementColor(item.agreement)"
-          >
-            <small>{{ item.agreement }}%</small>
-          </v-progress-circular>
-        </div>
-      </template>
-
-      <!-- eslint-disable-next-line vue/valid-v-slot -->
-      <template #item.conflict="{ item }">
-        <v-icon
-          small
-          :color="
-            item.agreement >= 80 ? 'green'  :
-            item.agreement <  40 ? 'red'    :
-                                  'orange'
-          "
-          :icon="
-            item.agreement >= 80
-              ? mdiCheckCircle
-              : item.agreement < 40
-                ? mdiCloseCircle
-                : mdiMinusCircle
-          "
+  <v-container fluid class="pa-4">
+    <v-card flat>
+      <v-card-title>
+        <span class="text-h5 font-weight-medium">Annotation Differences</span>
+        <v-spacer/>
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          placeholder="Search snippet"
+          hide-details
+          dense
+          clearable
+          style="max-width:300px"
         />
-      </template>
+        <v-btn text @click="openThreshold">Set Threshold</v-btn>
+      </v-card-title>
 
-      <!-- eslint-disable-next-line vue/valid-v-slot -->
-      <template #item.snippet="{ item }">
-        <v-tooltip bottom>
-          <template #activator="{ on, attrs }">
-            <span
-              class="snippet-text"
-              v-bind="attrs"
-              v-on="on"
-            >
-              {{ item.snippet }}
-            </span>
+      <v-card-text class="pa-0">
+        <v-data-table
+          :headers="headers"
+          :items="filteredRows"
+          :loading="isLoading"
+          dense
+          disable-pagination
+          hide-default-footer
+          class="elevation-1"
+          :item-class="rowClass"
+        >
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template v-slot:item.agreement="{ item }">
+            <div class="d-flex justify-center">
+              <v-progress-circular
+                :value="item.agreement"
+                :size="36"
+                :width="4"
+                :color="agreementColor(item.agreement)"
+              >
+                <small>{{ item.agreement }}%</small>
+              </v-progress-circular>
+            </div>
           </template>
-          <span>{{ item.snippet }}</span>
-        </v-tooltip>
-      </template>
-    </v-data-table>
-  </v-card>
+
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template v-slot:item.conflict="{ item }">
+            <v-icon
+              small
+              :color="
+                item.agreement >= threshold      ? 'green'  :
+                item.agreement <  threshold / 2  ? 'red'    :
+                                                   'orange'
+              "
+              :icon="
+                item.agreement >= threshold
+                  ? mdiCheckCircle
+                  : item.agreement < threshold/2
+                    ? mdiCloseCircle
+                    : mdiMinusCircle
+              "
+            />
+          </template>
+
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template v-slot:item.snippet="{ item }">
+            <v-tooltip bottom>
+              <template v-slot:activator="{ on, attrs }">
+                <span
+                  class="snippet-text"
+                  v-bind="attrs"
+                  v-on="on"
+                >{{ item.snippet }}</span>
+              </template>
+              <span>{{ item.snippet }}</span>
+            </v-tooltip>
+          </template>
+        </v-data-table>
+      </v-card-text>
+    </v-card>
+  </v-container>
 </template>
 
 <script lang="ts">
@@ -103,6 +93,7 @@ export default Vue.extend({
       search: '',
       rows: [],
       headers: [],
+      threshold: 80,
       isLoading: false,
       error: '',
       mdiCheckCircle,
@@ -121,16 +112,21 @@ export default Vue.extend({
   },
 
   mounted () {
+    const stored = localStorage.getItem('disagreementThreshold')
+    if (stored) {
+      const val = parseInt(stored)
+      if (!isNaN(val)) this.threshold = val
+    }
     this.fetchData()
   },
 
   methods: {
     rowClass (item) {
-      return item.agreement < 50 ? 'low-agreement' : ''
+      return item.agreement < this.threshold / 2 ? 'low-agreement' : ''
     },
     agreementColor (val: number) {
-      if (val >= 75) return 'green'
-      if (val >= 50) return 'orange'
+      if (val >= this.threshold) return 'green'
+      if (val >= this.threshold / 2) return 'orange'
       return 'red'
     },
 
@@ -175,6 +171,11 @@ export default Vue.extend({
       } finally {
         this.isLoading = false
       }
+    },
+
+    openThreshold () {
+      const projectId = this.$route.params.id
+      this.$router.push(`/projects/${projectId}/disagreements/threshold`)
     },
 
     toDiscussion (r) {
