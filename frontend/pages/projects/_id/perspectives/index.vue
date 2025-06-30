@@ -1,207 +1,217 @@
 <template>
-  <v-card>
-    <v-card-title>
-      <v-btn color="primary" class="text-capitalize ms-2" @click="goToAdd">
-        {{ $t('generic.add') }}
-      </v-btn>
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canEdit || !canDeletePerspective(selected[0])"
-        outlined
-        @click="editPerspective"
-      >
-        Edit
-      </v-btn>
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canDelete"
-        outlined
-        @click.stop="dialogDelete = true"
-      >
-        {{ $t('generic.delete') }}
-      </v-btn>
-    </v-card-title>
+  <div>
+    <v-card>
+      <v-card-title>
+        <v-btn color="primary" class="text-capitalize ms-2" @click="goToAdd">
+          {{ $t('generic.add') }}
+        </v-btn>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canEdit || !canDeletePerspective(selected[0])"
+          outlined
+          @click="editPerspective"
+        >
+          Edit
+        </v-btn>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canDelete"
+          outlined
+          @click.stop="dialogDelete = true"
+        >
+          {{ $t('generic.delete') }}
+        </v-btn>
+      </v-card-title>
 
-    <v-card-text>
-      <v-text-field
-        v-model="search"
-        :prepend-inner-icon="icons.mdiMagnify"
-        :label="$t('generic.search')"
-        single-line
-        hide-details
-        filled
-        style="margin-bottom: 1rem"
-      />
+      <v-card-text>
+        <v-text-field
+          v-model="search"
+          :prepend-inner-icon="icons.mdiMagnify"
+          :label="$t('generic.search')"
+          single-line
+          hide-details
+          filled
+          style="margin-bottom: 1rem"
+        />
 
-      <v-progress-circular
-        v-if="isLoading"
-        class="ma-3"
-        indeterminate
-        color="primary"
-      />
+        <v-progress-circular
+          v-if="isLoading"
+          class="ma-3"
+          indeterminate
+          color="primary"
+        />
 
-      <v-alert v-if="dbError" type="error" dense>
-        {{ dbError }}
-      </v-alert>
+        <v-alert v-if="dbError" type="error" dense>
+          {{ dbError }}
+        </v-alert>
 
-      <div v-if="!isLoading && !dbError" class="d-flex justify-center">
-        <div style="max-width: 800px; width: 100%;">
-          <div
-            v-for="(item) in filteredItems"
-            :key="item.id"
-            class="mb-4 d-flex align-center"
-          >
-            <v-checkbox
-              v-model="selected"
-              :value="item"
-              hide-details
-              class="mr-2"
-              :ripple="false"
-              :disabled="selected.length > 0 && !isSelected(item) && !canDeletePerspective(item)"
-            />
-            <v-card
-              class="flex-grow-1"
-              outlined
-              elevation="2"
-              rounded
-              :class="{
-                'selected-card': isSelected(item),
-                'disabled-card': selected.length > 0 && !canDeletePerspective(item)
-              }"
+        <div v-if="!isLoading && !dbError" class="d-flex justify-center">
+          <div style="max-width: 800px; width: 100%;">
+            <div
+              v-for="(item) in filteredItems"
+              :key="item.id"
+              class="mb-4 d-flex align-center"
             >
-              <v-sheet
-                color="primary"
-                dark
-                class="py-3 px-4 rounded-t-lg d-flex flex-column"
+              <v-checkbox
+                v-model="selected"
+                :value="item"
+                hide-details
+                class="mr-2"
+                :ripple="false"
+                :disabled="selected.length > 0 && !isSelected(item) && !canDeletePerspective(item)"
+              />
+              <v-card
+                class="flex-grow-1"
+                outlined
+                elevation="2"
+                rounded
+                :class="{
+                  'selected-card': isSelected(item),
+                  'disabled-card': selected.length > 0 && !canDeletePerspective(item)
+                }"
               >
-                <div class="text-h6 font-weight-medium">
-                  {{ item.user.username }}'s perspective nº{{ getUserPerspectiveIndex(item) }}
-                </div>
-                <div class="text-body-2">
-                  {{ formatTime(item.created_at) }}
-                  <span v-if="item.updated_at !== item.created_at">
-                    &bull; Updated: {{ formatTime(item.updated_at) }}
-                  </span>
-                </div>
-              </v-sheet>
-
-              <v-card-text>
-                <div v-html="formatPerspectiveText(item.text)"></div>
-                <div
-                  v-if="item.linkedAnnotations && item.linkedAnnotations.length"
+                <v-sheet
+                  color="primary"
+                  dark
+                  class="py-3 px-4 rounded-t-lg d-flex flex-column"
                 >
-                  <v-divider class="my-2" />
-                  <div
-                    v-for="ann in item.linkedAnnotations"
-                    :key="ann.uniqueId"
-                    class="d-flex align-center"
-                  >
-                    <span
-                      v-if="ann.text"
-                      style="cursor: pointer;"
-                      @click="viewAnnotation(item, ann)"
-                    >
-                      <strong>Annotation:</strong>
-                      {{ ann.text }}
-                      <span v-if="ann.label">
-                        ({{ ann.label }})
-                      </span>
-                      <span v-if="ann.linkedBy">
-                        — linked by <strong>{{ ann.linkedBy }}</strong>
-                      </span>
-                    </span>
-                    <v-spacer />
-                    <v-btn
-                      icon
-                      small
-                      color="primary"
-                      :disabled="!canEditAnnotation(item, ann)"
-                      @click="editAnnotation(item, ann)"
-                    >
-                      <v-icon>{{ icons.mdiPencil }}</v-icon>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      small
-                      color="red"
-                      :disabled="!canDeleteAnnotation(item, ann)"
-                      @click="removeAnnotation(item, ann)"
-                    >
-                      <v-icon>{{ icons.mdiTrashCan }}</v-icon>
-                    </v-btn>
+                  <div class="text-h6 font-weight-medium">
+                    {{ item.user.username }}'s perspective
                   </div>
-                </div>
-              </v-card-text>
+                  <div class="text-body-2">
+                    {{ formatTime(item.created_at) }}
+                    <span v-if="item.updated_at !== item.created_at">
+                      &bull; Updated: {{ formatTime(item.updated_at) }}
+                    </span>
+                  </div>
+                </v-sheet>
 
-              <v-card-actions>
-                <v-chip small>
-                  {{ item.category }}
-                </v-chip>
-                <v-spacer />
-                <v-btn
-                  color="secondary"
-                  small
-                  @click="openLinkDialog(item)"
-                >
-                  Link Annotation
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </div>
+                <v-card-text>
+                  <div v-html="formatPerspectiveText(item.text)"></div>
+                  <div
+                    v-if="item.linkedAnnotations && item.linkedAnnotations.length"
+                  >
+                    <v-divider class="my-2" />
+                    <div
+                      v-for="ann in item.linkedAnnotations"
+                      :key="ann.uniqueId"
+                      class="d-flex align-center"
+                    >
+                      <span
+                        v-if="ann.text"
+                        style="cursor: pointer;"
+                        @click="viewAnnotation(item, ann)"
+                      >
+                        <strong>Annotation:</strong>
+                        {{ ann.text }}
+                        <span v-if="ann.label">
+                          ({{ ann.label }})
+                        </span>
+                        <span v-if="ann.linkedBy">
+                          — linked by <strong>{{ ann.linkedBy }}</strong>
+                        </span>
+                      </span>
+                      <v-spacer />
+                      <v-btn
+                        icon
+                        small
+                        color="primary"
+                        :disabled="!canEditAnnotation(item, ann)"
+                        @click="editAnnotation(item, ann)"
+                      >
+                        <v-icon>{{ icons.mdiPencil }}</v-icon>
+                      </v-btn>
+                      <v-btn
+                        icon
+                        small
+                        color="red"
+                        :disabled="!canDeleteAnnotation(item, ann)"
+                        @click="removeAnnotation(item, ann)"
+                      >
+                        <v-icon>{{ icons.mdiTrashCan }}</v-icon>
+                      </v-btn>
+                    </div>
+                  </div>
+                </v-card-text>
 
-          <div v-if="items.length === 0">
-            <p>No perspectives available.</p>
+                <v-card-actions>
+                  <v-chip small>
+                    {{ item.category }}
+                  </v-chip>
+                  <v-spacer />
+                </v-card-actions>
+              </v-card>
+            </div>
+
+            <div v-if="items.length === 0">
+              <p>No perspectives available.</p>
+            </div>
           </div>
         </div>
-      </div>
-    </v-card-text>
+      </v-card-text>
 
-    <v-dialog v-model="dialogLink" persistent max-width="600px">
+      <v-dialog v-model="dialogLink" persistent max-width="600px">
+        <v-card>
+          <v-card-title>
+            Select a Dataset item to link its annotations
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="annotationFetchError" type="error" dense>
+              {{ annotationFetchError }}
+            </v-alert>
+            <v-select
+              v-model="selectedDataset"
+              :items="datasetItems"
+              :item-text="getDatasetLabel"
+              item-value="id"
+              label="Choose a dataset item"
+              :item-disabled="isItemDisabled"
+              :disabled="!!annotationFetchError"
+              dense
+            />
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn
+              color="secondary"
+              text
+              @click="confirmLink"
+              :disabled="!!annotationFetchError"
+            >
+              Confirm
+            </v-btn>
+            <v-btn text @click="closeLinkDialog">
+              Cancel
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <delete-dialog
+        v-model="dialogDelete"
+        :dbError="dbError"
+        :deleteDialogText="deleteDialogText"
+        :isDeleting="isDeleting"
+        @confirm-delete="removePerspective"
+        @cancel-delete="closeDeleteDialog"
+      />
+    </v-card>
+
+    <v-dialog v-model="showDuplicateDialog" max-width="400px">
       <v-card>
-        <v-card-title>
-          Select a Dataset item to link its annotations
-        </v-card-title>
+        <v-card-title class="headline">Warning</v-card-title>
         <v-card-text>
-          <v-alert v-if="annotationFetchError" type="error" dense>
-            {{ annotationFetchError }}
-          </v-alert>
-          <v-select
-            v-model="selectedDataset"
-            :items="datasetItems"
-            :item-text="getDatasetLabel"
-            item-value="id"
-            label="Choose a dataset item"
-            :item-disabled="isItemDisabled"
-            :disabled="!!annotationFetchError"
-            dense
-          />
+          You can’t create more than 1 perspective per user! Edit or delete yours first!
         </v-card-text>
         <v-card-actions>
-          <v-spacer />
-          <v-btn
-            color="secondary"
-            text
-            @click="confirmLink"
-            :disabled="!!annotationFetchError"
-          >
-            Confirm
-          </v-btn>
-          <v-btn text @click="closeLinkDialog">
-            Cancel
+          <v-spacer/>
+          <v-btn text color="primary" @click="showDuplicateDialog = false">
+            OK
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <delete-dialog
-      v-model="dialogDelete"
-      :dbError="dbError"
-      :deleteDialogText="deleteDialogText"
-      :isDeleting="isDeleting"
-      @confirm-delete="removePerspective"
-      @cancel-delete="closeDeleteDialog"
-    />
-  </v-card>
+  </div>
 </template>
 
 <script lang="ts">
@@ -244,6 +254,7 @@ export default Vue.extend({
       isLoading: false,
       categoryTypes: [] as Array<{ text: string; value: string }>,
       dbError: '',
+      showDuplicateDialog: false,
       isDeleting: false,
       icons: {
         mdiMagnify,
@@ -314,6 +325,10 @@ export default Vue.extend({
   },
   methods: {
     goToAdd() {
+      if (this.items.some(item => item.user.username === this.user.username)) {
+        this.showDuplicateDialog = true
+        return
+      }
       const projectId = this.$route.params.id
       this.$router.push(
         this.localePath(`/projects/${projectId}/perspectives/add`)

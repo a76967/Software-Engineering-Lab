@@ -6,49 +6,6 @@
 
     <v-card-text>
       <v-form ref="form" v-model="isValid" lazy-validation>
-
-        <v-menu
-          ref="dobMenu"
-          v-model="dobMenu"
-          :close-on-content-click="false"
-          transition="scale-transition"
-          offset-y
-          min-width="290"
-        >
-          <template #activator="{ on, attrs }">
-            <v-text-field
-              v-model="form.dob"
-              label="Birthday"
-              readonly
-              v-bind="attrs"
-              v-on="on"
-              required
-            />
-          </template>
-          <v-date-picker
-            v-model="form.dob"
-            :max="today"
-            :min="minDOB"
-            @input="dobMenu = false"
-            locale="en"
-          />
-        </v-menu>
-
-        <v-select
-          v-model="form.gender"
-          :items="genders"
-          label="Gender"
-          required
-        />
-
-        <v-select
-          v-model="form.nationality"
-          :items="sortedCountries"
-          label="Nationality (optional)"
-          clearable
-          autocomplete
-        />
-
         <v-select
           v-model="form.category"
           :items="categories"
@@ -58,12 +15,13 @@
         />
 
         <v-textarea
-          class="custom-input"
           v-model="form.text"
+          class="custom-input"
           :label="$t('Text')"
           counter="2000"
           rows="10"
           auto-grow
+          required
         />
       </v-form>
     </v-card-text>
@@ -79,6 +37,7 @@
 </template>
 
 <script lang="ts">
+// @ts-nocheck
 import Vue from 'vue'
 import { mapGetters } from 'vuex'
 
@@ -327,118 +286,406 @@ const DEMONYMS: Record<string, string> = {
   Yemen: 'Yemeni',
   Zambia: 'Zambian',
   Zimbabwe: 'Zimbabwean',
+  'England': 'English',
+  'Scotland': 'Scottish',
+  'Wales': 'Welsh',
+  'Northern Ireland': 'Northern Irish',
+};
+
+const COUNTRY_TO_CONTINENT: Record<string, string> = {
+  "Afghanistan": "Asia",
+  "Albania": "Europe",
+  "Algeria": "Africa",
+  "American Samoa": "Oceania",
+  "Andorra": "Europe",
+  "Angola": "Africa",
+  "Anguilla": "North America",
+  "Antarctica": "Antarctica",
+  "Antigua and Barbuda": "North America",
+  "Argentina": "South America",
+  "Armenia": "Asia",
+  "Aruba": "North America",
+  "Australia": "Oceania",
+  "Austria": "Europe",
+  "Azerbaijan": "Asia",
+  "Bahamas": "North America",
+  "Bahrain": "Asia",
+  "Bangladesh": "Asia",
+  "Barbados": "North America",
+  "Belarus": "Europe",
+  "Belgium": "Europe",
+  "Belize": "North America",
+  "Benin": "Africa",
+  "Bermuda": "North America",
+  "Bhutan": "Asia",
+  "Bolivia": "South America",
+  "Bosnia and Herzegovina": "Europe",
+  "Botswana": "Africa",
+  "Bouvet Island": "Antarctica",
+  "Brazil": "South America",
+  "British Indian Ocean Territory": "Asia",
+  "Brunei Darussalam": "Asia",
+  "Bulgaria": "Europe",
+  "Burkina Faso": "Africa",
+  "Burundi": "Africa",
+  "Cabo Verde": "Africa",
+  "Cambodia": "Asia",
+  "Cameroon": "Africa",
+  "Canada": "North America",
+  "Cayman Islands": "North America",
+  "Central African Republic": "Africa",
+  "Chad": "Africa",
+  "Chile": "South America",
+  "China": "Asia",
+  "Christmas Island": "Asia",
+  "Cocos Keeling Islands": "Asia",
+  "Colombia": "South America",
+  "Comoros": "Africa",
+  "Congo": "Africa",
+  "Congo Democratic Republic of the": "Africa",
+  "Cook Islands": "Oceania",
+  "Costa Rica": "North America",
+  "Côte d’Ivoire": "Africa",
+  "Croatia": "Europe",
+  "Cuba": "North America",
+  "Curaçao": "North America",
+  "Cyprus": "Asia",
+  "Czechia": "Europe",
+  "Denmark": "Europe",
+  "Djibouti": "Africa",
+  "Dominica": "North America",
+  "Dominican Republic": "North America",
+  "Ecuador": "South America",
+  "Egypt": "Africa",
+  "El Salvador": "North America",
+  "Equatorial Guinea": "Africa",
+  "Eritrea": "Africa",
+  "Estonia": "Europe",
+  "Eswatini": "Africa",
+  "Ethiopia": "Africa",
+  "Falkland Islands": "South America",
+  "Faroe Islands": "Europe",
+  "Fiji": "Oceania",
+  "Finland": "Europe",
+  "France": "Europe",
+  "French Guiana": "South America",
+  "French Polynesia": "Oceania",
+  "French Southern Territories": "Antarctica",
+  "Gabon": "Africa",
+  "Gambia": "Africa",
+  "Georgia": "Asia",
+  "Germany": "Europe",
+  "Ghana": "Africa",
+  "Gibraltar": "Europe",
+  "Greece": "Europe",
+  "Greenland": "North America",
+  "Grenada": "North America",
+  "Guadeloupe": "North America",
+  "Guam": "Oceania",
+  "Guatemala": "North America",
+  "Guernsey": "Europe",
+  "Guinea": "Africa",
+  "Guinea-Bissau": "Africa",
+  "Guyana": "South America",
+  "Haiti": "North America",
+  "Heard Island and McDonald Islands": "Antarctica",
+  "Holy See": "Europe",
+  "Honduras": "North America",
+  "Hong Kong": "Asia",
+  "Hungary": "Europe",
+  "Iceland": "Europe",
+  "India": "Asia",
+  "Indonesia": "Asia",
+  "Iran": "Asia",
+  "Iraq": "Asia",
+  "Ireland": "Europe",
+  "Isle of Man": "Europe",
+  "Israel": "Asia",
+  "Italy": "Europe",
+  "Jamaica": "North America",
+  "Japan": "Asia",
+  "Jersey": "Europe",
+  "Jordan": "Asia",
+  "Kazakhstan": "Asia",
+  "Kenya": "Africa",
+  "Kiribati": "Oceania",
+  "Kuwait": "Asia",
+  "Kyrgyzstan": "Asia",
+  "Lao People’s Democratic Republic": "Asia",
+  "Latvia": "Europe",
+  "Lebanon": "Asia",
+  "Lesotho": "Africa",
+  "Liberia": "Africa",
+  "Libya": "Africa",
+  "Liechtenstein": "Europe",
+  "Lithuania": "Europe",
+  "Luxembourg": "Europe",
+  "Macao": "Asia",
+  "Madagascar": "Africa",
+  "Malawi": "Africa",
+  "Malaysia": "Asia",
+  "Maldives": "Asia",
+  "Mali": "Africa",
+  "Malta": "Europe",
+  "Marshall Islands": "Oceania",
+  "Martinique": "North America",
+  "Mauritania": "Africa",
+  "Mauritius": "Africa",
+  "Mayotte": "Africa",
+  "Mexico": "North America",
+  "Moldova": "Europe",
+  "Monaco": "Europe",
+  "Mongolia": "Asia",
+  "Montenegro": "Europe",
+  "Montserrat": "North America",
+  "Morocco": "Africa",
+  "Mozambique": "Africa",
+  "Myanmar": "Asia",
+  "Namibia": "Africa",
+  "Nauru": "Oceania",
+  "Nepal": "Asia",
+  "Netherlands": "Europe",
+  "New Caledonia": "Oceania",
+  "New Zealand": "Oceania",
+  "Nicaragua": "North America",
+  "Niger": "Africa",
+  "Nigeria": "Africa",
+  "Niue": "Oceania",
+  "Norfolk Island": "Oceania",
+  "North Korea": "Asia",
+  "North Macedonia": "Europe",
+  "Northern Mariana Islands": "Oceania",
+  "Norway": "Europe",
+  "Oman": "Asia",
+  "Pakistan": "Asia",
+  "Palau": "Oceania",
+  "Palestine": "Asia",
+  "Panama": "North America",
+  "Papua New Guinea": "Oceania",
+  "Paraguay": "South America",
+  "Peru": "South America",
+  "Philippines": "Asia",
+  "Pitcairn": "Oceania",
+  "Poland": "Europe",
+  "Portugal": "Europe",
+  "Puerto Rico": "North America",
+  "Qatar": "Asia",
+  "Réunion": "Africa",
+  "Romania": "Europe",
+  "Russia": "Europe",
+  "Rwanda": "Africa",
+  "Saint Barthélemy": "North America",
+  "Saint Helena Ascension and Tristan da Cunha": "Africa",
+  "Saint Kitts and Nevis": "North America",
+  "Saint Lucia": "North America",
+  "Saint Martin": "North America",
+  "Saint Pierre and Miquelon": "North America",
+  "Saint Vincent and the Grenadines": "North America",
+  "Samoa": "Oceania",
+  "San Marino": "Europe",
+  "São Tomé and Príncipe": "Africa",
+  "Saudi Arabia": "Asia",
+  "Senegal": "Africa",
+  "Serbia": "Europe",
+  "Seychelles": "Africa",
+  "Sierra Leone": "Africa",
+  "Singapore": "Asia",
+  "Sint Maarten": "North America",
+  "Slovakia": "Europe",
+  "Slovenia": "Europe",
+  "Solomon Islands": "Oceania",
+  "Somalia": "Africa",
+  "South Africa": "Africa",
+  "South Georgia and the South Sandwich Islands": "Antarctica",
+  "South Korea": "Asia",
+  "South Sudan": "Africa",
+  "Spain": "Europe",
+  "Sri Lanka": "Asia",
+  "Sudan": "Africa",
+  "Suriname": "South America",
+  "Svalbard and Jan Mayen": "Europe",
+  "Sweden": "Europe",
+  "Switzerland": "Europe",
+  "Syria": "Asia",
+  "Taiwan": "Asia",
+  "Tajikistan": "Asia",
+  "Tanzania": "Africa",
+  "Thailand": "Asia",
+  "Timor-Leste": "Asia",
+  "Togo": "Africa",
+  "Tokelau": "Oceania",
+  "Tonga": "Oceania",
+  "Trinidad and Tobago": "North America",
+  "Tunisia": "Africa",
+  "Turkey": "Asia",
+  "Turkmenistan": "Asia",
+  "Turks and Caicos Islands": "North America",
+  "Tuvalu": "Oceania",
+  "Uganda": "Africa",
+  "Ukraine": "Europe",
+  "United Arab Emirates": "Asia",
+  "United Kingdom": "Europe",
+  "United States": "North America",
+  "Uruguay": "South America",
+  "Uzbekistan": "Asia",
+  "Vanuatu": "Oceania",
+  "Venezuela": "South America",
+  "Vietnam": "Asia",
+  "Wallis and Futuna": "Oceania",
+  "Western Sahara": "Africa",
+  "Yemen": "Asia",
+  "Zambia": "Africa",
+  "Zimbabwe": "Africa",
+  'England': 'Europe',
+  'Scotland': 'Europe',
+  'Wales': 'Europe',
+  'Northern Ireland': 'Europe',
 };
 
 export default Vue.extend({
   name: 'CreatePerspective',
   layout: 'project',
-  data() {
+
+  data () {
     return {
       form: {
-        dob: '',
-        gender: '',
-        nationality: '',
         text: '',
         category: 'subjective'
       },
-      dobMenu: false,
-      
-      today: new Date().toISOString().substr(0, 10),
-      minDOB: '1925-01-01',
       categories: [
-        { text: this.$t('Cultural'), value: 'cultural' },
-        { text: this.$t('Technic'), value: 'technic' },
-        { text: this.$t('Subjective'), value: 'subjective' }
+        { text: this.$t('Cultural'),   value: 'cultural'  },
+        { text: this.$t('Technic'),    value: 'technic'   },
+        { text: this.$t('Subjective'), value: 'subjective'}
       ],
       isValid: false,
-      dbError: "",
-      genders: [
-        { text: 'Male', value: 'M' },
-        { text: 'Female', value: 'F' },
-        { text: 'I prefer not to say', value: '?' }
-      ],
-      countries: [
-        "Afghanistan","Albania","Algeria","American Samoa","Andorra","Angola",
-        "Anguilla","Antarctica","Antigua and Barbuda","Argentina","Armenia","Aruba",
-        "Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados",
-        "Belarus","Belgium","Belize","Benin","Bermuda","Bhutan","Bolivia",
-        "Bonaire Sint Eustatius and Saba","Bosnia and Herzegovina","Botswana",
-        "Bouvet Island","Brazil","British Indian Ocean Territory","Brunei Darussalam",
-        "Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada",
-        "Cayman Islands","Central African Republic","Chad","Chile","China","Christmas Island",
-        "Cocos Keeling Islands","Colombia","Comoros","Congo",
-        "Congo Democratic Republic of the","Cook Islands","Costa Rica","Côte d’Ivoire",
-        "Croatia","Cuba","Curaçao","Cyprus","Czechia","Denmark","Djibouti","Dominica",
-        "Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea",
-        "Estonia","Eswatini","Ethiopia","Falkland Islands","Faroe Islands","Fiji","Finland",
-        "France","French Guiana","French Polynesia","French Southern Territories","Gabon",
-        "Gambia","Georgia","Germany","Ghana","Gibraltar","Greece","Greenland","Grenada",
-        "Guadeloupe","Guam","Guatemala","Guernsey","Guinea","Guinea-Bissau","Guyana","Haiti",
-        "Heard Island and McDonald Islands","Holy See","Honduras","Hong Kong","Hungary",
-        "Iceland","India","Indonesia","Iran","Iraq","Ireland","Isle of Man","Israel","Italy",
-        "Jamaica","Japan","Jersey","Jordan","Kazakhstan","Kenya","Kiribati","Kuwait","Kyrgyzstan",
-        "Lao People’s Democratic Republic","Latvia","Lebanon","Lesotho","Liberia","Libya",
-        "Liechtenstein","Lithuania","Luxembourg","Macao","Madagascar","Malawi","Malaysia",
-        "Maldives","Mali","Malta","Marshall Islands","Martinique","Mauritania","Mauritius",
-        "Mayotte","Mexico","Moldova","Monaco","Mongolia","Montenegro","Montserrat","Morocco",
-        "Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Caledonia",
-        "New Zealand","Nicaragua","Niger","Nigeria","Niue","Norfolk Island","North Macedonia",
-        "North Korea", "Northern Mariana Islands","Norway","Oman","Pakistan","Palau","Palestine","Panama",
-        "Papua New Guinea","Paraguay","Peru","Philippines","Pitcairn","Poland","Portugal",
-        "Puerto Rico","Qatar","Réunion","Romania","Russia","Rwanda","Saint Barthélemy",
-        "Saint Helena Ascension and Tristan da Cunha","Saint Kitts and Nevis","Saint Lucia",
-        "Saint Martin","Saint Pierre and Miquelon","Saint Vincent and the Grenadines","Samoa",
-        "San Marino","São Tomé and Príncipe","Saudi Arabia","Senegal","Serbia","Seychelles",
-        "Sierra Leone","Singapore","Sint Maarten","Slovakia","Slovenia","Solomon Islands",
-        "Somalia","South Africa","South Georgia and the South Sandwich Islands", "South Korea",
-        "South Sudan", "Spain","Sri Lanka","Sudan","Suriname","Svalbard and Jan Mayen","Sweden","Switzerland",
-        "Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tokelau",
-        "Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Turks and Caicos Islands",
-        "Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States",
-        "Uruguay","Uzbekistan","Vanuatu","Venezuela","Vietnam","Wallis and Futuna",
-        "Western Sahara","Yemen","Zambia","Zimbabwe"
-      ]
+      dbError: ''
     }
   },
+
   computed: {
     ...mapGetters('auth', ['getUsername']),
-    userRole(): string {
+    userRole (): string {
       return this.$store.state.auth.role || 'annotator'
-    },
-    sortedCountries(): string[] {
-      return [...this.countries].sort((a, b) => a.localeCompare(b))
     }
   },
+
+  async mounted () {
+    await this.checkExistingPerspective()
+  },
+
   methods: {
-    async submitPerspective() {
-      if (!(this.$refs.form as any).validate()) return
-      const projectId = Number(this.$route.params.id)
-      const userId = this.$store.state.auth.id
-      const dob = new Date(this.form.dob)
-      const diff = Date.now() - dob.getTime()
-      const age = Math.floor(new Date(diff).getUTCFullYear() - 1970)
-      const gender = this.form.gender || '?'
-
-      const segments = [
-        `Age: ${age}`,
-        `Gender: ${gender}`
-      ]
-      if (this.form.nationality) {
-        const dem = DEMONYMS[this.form.nationality] || this.form.nationality
-        segments.push(`Nationality: ${dem}`)
+    parseBirthday (txt: string) {
+      const m = txt.match(/\b(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})\b/)
+      if (!m) return undefined
+      let d   = parseInt(m[1], 10)
+      let mth = parseInt(m[2], 10)
+      let y   = parseInt(m[3], 10)
+      if (y < 100) y += y >= 30 ? 1900 : 2000
+      if (d > 12 && mth <= 12) {
+        [d, mth] = [mth, d]
       }
-      const meta = segments.map(s => `${s},`).join(' ')
-      const text = this.form.text.trim()
-      const fullText = text ? `${meta} ${text}` : meta
+      const date = new Date(y, mth - 1, d)
+      return isNaN(date.getTime()) ? undefined : date
+    },
 
-      const payload: any = {
-        text: fullText,
+    calcAge (born: Date) {
+      const today = new Date()
+      let age = today.getFullYear() - born.getFullYear()
+      const m = today.getMonth() - born.getMonth()
+      if (m < 0 || (m === 0 && today.getDate() < born.getDate())) age--
+      return age
+    },
+
+    extractInfo (text: string) {
+      const lower = text.toLowerCase()
+      let age, gender, country, generation;
+      let nationality = 'Unknown';
+
+      let m = lower.match(/(?:age|idade)[:\s]*([0-9]{1,3})/)
+      if (!m) m = lower.match(/(\d{1,3})\s*(?:years? old|anos?)/)
+      if (!m) m = lower.match(/(?:i am|i'm|im|eu tenho|tenho)\s+(\d{1,3})/)
+      if (m) {
+        age = parseInt(m[1], 10)
+      }
+
+      if (age === undefined) {
+        const bday = this.parseBirthday(lower)
+        if (bday) age = this.calcAge(bday)
+      }
+
+      if (age !== undefined && (age < 0 || age > 100)) {
+        age = undefined
+      }
+
+      const gMatch = lower.match(/\b(male|female|man|woman|masculino|feminino|homem|mulher|guy|girl|boy|he|she|him|her)\b/)
+      if (gMatch) {
+        gender = /(female|feminino|woman|mulher|girl|she|her)/.test(gMatch[1]) ? 'F' : 'M'
+      }
+
+      for (const [c, dem] of Object.entries(DEMONYMS)) {
+        if (lower.includes(c.toLowerCase()) || lower.includes(dem.toLowerCase())) {
+          country = c; nationality = dem
+          break
+        }
+      }
+      const continent = country ? COUNTRY_TO_CONTINENT[country] : 'Unknown'
+
+      if (age !== undefined) {
+        if (age <= 26) generation = 'Gen Z'
+        else if (age <= 42) generation = 'Millennial'
+        else if (age <= 58) generation = 'Gen X'
+        else if (age <= 77) generation = 'Baby Boomer'
+        else generation = 'Silent'
+      }
+
+      return { age, gender, nationality, generation, continent }
+    },
+
+    async checkExistingPerspective () {
+      const projectId = this.$route.params.id
+      const userId    = this.$store.state.auth.id
+      try {
+        const list = await this.$repositories.perspective.list(projectId)
+        const existing = list.find((p:any) => p.userId === userId)
+        if (existing) {
+          this.$router.push(
+            this.localePath(`/projects/${projectId}/perspectives/edit?perspectiveId=${existing.id}`)
+          )
+        }
+      } catch (e) {
+        console.error('Failed to check existing ', e)
+      }
+    },
+
+    async submitPerspective () {
+      const projectId = Number(this.$route.params.id)
+      const userId    = this.$store.state.auth.id
+      const rawText   = this.form.text.trim()
+      const info      = this.extractInfo(rawText)
+
+      if (info.age === undefined || info.gender === undefined) {
+        this.dbError = 'Age and gender must be specified (number or birthday).'
+        return
+      }
+
+      const segs = [
+        `Age: ${info.age}`,
+        `Gender: ${info.gender}`,
+        `Nationality: ${info.nationality}`,
+        `Continent: ${info.continent}`
+      ]
+      if (info.generation) segs.push(`Generation: ${info.generation}`)
+
+      const full = rawText ? `${segs.join(', ')}. ${rawText}` : segs.join(', ')
+      const payload = {
+        text: full,
         category: this.form.category,
         user: userId,
         project: projectId,
         roleOverride: true,
         role: this.userRole
       }
+
       try {
         await this.$repositories.perspective.create(projectId, payload)
         this.$router.push({
@@ -448,13 +695,16 @@ export default Vue.extend({
             redirect: this.localePath(`/projects/${projectId}/perspectives`)
           }
         })
-      } catch (error: any) {
-        console.error(error)
+      } catch (err:any) {
+        console.error(err)
         this.dbError = "Can't access our database!"
       }
     },
-    goBack() {
-      this.$router.push(this.localePath(`/projects/${this.$route.params.id}/perspectives`))
+
+    goBack () {
+      this.$router.push(
+        this.localePath(`/projects/${this.$route.params.id}/perspectives`)
+      )
     }
   }
 })
@@ -466,7 +716,6 @@ export default Vue.extend({
   margin: 20px auto;
   padding: 20px;
 }
-
 .headline {
   cursor: pointer;
   font-weight: bold;
@@ -474,23 +723,19 @@ export default Vue.extend({
   display: inline-flex;
   align-items: center;
 }
-
 .headline .edit-icon {
   opacity: 0;
   transition: opacity 0.3s;
   color: inherit;
   margin-left: 8px;
 }
-
 .headline:hover .edit-icon {
   opacity: 1;
 }
-
 ::v-deep .custom-input .v-input__slot {
   background-color: #f0f0f0 !important;
   border-radius: 4px;
 }
-
 ::v-deep .bold-label .v-label {
   font-weight: bold;
 }
