@@ -13,7 +13,7 @@
           clearable
           style="max-width:300px"
         />
-        <v-btn text @click="openThreshold">Set Threshold</v-btn>
+        <v-btn text v-if="isAdmin" @click="openThreshold">Set Threshold</v-btn>
       </v-card-title>
 
       <v-card-text class="pa-0">
@@ -96,6 +96,9 @@ export default Vue.extend({
       return this.rows.filter(r =>
         r.snippet.toLowerCase().includes(this.search.toLowerCase())
       )
+    },
+    isAdmin(): boolean {
+      return this.$store.getters['projects/isAdmin']
     }
   },
 

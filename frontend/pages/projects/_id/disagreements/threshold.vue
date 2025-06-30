@@ -234,11 +234,12 @@
         localStorage.setItem('disagreementThreshold', String(v))
         this.initialThreshold = v
         this.confirmDialog = false
+        const pid = this.$route.params.id
         this.$router.push({
           path: '/message',
           query: {
             message: `Success! Threshold updated to ${v}%`,
-            redirect: this.$route.fullPath
+            redirect: `/projects/${pid}/disagreements/diffs`
           }
         })
       }
