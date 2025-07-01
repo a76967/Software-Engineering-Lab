@@ -27,7 +27,12 @@
           </template>
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.required="{ item }">
-            {{ item.required ? 'Yes' : 'No' }}
+            <span
+              class="required-icon"
+              :class="item.required ? 'green' : 'red'"
+            >
+              {{ item.required ? '✓' : '✗' }}
+            </span>
           </template>
         </v-data-table>
       </v-card-text>
@@ -103,9 +108,21 @@ export default Vue.extend({
 .v-data-table__actions {
   width: 72px;
 }
-.v-card {
-  max-width: 800px;
-  margin: 20px auto;
-  padding: 20px;
+
+.required-icon {
+  font-weight: 700;
+  font-size: 1.3rem;
+  line-height: 1;
+  display: inline;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  transition: color 0.3s ease;
+}
+.required-icon.green {
+  color: #4caf50;
+}
+.required-icon.red {
+  color: #f44336;
 }
 </style>
