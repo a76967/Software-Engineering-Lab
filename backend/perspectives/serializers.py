@@ -10,8 +10,10 @@ class PerspectiveSerializer(serializers.ModelSerializer):
             "linkedAnnotations": {"read_only": False},
         }
 
-
 class PerspectiveItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerspectiveItem
         fields = "__all__"
+        extra_kwargs = {
+            "order": {"required": False}
+        }
