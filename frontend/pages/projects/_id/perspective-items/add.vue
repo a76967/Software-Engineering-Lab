@@ -1,105 +1,156 @@
 <template>
-    <v-card>
-      <v-card-title>Set Perspective Items</v-card-title>
-      <v-card-text>
-        <v-alert v-if="errorMessage" type="error" dense class="mb-4">
-          {{ errorMessage }}
-        </v-alert>
-        <div v-if="items.length" class="mb-4">
-          <div v-for="it in items" :key="it.id">
-            <strong>{{ it.name }}</strong> - {{ it.data_type }}
-            <span v-if="it.required">(required)</span>
-          </div>
-        </div>
-        <v-form ref="form" v-model="isValid" lazy-validation>
-          <v-text-field
-            v-model="newItem.name"
-            label="Name"
-            required
-            :rules="nameRules"
-          />
-          <v-select
-            v-model="newItem.data_type"
-            :items="types"
-            label="Data Type"
-            required
-            :rules="dataTypeRules"
-          />
-          <v-checkbox v-model="newItem.required" label="Required" />
-          <v-btn
-            color="primary"
-            class="mt-3"
-            :disabled="!isValid"
-            @click="addItem"
-          >
-            Add
-          </v-btn>
-        </v-form>
-      </v-card-text>
-    </v-card>
-  </template>
-  
-  <script lang="ts">
-  import Vue from 'vue'
-  import axios from 'axios'
-  export default Vue.extend({
-    layout: 'project',
-    middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
-    data() {
-      return {
-        items: [] as any[],
-        newItem: { name: '', data_type: '', required: false },
-        types: ['string', 'number', 'boolean'],
-        isValid: false,
-        errorMessage: '',
-        nameRules: [
-          (v: string) => !!v || 'Name is required',
-          (v: string) =>
-            !this.items.some(it => it.name === v) ||
-            'Name already exists'
-        ],
-        dataTypeRules: [
-          (v: string) => !!v || 'Data Type is required',
-          (v: string) =>
-            this.types.includes(v) ||
-            'Invalid Data Type'
-        ]
+  <v-card>
+    <v-card-title>Set Perspective Items</v-card-title>
+    <v-card-text>
+      <v-alert v-if="errorMessage" type="error" dense class="mb-4">
+        {{ errorMessage }}
+      </v-alert>
+
+      <v-form ref="form" v-model="isValid" lazy-validation>
+        <v-text-field
+          v-model="newItem.name"
+          label="Name"
+          required
+          :rules="nameRules"
+        />
+        <v-select
+          v-model="newItem.data_type"
+          :items="types"
+          label="Data Type"
+          required
+          :rules="dataTypeRules"
+        />
+        <v-checkbox v-model="newItem.required" label="Required" />
+      </v-form>
+
+      <v-simple-table v-if="pendingItems.length" class="mt-4">
+        <thead>
+          <tr><th>Name</th><th>Type</th><th>Required</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="(it, i) in pendingItems" :key="i">
+            <td>{{ it.name }}</td>
+            <td>{{ it.data_type }}</td>
+            <td>{{ it.required ? 'yes' : 'no' }}</td>
+          </tr>
+        </tbody>
+      </v-simple-table>
+    </v-card-text>
+
+    <v-card-actions class="d-flex justify-end">
+      <v-btn text @click="cancel">Cancel</v-btn>
+      <v-btn
+        color="primary"
+        :disabled="!isValid"
+        class="ms-2"
+        @click="addItem"
+      >
+        Add
+      </v-btn>
+      <v-btn
+        color="primary"
+        :disabled="pendingItems.length === 0"
+        class="ms-2"
+        @click="saveAll"
+      >
+        Save
+      </v-btn>
+    </v-card-actions>
+  </v-card>
+</template>
+
+<script lang="ts">
+import Vue from 'vue'
+import axios from 'axios'
+
+export default Vue.extend({
+  layout: 'project',
+  middleware: ['check-auth','auth','setCurrentProject','isProjectAdmin'],
+
+  data() {
+    return {
+      items: [] as any[],
+      newItem: { name:'', data_type:'', required:false },
+      types: ['string','number','boolean'],
+      pendingItems: [] as any[],
+      isValid: false,
+      errorMessage: '',
+      nameRules: [
+        (v:string) => !!v || 'Name is required',
+        (v:string) =>
+          !this.items.some(it=>it.name===v)
+          && !this.pendingItems.some(it=>it.name===v)
+          || 'Name duplicated'
+      ],
+      dataTypeRules: [
+        (v:string) => !!v || 'Data Type is required',
+        (v:string) => this.types.includes(v) || 'Invalid Data Type'
+      ]
+    }
+  },
+
+  computed: {
+    projectId(): number {
+      return Number(this.$route.params.id)
+    }
+  },
+
+  mounted() {
+    this.fetchItems()
+    this.pendingItems = []
+  },
+
+  methods: {
+    async fetchItems() {
+      try {
+        const res = await axios.get(
+          `/v1/projects/${this.projectId}/perspective-items/`
+        )
+        this.items = res.data.results || res.data
+      } catch {
+        this.items = []
       }
     },
-    computed: {
-      projectId(): number {
-        return Number(this.$route.params.id)
-      }
+
+    addItem() {
+      if (!this.newItem.name || !this.newItem.data_type) return
+      this.errorMessage = ''
+      this.pendingItems.push({ ...this.newItem })
+      this.newItem = { name:'', data_type:'', required:false }
+      ;(this.$refs.form as any).resetValidation()
     },
-    mounted() {
-      this.fetchItems()
+
+    cancel() {
+      this.$router.push(
+        this.localePath(`/projects/${this.projectId}/perspective-items`)
+      )
     },
-    methods: {
-      async fetchItems() {
-        try {
-          const res = await axios.get(`/v1/projects/${this.projectId}/perspective-items/`)
-          this.items = res.data.results || res.data
-        } catch (e) {
-          this.items = []
+
+    async saveAll() {
+      this.errorMessage = ''
+      try {
+        for (const it of this.pendingItems) {
+          await axios.post(
+            `/v1/projects/${this.projectId}/perspective-items/`, it
+          )
         }
-      },
-      async addItem() {
-        if (!(this.$refs.form as any).validate()) return
-        this.errorMessage = ''
-        try {
-          await axios.post(`/v1/projects/${this.projectId}/perspective-items/`, this.newItem)
-          this.newItem = { name: '', data_type: '', required: false }
-          this.fetchItems()
-        } catch (err: any) {
-          const data = err.response?.data || {}
-          this.errorMessage =
-            data.name?.[0] ||
-            data.data_type?.[0] ||
-            data.required?.[0] ||
-            data.non_field_errors?.join(', ') ||
-            'Please fill all required fields and avoid duplicate names.'
-        }
+        this.$router.push({
+          path: this.localePath('/message'),
+          query: {
+            message: 'Perspective items saved!',
+            redirect: this.localePath(`/projects/${this.projectId}/perspective-items`)
+          }
+        })
+      } catch (err:any) {
+        const data = err.response?.data || {}
+        this.errorMessage =
+          data.name?.[0] ||
+          data.data_type?.[0] ||
+          data.required?.[0] ||
+          data.non_field_errors?.join(', ') ||
+          'Failed to save. Check required fields or duplicates.'
       }
     }
-  })
-  </script>
+  }
+})
+</script>

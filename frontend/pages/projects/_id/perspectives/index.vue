@@ -700,15 +700,23 @@ export default Vue.extend({
     },
     formatPerspectiveText (text: string = ''): string {
       const dot = text.indexOf('. ')
-      if (dot !== -1) {
-        const meta = text.slice(0, dot).trim()
-        const rest = text.slice(dot + 2).trim()
-        if (!rest) {
-          return `<span class="persp-meta">${meta}</span>`
-        }
-        return `<span class="persp-meta">${meta}</span><br>${rest}`
-      }
-      return text
+      if (dot === -1) return text
+
+      const metaStr = text.slice(0, dot).trim()
+      const rest    = text.slice(dot + 2).trim()
+
+      const segments = metaStr.split(',').map(s => s.trim()).map(seg => {
+        const [key, ...valParts] = seg.split(':')
+        let val = valParts.join(':').trim()
+        if (val.toLowerCase() === 'true')  val = 'Yes'
+        if (val.toLowerCase() === 'false') val = 'No'
+        return `<strong>${key}:</strong> ${val}`
+      })
+
+      return `
+        <div>${segments.join(', ')}</div>
+        ${rest ? `<div>${rest}</div>` : ''}
+      `
     }
   }
 })

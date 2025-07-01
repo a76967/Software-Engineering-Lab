@@ -15,11 +15,15 @@
         />
 
         <v-text-field
-          v-model="form.age"
+          v-model.number="form.age"
           type="number"
           label="Age"
+          :rules="ageRules"
+          min="0"
+          max="100"
           required
         />
+
         <v-select
           v-model="form.gender"
           :items="['M', 'F']"
@@ -33,13 +37,16 @@
             :type="it.data_type === 'number' ? 'number' : 'text'"
             v-model="form.extra[it.name]"
             :label="it.name"
-            :required="it.required"
+            :rules="it.required ? extraRules(it) : []"
           />
-          <v-checkbox
+          <v-select
             v-else-if="it.data_type === 'boolean'"
             v-model="form.extra[it.name]"
+            :items="booleanOptions"
             :label="it.name"
-            :required="it.required"
+            :rules="it.required ? extraRules(it) : []"
+            item-text="text"
+            item-value="value"
           />
         </div>
 
@@ -78,7 +85,7 @@ export default Vue.extend({
       form: {
         text: '',
         category: 'subjective',
-        age: '',
+        age: null as number | null,
         gender: '',
         extra: {} as Record<string, any>
       },
@@ -89,7 +96,19 @@ export default Vue.extend({
       ],
       extraItems: [] as any[],
       isValid: false,
-      dbError: ''
+      dbError: '',
+
+      ageRules: [
+        (v: number) => v !== null && v !== undefined || 'Age is required',
+        (v: number) => Number.isInteger(v) || 'Age must be an integer',
+        (v: number) => v >= 0 || 'Age can’t be below 0',
+        (v: number) => v <= 100 || 'Age can’t be above 100'
+      ],
+
+      booleanOptions: [
+        { text: 'Yes', value: true },
+        { text: 'No',  value: false }
+      ]
     }
   },
 
@@ -158,6 +177,21 @@ export default Vue.extend({
     },
 
     async submitPerspective () {
+      this.dbError = ''
+      const ageError = this.ageRules.map(r => r(this.form.age as number))
+                             .find(msg => msg !== true)
+      if (ageError) {
+        this.dbError = ageError as string
+        return
+      }
+      for (const it of this.extraItems) {
+        const val = this.form.extra[it.name]
+        const rule = this.extraRules(it)[0](val)
+        if (rule !== true) {
+          this.dbError = rule as string
+          return
+        }
+      }
       const projectId = Number(this.$route.params.id)
       const userId    = this.$store.state.auth.id
       const rawText   = this.form.text.trim()
@@ -180,12 +214,9 @@ export default Vue.extend({
 
       const full = rawText ? `${segs.join(', ')}. ${rawText}` : segs.join(', ')
       const payload = {
-        text: full,
+        text:     full,
         category: this.form.category,
-        user: userId,
-        project: projectId,
-        roleOverride: true,
-        role: this.userRole
+        user:     userId
       }
 
       try {
@@ -198,9 +229,29 @@ export default Vue.extend({
           }
         })
       } catch (err:any) {
-        console.error(err)
-        this.dbError = "Can't access our database!"
+        // print actual validation errors
+        console.error('Create perspective failed:', err.response?.data || err)
+        // show first field error
+        const data = err.response?.data || {}
+        const firstKey = Object.keys(data)[0]
+        this.dbError = Array.isArray(data[firstKey])
+          ? data[firstKey][0]
+          : data[firstKey] || 'Failed to create perspective.'
       }
+    },
+
+    extraRules(it: any) {
+      return [
+        (v: any) => {
+          if (it.data_type === 'boolean') {
+            return v === true || v === false || `${it.name} is required`
+          }
+          if (it.data_type === 'number') {
+            return v !== null && v !== undefined && v !== '' || `${it.name} is required`
+          }
+          return !!v || `${it.name} is required`
+        }
+      ]
     },
 
     goBack () {
