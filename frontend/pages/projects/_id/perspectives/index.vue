@@ -710,7 +710,7 @@ export default Vue.extend({
         let val = valParts.join(':').trim()
         if (val.toLowerCase() === 'true')  val = 'Yes'
         if (val.toLowerCase() === 'false') val = 'No'
-        return `<strong>${key}:</strong> ${val}`
+        return `<span class="persp-meta">${key}: ${val}</span>`
       })
 
       return `

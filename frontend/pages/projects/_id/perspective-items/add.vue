@@ -154,3 +154,11 @@ export default Vue.extend({
   }
 })
 </script>
+
+<style scoped>
+.v-card {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
+}
+</style>

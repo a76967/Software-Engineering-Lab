@@ -17,7 +17,7 @@
         <v-text-field
           v-model.number="form.age"
           type="number"
-          label="Age"
+          label="Age (required)"
           :rules="ageRules"
           min="0"
           max="100"
@@ -27,7 +27,7 @@
         <v-select
           v-model="form.gender"
           :items="['M', 'F']"
-          label="Gender"
+          label="Gender (required)"
           required
         />
 
@@ -36,14 +36,14 @@
             v-if="it.data_type === 'string' || it.data_type === 'number'"
             :type="it.data_type === 'number' ? 'number' : 'text'"
             v-model="form.extra[it.name]"
-            :label="it.name"
+            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
             :rules="it.required ? extraRules(it) : []"
           />
           <v-select
             v-else-if="it.data_type === 'boolean'"
             v-model="form.extra[it.name]"
             :items="booleanOptions"
-            :label="it.name"
+            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
             :rules="it.required ? extraRules(it) : []"
             item-text="text"
             item-value="value"

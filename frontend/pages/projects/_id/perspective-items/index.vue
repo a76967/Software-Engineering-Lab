@@ -25,6 +25,10 @@
               <v-icon>mdi-delete</v-icon>
             </v-btn>
           </template>
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.required="{ item }">
+            {{ item.required ? 'Yes' : 'No' }}
+          </template>
         </v-data-table>
       </v-card-text>
     </v-card>
@@ -98,5 +102,10 @@ export default Vue.extend({
 <style scoped>
 .v-data-table__actions {
   width: 72px;
+}
+.v-card {
+  max-width: 800px;
+  margin: 20px auto;
+  padding: 20px;
 }
 </style>
