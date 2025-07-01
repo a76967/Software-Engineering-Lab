@@ -71,7 +71,7 @@
                 }"
               >
                 <v-sheet
-                  color="primary"
+                  :color="item.user.role === 'project_admin' ? 'orange' : 'primary'"
                   dark
                   class="py-3 px-4 rounded-t-lg d-flex flex-column"
                 >

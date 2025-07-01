@@ -36,14 +36,15 @@ import {
   mdiCog,
   mdiCommentAccountOutline,
   mdiDatabase,
-  mdiEyeOutline,
+  mdiAccountEye,
+  mdiEye,
   mdiGavel,
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
   mdiThumbDownOutline,
   mdiVote,
-  mdiFileChartOutline // <-- importa um ícone para “Reports”
+  mdiFileChartOutline
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -113,8 +114,14 @@ export default {
           isVisible: this.isProjectAdmin
         },
         {
-          icon: mdiEyeOutline, 
-          text: 'Perspectives',
+          icon: mdiEye,
+          text: 'Perspective Items',
+          link: 'perspective-items',
+          isVisible: this.isProjectAdmin
+        },
+        {
+          icon: mdiAccountEye,
+          text: 'User Perspectives',
           link: 'perspectives',
           isVisible: true
         },

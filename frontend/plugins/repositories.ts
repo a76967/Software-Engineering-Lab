@@ -1,54 +1,58 @@
 import { Plugin } from '@nuxt/types'
-import { APIAssignmentRepository } from '@/repositories/example/apiAssignmentRepository'
 import { APIAuthRepository } from '@/repositories/auth/apiAuthRepository'
-import { APIConfigRepository } from '@/repositories/autoLabeling/config/apiConfigRepository'
-import { APITemplateRepository } from '@/repositories/autoLabeling/template/apiTemplateRepository'
-import { APITaskStatusRepository } from '@/repositories/celery/apiTaskStatusRepository'
-import { APICommentRepository } from '@/repositories/comment/apiCommentRepository'
-import { APIDownloadFormatRepository } from '@/repositories/download/apiDownloadFormatRepository'
-import { APIDownloadRepository } from '@/repositories/download/apiDownloadRepository'
-import { APIExampleRepository } from '@/repositories/example/apiDocumentRepository'
-import { APILabelRepository } from '@/repositories/label/apiLabelRepository'
-import { APIMemberRepository } from '@/repositories/member/apiMemberRepository'
-import { APIMetricsRepository } from '@/repositories/metrics/apiMetricsRepository'
-import { LocalStorageOptionRepository } from '@/repositories/option/apiOptionRepository'
-import { APIProjectRepository } from '@/repositories/project/apiProjectRepository'
-import { APIRoleRepository } from '@/repositories/role/apiRoleRepository'
-import { APITagRepository } from '@/repositories/tag/apiTagRepository'
-import { APIBoundingBoxRepository } from '@/repositories/tasks/apiBoundingBoxRepository'
-import { APICategoryRepository } from '@/repositories/tasks/apiCategoryRepository'
-import { APIRelationRepository } from '@/repositories/tasks/apiRelationRepository'
-import { APISpanRepository } from '@/repositories/tasks/apiSpanRepository'
-import { APITextLabelRepository } from '@/repositories/tasks/apiTextLabelRepository'
-import { APICatalogRepository } from '@/repositories/upload/apiCatalogRepository'
-import { APIParseRepository } from '@/repositories/upload/apiParseRepository'
 import { APIUserRepository } from '@/repositories/user/apiUserRepository'
 import { APIPerspectiveRepository } from '@/repositories/perspective/apiPerspectiveRepository'
+import { APIPerspectiveFieldRepository } from '@/repositories/perspective/apiPerspectiveFieldRepository'
+import { APIProjectRepository } from '@/repositories/project/apiProjectRepository'
+import { APIMemberRepository } from '@/repositories/member/apiMemberRepository'
+import { APIRoleRepository } from '@/repositories/role/apiRoleRepository'
+import { APITagRepository } from '@/repositories/tag/apiTagRepository'
+import { APIExampleRepository } from '@/repositories/example/apiDocumentRepository'
+import { APICommentRepository } from '@/repositories/comment/apiCommentRepository'
+import { APITaskStatusRepository } from '@/repositories/celery/apiTaskStatusRepository'
+import { APIMetricsRepository } from '@/repositories/metrics/apiMetricsRepository'
+import { LocalStorageOptionRepository } from '@/repositories/option/apiOptionRepository'
+import { APIAssignmentRepository } from '@/repositories/example/apiAssignmentRepository'
+import { APIConfigRepository } from '@/repositories/autoLabeling/config/apiConfigRepository'
+import { APITemplateRepository } from '@/repositories/autoLabeling/template/apiTemplateRepository'
+import { APICatalogRepository } from '@/repositories/upload/apiCatalogRepository'
+import { APIParseRepository } from '@/repositories/upload/apiParseRepository'
+import { APIDownloadFormatRepository } from '@/repositories/download/apiDownloadFormatRepository'
+import { APIDownloadRepository } from '@/repositories/download/apiDownloadRepository'
+import { APILabelRepository } from '@/repositories/label/apiLabelRepository'
+import { APICategoryRepository } from '@/repositories/tasks/apiCategoryRepository'
+import { APISpanRepository } from '@/repositories/tasks/apiSpanRepository'
+import { APIRelationRepository } from '@/repositories/tasks/apiRelationRepository'
+import { APITextLabelRepository } from '@/repositories/tasks/apiTextLabelRepository'
+import { APIBoundingBoxRepository } from '@/repositories/tasks/apiBoundingBoxRepository'
 import { APISegmentationRepository } from '~/repositories/tasks/apiSegmentationRepository'
 
 export interface Repositories {
-  // User
+  // Auth
   auth: APIAuthRepository
   user: APIUserRepository
 
-  // Perspective
+  // Perspectives
   perspective: APIPerspectiveRepository
+  perspectiveField: APIPerspectiveFieldRepository
 
-  // Project
+  // Projects & members
   project: APIProjectRepository
   member: APIMemberRepository
   role: APIRoleRepository
   tag: APITagRepository
 
-  // Example
+  // Examples & comments
   example: APIExampleRepository
   comment: APICommentRepository
   taskStatus: APITaskStatusRepository
   metrics: APIMetricsRepository
+
+  // UI options
   option: LocalStorageOptionRepository
   assignment: APIAssignmentRepository
 
-  // Auto Labeling
+  // Auto-labeling
   config: APIConfigRepository
   template: APITemplateRepository
 
@@ -60,12 +64,12 @@ export interface Repositories {
   downloadFormat: APIDownloadFormatRepository
   download: APIDownloadRepository
 
-  // Label Type
+  // Label types
   categoryType: APILabelRepository
   spanType: APILabelRepository
   relationType: APILabelRepository
 
-  // Label
+  // Task-specific annotation repos
   category: APICategoryRepository
   span: APISpanRepository
   relation: APIRelationRepository
@@ -81,28 +85,30 @@ declare module 'vue/types/vue' {
 }
 
 const repositories: Repositories = {
-  // User
   auth: new APIAuthRepository(),
   user: new APIUserRepository(),
 
-  // Perspective
+  // Perspectives
   perspective: new APIPerspectiveRepository(),
+  perspectiveField: new APIPerspectiveFieldRepository(),
 
-  // Project
+  // Projects & members
   project: new APIProjectRepository(),
   member: new APIMemberRepository(),
   role: new APIRoleRepository(),
   tag: new APITagRepository(),
 
-  // Example
+  // Examples & comments
   example: new APIExampleRepository(),
   comment: new APICommentRepository(),
   taskStatus: new APITaskStatusRepository(),
   metrics: new APIMetricsRepository(),
+
+  // UI options
   option: new LocalStorageOptionRepository(),
   assignment: new APIAssignmentRepository(),
 
-  // Auto Labeling
+  // Auto-labeling
   config: new APIConfigRepository(),
   template: new APITemplateRepository(),
 
@@ -114,12 +120,12 @@ const repositories: Repositories = {
   downloadFormat: new APIDownloadFormatRepository(),
   download: new APIDownloadRepository(),
 
-  // Label Type
+  // Label types
   categoryType: new APILabelRepository('category-type'),
   spanType: new APILabelRepository('span-type'),
   relationType: new APILabelRepository('relation-type'),
 
-  // Label
+  // Task repos
   category: new APICategoryRepository(),
   span: new APISpanRepository(),
   relation: new APIRelationRepository(),
