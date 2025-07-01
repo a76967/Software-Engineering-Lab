@@ -2,6 +2,9 @@
     <v-card>
       <v-card-title>Set Perspective Items</v-card-title>
       <v-card-text>
+        <v-alert v-if="errorMessage" type="error" dense class="mb-4">
+          {{ errorMessage }}
+        </v-alert>
         <div v-if="items.length" class="mb-4">
           <div v-for="it in items" :key="it.id">
             <strong>{{ it.name }}</strong> - {{ it.data_type }}
@@ -9,10 +12,28 @@
           </div>
         </div>
         <v-form ref="form" v-model="isValid" lazy-validation>
-          <v-text-field v-model="newItem.name" label="Name" required />
-          <v-select v-model="newItem.data_type" :items="types" label="Data Type" required />
+          <v-text-field
+            v-model="newItem.name"
+            label="Name"
+            required
+            :rules="nameRules"
+          />
+          <v-select
+            v-model="newItem.data_type"
+            :items="types"
+            label="Data Type"
+            required
+            :rules="dataTypeRules"
+          />
           <v-checkbox v-model="newItem.required" label="Required" />
-          <v-btn color="primary" class="mt-3" :disabled="!isValid" @click="addItem">Add</v-btn>
+          <v-btn
+            color="primary"
+            class="mt-3"
+            :disabled="!isValid"
+            @click="addItem"
+          >
+            Add
+          </v-btn>
         </v-form>
       </v-card-text>
     </v-card>
@@ -29,7 +50,20 @@
         items: [] as any[],
         newItem: { name: '', data_type: '', required: false },
         types: ['string', 'number', 'boolean'],
-        isValid: false
+        isValid: false,
+        errorMessage: '',
+        nameRules: [
+          (v: string) => !!v || 'Name is required',
+          (v: string) =>
+            !this.items.some(it => it.name === v) ||
+            'Name already exists'
+        ],
+        dataTypeRules: [
+          (v: string) => !!v || 'Data Type is required',
+          (v: string) =>
+            this.types.includes(v) ||
+            'Invalid Data Type'
+        ]
       }
     },
     computed: {
@@ -50,28 +84,20 @@
         }
       },
       async addItem() {
-        await axios.post(`/v1/projects/${this.projectId}/perspective-items/`, this.newItem)
-        this.newItem = { name: '', data_type: '', required: false }
-        this.fetchItems()
-      },
-      async addPerspectiveItem(item) {
-        const pid = this.$route.params.id
+        if (!(this.$refs.form as any).validate()) return
+        this.errorMessage = ''
         try {
-          await axios.post(
-            `/v1/projects/${pid}/perspective-items/`,
-            {
-              name:      item.text,               
-              data_type: item.data_type  || 'string',
-              required:  false,
-              order:     0
-            }
-          )
+          await axios.post(`/v1/projects/${this.projectId}/perspective-items/`, this.newItem)
+          this.newItem = { name: '', data_type: '', required: false }
           this.fetchItems()
         } catch (err: any) {
-          console.error(
-            'Failed to create PerspectiveItem:',
-            err.response?.data || err.message
-          )
+          const data = err.response?.data || {}
+          this.errorMessage =
+            data.name?.[0] ||
+            data.data_type?.[0] ||
+            data.required?.[0] ||
+            data.non_field_errors?.join(', ') ||
+            'Please fill all required fields and avoid duplicate names.'
         }
       }
     }
