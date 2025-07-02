@@ -38,15 +38,9 @@
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.conflict="{ item }">
-            <v-btn
-              icon small
-              class="pa-0 ma-0"
-              @click.stop="toggleDecision(item)"
-            >
-              <span class="conflict-icon" :class="conflictClass(item)">
-                {{ conflictSymbol(item) }}
-              </span>
-            </v-btn>
+            <span class="conflict-icon" :class="conflictClass(item)">
+              {{ conflictSymbol(item) }}
+            </span>
           </template>
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
@@ -60,8 +54,31 @@
               <span>{{ item.snippet }}</span>
             </v-tooltip>
           </template>
+
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.actions="{ item }">
+            <v-btn text small @click="openDialog(item)">
+              Set
+            </v-btn>
+          </template>
         </v-data-table>
       </v-card-text>
+
+      <!-- eslint-disable-next-line vue/valid-v-slot -->
+      <v-dialog v-model="dialog" max-width="400">
+        <v-card>
+          <v-card-title>Set Conflict</v-card-title>
+          <v-card-text>
+            Mark "<strong>{{ dialogItem?.snippet }}</strong>" as a conflict?
+          </v-card-text>
+          <v-card-actions>
+            <v-btn text @click="dialog = false">Cancel</v-btn>
+            <v-spacer/>
+            <v-btn color="red" text @click="applyDecision(true)">Yes</v-btn>
+            <v-btn color="green" text @click="applyDecision(false)">No</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
     </v-card>
   </v-container>
 </template>
@@ -81,22 +98,21 @@ export default Vue.extend({
     return {
       initialThreshold: isNaN(init) ? 80 : init,
       localThreshold: isNaN(init) ? 80 : init,
+      dialog: false as boolean,
+      dialogItem: null as any,
       rows: [] as any[],
       headers: [] as any[],
       isLoading: false,
       confirmDialog: false,
       snackbar: false,
-      // localStorage key for saving manual decisions
       decisionKey: ''
     }
   },
 
   computed: {
-    // enable Save only when the current decision differs from saved one
     hasChanged(): boolean {
       return this.rows.some(r => r.decision !== r.savedDecision)
     },
-    // show Reset button only when any manual decision is present
     hasManual(): boolean {
       return this.rows.some(r => r.decision !== null)
     }
@@ -108,7 +124,6 @@ export default Vue.extend({
   },
 
   methods: {
-    // cycle decision only for orange cases
     toggleDecision(item: any) {
       const val = item.agreement
       const defaultSym = val >= this.localThreshold
@@ -119,16 +134,25 @@ export default Vue.extend({
       else item.decision = null
     },
 
+    openDialog(item: any) {
+      this.dialogItem = item
+      this.dialog = true
+    },
+    applyDecision(value: boolean) {
+      this.dialogItem.decision = value
+      this.dialog = false
+    },
+
     conflictClass(item: any) {
-      if (item.decision === true) return 'green'
-      if (item.decision === false) return 'red'
+      if (item.decision === true) return 'red'
+      if (item.decision === false) return 'green'
       const v = item.agreement
       return v >= this.localThreshold
         ? 'green' : v < this.localThreshold/2 ? 'red' : 'orange'
     },
     conflictSymbol(item: any) {
-      if (item.decision === true) return '✓'
-      if (item.decision === false) return '✗'
+      if (item.decision === true) return '✗'
+      if (item.decision === false) return '✓'
       const v = item.agreement
       return v >= this.localThreshold
         ? '✓' : v < this.localThreshold/2 ? '✗' : '⚠'
@@ -143,8 +167,8 @@ export default Vue.extend({
       return 'red'
     },
     agreementColorDisplay(item: any) {
-      if (item.decision === true) return 'green'
-      if (item.decision === false) return 'red'
+      if (item.decision === true) return 'red'
+      if (item.decision === false) return 'green'
       return this.agreementColor(item.agreement)
     },
 
@@ -161,7 +185,8 @@ export default Vue.extend({
           { text: 'Abstention', value: 'abstention', sortable: false },
           { text: 'X', value: 'x', sortable: false },
           { text: 'Agreement', value: 'agreement', sortable: false },
-          { text: 'Conflict?', value: 'conflict', sortable: false }
+          { text: 'Conflict?', value: 'conflict', sortable: false },
+          { text: 'Actions', value: 'actions', sortable: false }
         ]
         this.rows = data.map((r: any) => ({
           ...r.labels,
@@ -215,7 +240,6 @@ export default Vue.extend({
       })
       localStorage.setItem(this.decisionKey, JSON.stringify(store))
 
-      // update savedDecision references
       this.rows.forEach(r => { r.savedDecision = r.decision })
 
       this.snackbar = true
