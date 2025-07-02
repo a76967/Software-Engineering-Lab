@@ -74,10 +74,14 @@
 <script lang="ts">
 import Vue from 'vue'
 import axios from 'axios'
+import DeleteDialog from '~/pages/projects/_id/admin-perspectives/delete.vue'
 
 export default Vue.extend({
   layout: 'project',
   middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
+  components: {
+    DeleteDialog
+  },
 
   data() {
     return {
