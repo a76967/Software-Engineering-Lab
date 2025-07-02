@@ -265,7 +265,6 @@ export default Vue.extend({
         (v: string) => !!v || 'Name is required',
         (v: string) => {
           const exists =
-            ['Age', 'Gender'].includes(v) ||
             this.items.some(it => it.name === v) ||
             this.pendingItems.some(it => it.name === v)
           return !exists || 'Name duplicated'

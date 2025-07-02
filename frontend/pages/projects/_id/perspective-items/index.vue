@@ -75,6 +75,12 @@
             </span>
           </template>
         </v-data-table>
+
+        <!-- display current text‐allowed state -->
+        <div class="mt-4">
+          <strong>Text allowed?</strong>
+          <span class="ms-2">{{ allowText ? 'Yes' : 'No' }}</span>
+        </div>
       </v-card-text>
     </v-card>
   </v-container>
@@ -90,12 +96,10 @@ export default Vue.extend({
 
   data() {
     return {
+      allowText: false,
       selected: [] as any[],
       items: [] as any[],
-      builtinItems: [
-        { name: 'Age', data_type: 'number', required: true, builtin: true },
-        { name: 'Gender', data_type: 'string', required: true, builtin: true }
-      ],
+      builtinItems: [],
       headers: [
         { text: 'Name', value: 'name' },
         { text: 'Data Type', value: 'data_type' },
@@ -137,6 +141,8 @@ export default Vue.extend({
 
   mounted() {
     this.fetchItems()
+    const key = `allowText:${this.projectId}`
+    this.allowText = localStorage.getItem(key) === 'true'
   },
 
   methods: {

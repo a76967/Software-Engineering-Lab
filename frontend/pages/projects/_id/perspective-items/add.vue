@@ -1,5 +1,5 @@
 <template>
-    <v-card>
+        <v-card>
       <v-alert v-if="errorMessage" type="error" dense>
         {{ errorMessage }}
       </v-alert>
@@ -24,6 +24,12 @@
             label="Required"
           />
         </v-form>
+
+        <v-checkbox
+          v-model="allowText"
+          label="Allow users to write a text"
+          class="mt-4"
+        />
   
         <!-- preview of items to be saved -->
         <v-simple-table v-if="pendingItems.length" class="mt-4">
@@ -42,18 +48,27 @@
           </tbody>
         </v-simple-table>
       </v-card-text>
+
+      <v-card-text class="pt-0" v-if="allowText !== originalAllowText">
+        <div>
+          <strong>Text allowed?</strong>
+          <span class="ms-2">{{ allowText ? 'Yes' : 'No' }}</span>
+        </div>
+      </v-card-text>
   
       <v-card-actions class="d-flex justify-end">
         <v-btn text @click="cancel">{{ $t('generic.cancel') }}</v-btn>
         <v-btn
           color="primary"
-          :disabled="!isValid"
           class="ms-2"
+          :disabled="!newItem.name || !newItem.data_type"
           @click="addItem"
-        >Add</v-btn>
+        >
+          Add
+        </v-btn>
         <v-btn
-          color="primary"
-          :disabled="pendingItems.length===0"
+        color="primary"
+          :disabled="!canSave"
           class="ms-2"
           @click="saveAll"
         >Save</v-btn>
@@ -77,10 +92,11 @@ export default Vue.extend({
       pendingItems: [] as any[],
       isValid: false,
       errorMessage: '',
+      allowText: false,
+      originalAllowText: false,
       nameRules: [
         (v: string) => !!v || 'Name is required',
         (v: string) => {
-          // cast this to any to avoid TS property errors
           const dup = (this as any).items.concat((this as any).pendingItems)
                          .some((it: any) => it.name === v)
           return !dup || 'Name duplicated'
@@ -96,12 +112,21 @@ export default Vue.extend({
   computed: {
     projectId(): number {
       return Number(this.$route.params.id)
+    },
+    canSave(): boolean {
+      // allow save if any new items OR allowText changed
+      return this.pendingItems.length > 0
+        || this.allowText !== this.originalAllowText
     }
   },
 
   mounted() {
     this.fetchItems()
     this.pendingItems = []
+    const key = `allowText:${this.projectId}`
+    this.allowText = localStorage.getItem(key) === 'true'
+    // remember original state
+    this.originalAllowText = this.allowText
   },
 
   methods: {
@@ -136,6 +161,9 @@ export default Vue.extend({
             it
           )
         }
+        const key = `allowText:${this.projectId}`
+        localStorage.setItem(key, String(this.allowText))
+        this.originalAllowText = this.allowText
         this.$router.push({
           path: this.localePath('/message'),
           query: {
