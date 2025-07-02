@@ -155,8 +155,8 @@ export default Vue.extend({
             .map(l => ({ text: l, value: l })),
           { text: 'Abstention', value: 'abstention', sortable: false },
           { text: 'X', value: 'x', sortable: false },
-          { text: 'Agreement', value: 'agreement', sortable: false },
-          { text: 'Conflict?', value: 'conflict', sortable: false }
+          { text: 'Agreement %', value: 'agreement', sortable: false },
+          { text: 'State', value: 'conflict', sortable: false }
         ]
 
         this.rows = data.map((r: any) => {

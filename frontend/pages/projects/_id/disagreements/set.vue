@@ -67,9 +67,9 @@
       <!-- eslint-disable-next-line vue/valid-v-slot -->
       <v-dialog v-model="dialog" max-width="400">
         <v-card>
-          <v-card-title>Set Conflict</v-card-title>
+          <v-card-title>Set Disagreement State</v-card-title>
           <v-card-text>
-            Mark "<strong>{{ dialogItem?.snippet }}</strong>" as a conflict?
+            Mark "<strong>{{ dialogItem?.snippet }}</strong>" as a disagreement?
           </v-card-text>
           <v-card-actions>
             <v-btn text @click="dialog = false">Cancel</v-btn>
@@ -184,8 +184,8 @@ export default Vue.extend({
           ...Array.from(labelSet).sort().map(l => ({ text: l, value: l })),
           { text: 'Abstention', value: 'abstention', sortable: false },
           { text: 'X', value: 'x', sortable: false },
-          { text: 'Agreement', value: 'agreement', sortable: false },
-          { text: 'Conflict?', value: 'conflict', sortable: false },
+          { text: 'Agreement %', value: 'agreement', sortable: false },
+          { text: 'State', value: 'conflict', sortable: false },
           { text: 'Actions', value: 'actions', sortable: false }
         ]
         this.rows = data.map((r: any) => ({
