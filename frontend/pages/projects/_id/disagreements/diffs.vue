@@ -13,7 +13,7 @@
           clearable
           style="max-width:300px"
         />
-        <v-btn text v-if="isAdmin" @click="openThreshold">Set Threshold</v-btn>
+        <v-btn text @click="openThreshold">Set Disagreement</v-btn>
       </v-card-title>
 
       <v-card-text class="pa-0">
@@ -169,7 +169,7 @@ export default Vue.extend({
 
     openThreshold() {
       const pid = this.$route.params.id
-      this.$router.push(`/projects/${pid}/disagreements/threshold`)
+      this.$router.push(`/projects/${pid}/disagreements/set`)
     },
     toDiscussion(r: any) {
       const pid = this.$route.params.id
