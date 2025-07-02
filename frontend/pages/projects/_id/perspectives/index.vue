@@ -260,7 +260,21 @@ export default Vue.extend({
         mdiMagnify,
         mdiPencil,
         mdiTrashCan
-      }
+      },
+      nameRules: [
+        (v: string) => !!v || 'Name is required',
+        (v: string) => {
+          const exists =
+            ['Age', 'Gender'].includes(v) ||
+            this.items.some(it => it.name === v) ||
+            this.pendingItems.some(it => it.name === v)
+          return !exists || 'Name duplicated'
+        }
+      ],
+      dataTypeRules: [
+        (v: string) => !!v || 'Data Type is required',
+        (v: string) => this.types.includes(v) || 'Invalid Data Type'
+      ]
     }
   },
   computed: {

@@ -29,6 +29,7 @@ class PerspectiveItem(models.Model):
         ("string", "String"),
         ("number", "Number"),
         ("boolean", "Boolean"),
+        ("enum", "Enum"),
     ]
 
     project = models.ForeignKey(
