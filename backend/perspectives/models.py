@@ -48,3 +48,16 @@ class PerspectiveItem(models.Model):
 
     def __str__(self):
         return f"{self.project_id}: {self.name}"
+
+class AdminPerspective(models.Model):
+    user = models.ForeignKey("auth.User", on_delete=models.CASCADE)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="admin_perspectives")
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("project", "user")
+
+    def __str__(self):
+        return self.name

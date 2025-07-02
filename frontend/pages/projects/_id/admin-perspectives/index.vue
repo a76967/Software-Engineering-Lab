@@ -4,9 +4,7 @@
       <v-card-title>
         <span class="text-h5 font-weight-medium">Admin Perspectives</span>
         <v-spacer/>
-        <v-btn color="primary" @click="goToAdd" :disabled="selected.length > 0">
-          Add
-        </v-btn>
+        <v-btn color="primary" @click="goToAdd" :disabled="!canAdd">Add</v-btn>
         <v-btn
           class="ms-2"
           outlined
@@ -49,6 +47,10 @@
           <template #item.user="{ item }">
             {{ item.user.username }}
           </template>
+          <!-- format Created At -->
+          <template #[`item.created_at`]="{ item }">
+            <span>{{ timeAgo(item.created_at) }}</span>
+          </template>
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.actions="{ item }">
             <v-btn icon small color="red" @click="removeOne(item)">
@@ -75,16 +77,17 @@ import axios from 'axios'
 
 export default Vue.extend({
   layout: 'project',
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
   data() {
     return {
       items: [] as any[],
       selected: [] as any[],
       headers: [
-        { text: 'Subject',   value: 'subject' },
-        { text: 'Category',  value: 'category' },
-        { text: 'User',      value: 'user' },
-        { text: 'Actions',   value: 'actions', sortable: false }
+        { text: 'Name', value: 'name' },
+        { text: 'Description', value: 'description' },
+        { text: 'Created At', value: 'created_at' },
+        { text: 'Actions', value: 'actions', sortable: false }
       ],
       dialogDelete: false,
       isDeleting: false,
@@ -96,8 +99,14 @@ export default Vue.extend({
     projectId(): number {
       return Number(this.$route.params.id)
     },
+    userId(): number {
+      return this.$store.state.auth.id
+    },
     canEdit(): boolean {
       return this.selected.length === 1
+    },
+    canAdd(): boolean {
+      return !this.items.some(it => it.user === this.userId)
     }
   },
 
@@ -108,7 +117,7 @@ export default Vue.extend({
   methods: {
     async fetchItems() {
       try {
-        const res = await axios.get(`/v1/projects/${this.projectId}/perspectives/`)
+        const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
         this.items = res.data.results || res.data
       } catch {
         this.items = []
@@ -116,6 +125,7 @@ export default Vue.extend({
     },
 
     goToAdd() {
+      if (!this.canAdd) return
       this.$router.push(this.localePath(
         `/projects/${this.projectId}/admin-perspectives/add`
       ))
@@ -131,7 +141,7 @@ export default Vue.extend({
 
     async removeOne(item: any) {
       await axios.delete(
-        `/v1/projects/${this.projectId}/perspectives/${item.id}/`
+        `/v1/projects/${this.projectId}/admin-perspectives/${item.id}/`
       )
       this.fetchItems()
     },
@@ -140,13 +150,32 @@ export default Vue.extend({
       this.isDeleting = true
       await Promise.all(
         this.selected.map(it =>
-          axios.delete(`/v1/projects/${this.projectId}/perspectives/${it.id}/`)
+          axios.delete(`/v1/projects/${this.projectId}/admin-perspectives/${it.id}/`)
         )
       )
       this.isDeleting = false
       this.dialogDelete = false
       this.selected = []
       this.fetchItems()
+    },
+
+    timeAgo(dateStr: string): string {
+      if (!dateStr) return ''
+      const now = new Date()
+      const past = new Date(dateStr)
+      const diffMs = now.getTime() - past.getTime()
+      const diffSeconds = Math.floor(diffMs / 1000)
+      if (diffSeconds < 60) return `${diffSeconds} seconds ago`
+      const diffMinutes = Math.floor(diffSeconds / 60)
+      if (diffMinutes < 60) return `${diffMinutes} minutes ago`
+      const diffHours = Math.floor(diffMinutes / 60)
+      if (diffHours < 24) return `${diffHours} hours ago`
+      const diffDays = Math.floor(diffHours / 24)
+      if (diffDays < 30) return `${diffDays} days ago`
+      const diffMonths = Math.floor(diffDays / 30)
+      if (diffMonths < 12) return `${diffMonths} months ago`
+      const diffYears = Math.floor(diffMonths / 12)
+      return `${diffYears} years ago`
     }
   }
 })

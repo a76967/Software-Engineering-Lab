@@ -3,6 +3,7 @@ import { APIAuthRepository } from '@/repositories/auth/apiAuthRepository'
 import { APIUserRepository } from '@/repositories/user/apiUserRepository'
 import { APIPerspectiveRepository } from '@/repositories/perspective/apiPerspectiveRepository'
 import { APIPerspectiveFieldRepository } from '@/repositories/perspective/apiPerspectiveFieldRepository'
+import { APIAdminPerspectiveRepository } from '@/repositories/adminPerspective/apiAdminPerspectiveRepository'
 import { APIProjectRepository } from '@/repositories/project/apiProjectRepository'
 import { APIMemberRepository } from '@/repositories/member/apiMemberRepository'
 import { APIRoleRepository } from '@/repositories/role/apiRoleRepository'
@@ -35,6 +36,7 @@ export interface Repositories {
   // Perspectives
   perspective: APIPerspectiveRepository
   perspectiveField: APIPerspectiveFieldRepository
+  adminPerspective: APIAdminPerspectiveRepository
 
   // Projects & members
   project: APIProjectRepository
@@ -91,6 +93,7 @@ const repositories: Repositories = {
   // Perspectives
   perspective: new APIPerspectiveRepository(),
   perspectiveField: new APIPerspectiveFieldRepository(),
+  adminPerspective: new APIAdminPerspectiveRepository(),
 
   // Projects & members
   project: new APIProjectRepository(),

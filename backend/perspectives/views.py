@@ -1,6 +1,12 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from .models import Perspective, PerspectiveItem, AdminPerspective
+from .serializers import (
+    PerspectiveSerializer,
+    PerspectiveItemSerializer,
+    AdminPerspectiveSerializer,
+)
 from .models import Perspective, PerspectiveItem
 from .serializers import PerspectiveSerializer, PerspectiveItemSerializer
 from projects.models import Project
@@ -41,6 +47,18 @@ class PerspectiveItemView(viewsets.ModelViewSet):
     def get_queryset(self):
         project_id = self.kwargs.get("project_id")
         return PerspectiveItem.objects.filter(project_id=project_id)
+
+    def perform_create(self, serializer):
+        project_id = self.kwargs.get("project_id")
+        serializer.save(project_id=project_id)
+
+class AdminPerspectiveView(viewsets.ModelViewSet):
+    serializer_class = AdminPerspectiveSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        project_id = self.kwargs.get("project_id")
+        return AdminPerspective.objects.filter(project_id=project_id)
 
     def perform_create(self, serializer):
         project_id = self.kwargs.get("project_id")
