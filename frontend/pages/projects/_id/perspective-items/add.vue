@@ -78,16 +78,17 @@ export default Vue.extend({
       isValid: false,
       errorMessage: '',
       nameRules: [
-        (v:string) => !!v || 'Name is required',
-        (v:string) => {
-          const dup = this.items.concat(this.pendingItems)
-                         .some(it=>it.name===v)
+        (v: string) => !!v || 'Name is required',
+        (v: string) => {
+          // cast this to any to avoid TS property errors
+          const dup = (this as any).items.concat((this as any).pendingItems)
+                         .some((it: any) => it.name === v)
           return !dup || 'Name duplicated'
         }
       ],
       dataTypeRules: [
-        (v:string) => !!v || 'Data Type is required',
-        (v:string) => this.types.includes(v) || 'Invalid Data Type'
+        (v: string) => !!v || 'Data Type is required',
+        (v: string) => (this as any).types.includes(v) || 'Invalid Data Type'
       ]
     }
   },
