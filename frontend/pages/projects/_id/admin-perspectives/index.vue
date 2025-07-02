@@ -51,12 +51,6 @@
           <template #[`item.created_at`]="{ item }">
             <span>{{ timeAgo(item.created_at) }}</span>
           </template>
-          <!-- eslint-disable-next-line vue/valid-v-slot -->
-          <template #item.actions="{ item }">
-            <v-btn icon small color="red" @click="removeOne(item)">
-              <v-icon>mdi-delete</v-icon>
-            </v-btn>
-          </template>
         </v-data-table>
       </v-card-text>
 
@@ -91,7 +85,7 @@ export default Vue.extend({
         { text: 'Name', value: 'name' },
         { text: 'Description', value: 'description' },
         { text: 'Created At', value: 'created_at' },
-        { text: 'Actions', value: 'actions', sortable: false }
+        { text: 'Created By', value: 'user', sortable: false }
       ],
       dialogDelete: false,
       isDeleting: false,
@@ -110,7 +104,10 @@ export default Vue.extend({
       return this.selected.length === 1
     },
     canAdd(): boolean {
-      return !this.items.some(it => it.user === this.userId)
+      return !this.items.some(it => {
+        if (typeof it.user === 'number') return it.user === this.userId
+        return it.user && it.user.id === this.userId
+      })
     }
   },
 
@@ -122,7 +119,19 @@ export default Vue.extend({
     async fetchItems() {
       try {
         const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
-        this.items = res.data.results || res.data
+        const items = res.data.results || res.data
+        const promises = items.map(async (it: any) => {
+          if (typeof it.user === 'number') {
+            try {
+              const userRes = await axios.get(`/v1/users/${it.user}/`)
+              it.user = userRes.data
+            } catch {
+              it.user = { id: it.user, username: 'N/A' }
+            }
+          }
+        })
+        await Promise.all(promises)
+        this.items = items
       } catch {
         this.items = []
       }
