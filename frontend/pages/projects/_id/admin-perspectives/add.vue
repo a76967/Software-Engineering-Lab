@@ -54,7 +54,15 @@
             description: this.form.description,
             user: this.userId
           })
-          this.$router.push(this.localePath(`/projects/${this.projectId}/admin-perspectives`))
+          this.$router.push({
+            path: this.localePath('/message'),
+            query: {
+              message: 'Admin perspective created successfully!',
+              redirect: this.localePath(
+                `/projects/${this.projectId}/admin-perspectives`
+              )
+            }
+          })
         } catch (err: any) {
           this.dbError = err.response?.data?.detail || 'Failed to create.'
         }

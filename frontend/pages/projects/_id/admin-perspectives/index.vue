@@ -148,6 +148,15 @@ export default Vue.extend({
         `/v1/projects/${this.projectId}/admin-perspectives/${item.id}/`
       )
       this.fetchItems()
+      this.$router.push({
+        path: this.localePath('/message'),
+        query: {
+          message: 'Admin perspective deleted successfully!',
+          redirect: this.localePath(
+            `/projects/${this.projectId}/admin-perspectives`
+          )
+        }
+      })
     },
 
     async removeSelected() {
@@ -161,6 +170,15 @@ export default Vue.extend({
       this.dialogDelete = false
       this.selected = []
       this.fetchItems()
+      this.$router.push({
+        path: this.localePath('/message'),
+        query: {
+          message: 'Admin perspectives deleted successfully!',
+          redirect: this.localePath(
+            `/projects/${this.projectId}/admin-perspectives`
+          )
+        }
+      })
     },
 
     timeAgo(dateStr: string): string {
