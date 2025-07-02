@@ -44,7 +44,8 @@ import {
   mdiPlayCircleOutline,
   mdiThumbDownOutline,
   mdiVote,
-  mdiFileChartOutline
+  mdiFileChartOutline,
+  mdiTableEye,
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -115,6 +116,12 @@ export default {
         },
         {
           icon: mdiEye,
+          text: 'Admin Perspectives',
+          link: 'admin-perspectives',
+          isVisible: this.isProjectAdmin
+        },
+        {
+          icon: mdiTableEye,
           text: 'Perspective Items',
           link: 'perspective-items',
           isVisible: this.isProjectAdmin
