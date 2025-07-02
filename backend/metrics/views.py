@@ -151,3 +151,30 @@ class SpanDisagreementSummary(APIView):
             )
 
         return Response(data=rows, status=status.HTTP_200_OK)
+
+
+class DisagreementDecisionAPI(APIView):
+    """Persist disagreement decisions into the example meta field."""
+
+    permission_classes = [IsAuthenticated & (IsProjectAdmin | IsProjectStaffAndReadOnly)]
+
+    def post(self, request, *args, **kwargs):
+        project_id = self.kwargs["project_id"]
+        decisions = request.data.get("decisions", [])
+        for item in decisions:
+            ex_id = item.get("id")
+            decision = item.get("decision")
+            try:
+                ex = Example.objects.get(id=ex_id, project_id=project_id)
+            except Example.DoesNotExist:
+                continue
+
+            meta = ex.meta or {}
+            if decision is None:
+                meta.pop("disagreement_decision", None)
+            else:
+                meta["disagreement_decision"] = bool(decision)
+            ex.meta = meta
+            ex.save(update_fields=["meta"])
+
+        return Response({"detail": "saved"}, status=status.HTTP_200_OK)

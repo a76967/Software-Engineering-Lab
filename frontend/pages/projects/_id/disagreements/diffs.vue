@@ -13,7 +13,7 @@
           clearable
           style="max-width:300px"
         />
-        <v-btn text @click="openThreshold">Set Disagreement</v-btn>
+        <v-btn text @click="openThreshold" v-if="isAdmin">Set Disagreement</v-btn>
       </v-card-title>
 
       <v-card-text class="pa-0">
@@ -26,6 +26,7 @@
           hide-default-footer
           class="elevation-1"
           :item-class="rowClass"
+          :sort-by="[]"
         >
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.agreement="{ item }">
@@ -85,7 +86,8 @@ export default Vue.extend({
       threshold: 80,
       isLoading: false,
       error: '',
-      decisionKey: ''
+      decisionKey: '',
+      isProjectAdmin: false
     }
   },
 
@@ -97,7 +99,7 @@ export default Vue.extend({
       )
     },
     isAdmin(): boolean {
-      return this.$store.getters['projects/isAdmin']
+      return this.isProjectAdmin
     }
   },
 
@@ -111,16 +113,21 @@ export default Vue.extend({
     this.fetchData()
   },
 
+  async created() {
+    const member = await this.$repositories.member.fetchMyRole(this.$route.params.id)
+    this.isProjectAdmin = member.isProjectAdmin
+  },
+
   methods: {
     conflictClass(item: any) {
-      if (item.decision === true) return 'green'
-      if (item.decision === false) return 'red'
+      if (item.decision === true) return 'red'
+      if (item.decision === false) return 'green'
       const val = item.agreement
       return val >= this.threshold ? 'green' : val < this.threshold / 2 ? 'red' : 'orange'
     },
     conflictSymbol(item: any) {
-      if (item.decision === true) return '✓'
-      if (item.decision === false) return '✗'
+      if (item.decision === true) return '✗'
+      if (item.decision === false) return '✓'
       const val = item.agreement
       return val >= this.threshold ? '✓' : val < this.threshold / 2 ? '✗' : '⚠'
     },
@@ -134,8 +141,8 @@ export default Vue.extend({
       return 'red'
     },
     agreementColorDisplay(item: any) {
-      if (item.decision === true) return 'green'
-      if (item.decision === false) return 'red'
+      if (item.decision === true) return 'red'
+      if (item.decision === false) return 'green'
       return this.agreementColor(item.agreement)
     },
 

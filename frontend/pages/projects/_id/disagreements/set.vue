@@ -18,6 +18,7 @@
           hide-default-footer
           class="elevation-1"
           :item-class="rowClass"
+          :sort-by="[]"
         >
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.agreement="{ item }">
@@ -230,10 +231,18 @@ export default Vue.extend({
 
       const updates = changed.map(r => ({ id: r.id, decision: r.decision }))
 
-      await axios.post(
-        `/v1/projects/${this.$route.params.id}/disagreements/decisions/`,
-        { decisions: updates }
-      )
+        await axios.post(
+          `/v1/projects/${this.$route.params.id}/metrics/disagreements/decisions/`,
+          { decisions: updates }
+        )
+
+        this.$router.push({
+          path: '/message',
+          query: {
+            message: 'Disagreement states saved successfully!',
+            redirect: `/projects/${this.$route.params.id}/disagreements/diffs`
+          }
+        })
 
       const store: Record<string, any> = {}
       this.rows.forEach(r => {
