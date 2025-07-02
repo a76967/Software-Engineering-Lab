@@ -32,12 +32,12 @@
             <div class="d-flex justify-center">
               <div
                 class="agreement-fill-circle"
-                :style="{ borderColor: agreementColor(item.agreement) }"
+                :style="{ borderColor: agreementColorDisplay(item) }"
               >
                 <div
                   class="agreement-fill"
                   :style="{ height: item.agreement + '%', background:
-                  agreementColor(item.agreement) }"
+                  agreementColorDisplay(item) }"
                 ></div>
                 <span class="agreement-label">{{ item.agreement }}%</span>
               </div>
@@ -46,8 +46,8 @@
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.conflict="{ item }">
-            <span class="conflict-icon" :class="conflictClass(item.agreement)">
-              {{ conflictSymbol(item.agreement) }}
+            <span class="conflict-icon" :class="conflictClass(item)">
+              {{ conflictSymbol(item) }}
             </span>
           </template>
 
@@ -84,7 +84,8 @@ export default Vue.extend({
       headers: [] as any[],
       threshold: 80,
       isLoading: false,
-      error: ''
+      error: '',
+      decisionKey: ''
     }
   },
 
@@ -106,24 +107,36 @@ export default Vue.extend({
       const v = parseInt(stored)
       if (!isNaN(v)) this.threshold = v
     }
+    this.decisionKey = `disagreementDecisions:${this.$route.params.id}`
     this.fetchData()
   },
 
   methods: {
-    conflictClass(val: number) {
+    conflictClass(item: any) {
+      if (item.decision === true) return 'green'
+      if (item.decision === false) return 'red'
+      const val = item.agreement
       return val >= this.threshold ? 'green' : val < this.threshold / 2 ? 'red' : 'orange'
     },
-    conflictSymbol(val: number) {
+    conflictSymbol(item: any) {
+      if (item.decision === true) return '✓'
+      if (item.decision === false) return '✗'
+      const val = item.agreement
       return val >= this.threshold ? '✓' : val < this.threshold / 2 ? '✗' : '⚠'
     },
 
     rowClass(item: any) {
-      return item.agreement < this.threshold / 2 ? 'low-agreement' : ''
+      return item.decision === false || item.agreement < this.threshold / 2 ? 'low-agreement' : ''
     },
     agreementColor(val: number) {
       if (val >= this.threshold) return 'green'
       if (val >= this.threshold / 2) return 'orange'
       return 'red'
+    },
+    agreementColorDisplay(item: any) {
+      if (item.decision === true) return 'green'
+      if (item.decision === false) return 'red'
+      return this.agreementColor(item.agreement)
     },
 
     async fetchData() {
@@ -152,13 +165,28 @@ export default Vue.extend({
             snippet: r.snippet,
             abstention: r.abstention || 0,
             x: r.x || 0,
-            agreement: r.agreement
+            agreement: r.agreement,
+            decision: null
           }
           labelSet.forEach(l => {
             row[l] = r.labels[l] || 0
           })
           return row
         })
+
+        const raw = localStorage.getItem(this.decisionKey)
+        if (raw) {
+          try {
+            const obj = JSON.parse(raw)
+            this.rows.forEach(r => {
+              if (Object.prototype.hasOwnProperty.call(obj, r.id)) {
+                r.decision = obj[r.id]
+              }
+            })
+          } catch (err) {
+            console.error(err)
+          }
+        }
       } catch (err: any) {
         console.error(err)
         this.error = "Error: Can't access our database!"

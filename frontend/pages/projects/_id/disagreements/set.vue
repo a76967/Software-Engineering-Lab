@@ -4,7 +4,7 @@
       <v-card-title class="d-flex align-center">
         <span class="text-h5 font-weight-medium">Set Disagreement</span>
         <v-spacer />
-        <v-btn text @click="onReset" :disabled="!hasChanged">Reset</v-btn>
+        <v-btn text @click="onReset" :disabled="!hasManual">Reset</v-btn>
         <v-btn color="primary" @click="onSave" :disabled="!hasChanged">Save</v-btn>
       </v-card-title>
 
@@ -24,12 +24,12 @@
             <div class="d-flex justify-center">
               <div
                 class="agreement-fill-circle"
-                :style="{ borderColor: agreementColor(item.agreement) }"
+                :style="{ borderColor: agreementColorDisplay(item) }"
               >
                 <div
                   class="agreement-fill"
-                  :style="{ height: item.agreement + '%', 
-                  background: agreementColor(item.agreement) }"
+                  :style="{ height: item.agreement + '%',
+                  background: agreementColorDisplay(item) }"
                 ></div>
                 <span class="agreement-label">{{ item.agreement }}%</span>
               </div>
@@ -85,18 +85,25 @@ export default Vue.extend({
       headers: [] as any[],
       isLoading: false,
       confirmDialog: false,
-      snackbar: false
+      snackbar: false,
+      // localStorage key for saving manual decisions
+      decisionKey: ''
     }
   },
 
   computed: {
-    // enable Save/Reset only when at least one decision made
+    // enable Save only when the current decision differs from saved one
     hasChanged(): boolean {
-      return this.rows.some(r => r.decision !== null && r.decision !== undefined)
+      return this.rows.some(r => r.decision !== r.savedDecision)
+    },
+    // show Reset button only when any manual decision is present
+    hasManual(): boolean {
+      return this.rows.some(r => r.decision !== null)
     }
   },
 
   mounted() {
+    this.decisionKey = `disagreementDecisions:${this.$route.params.id}`
     this.fetchData()
   },
 
@@ -135,6 +142,11 @@ export default Vue.extend({
       if (val >= this.localThreshold/2) return 'orange'
       return 'red'
     },
+    agreementColorDisplay(item: any) {
+      if (item.decision === true) return 'green'
+      if (item.decision === false) return 'red'
+      return this.agreementColor(item.agreement)
+    },
 
     async fetchData() {
       this.isLoading = true
@@ -158,8 +170,24 @@ export default Vue.extend({
           abstention: r.abstention || 0,
           x: r.x || 0,
           agreement: r.agreement,
-          decision: null
+          decision: null,
+          savedDecision: null
         }))
+
+        const raw = localStorage.getItem(this.decisionKey)
+        if (raw) {
+          try {
+            const obj = JSON.parse(raw)
+            this.rows.forEach(r => {
+              if (Object.prototype.hasOwnProperty.call(obj, r.id)) {
+                r.decision = obj[r.id]
+                r.savedDecision = obj[r.id]
+              }
+            })
+          } catch (err) {
+            console.error(err)
+          }
+        }
       } catch (e) {
         console.error(e)
       } finally {
@@ -171,13 +199,25 @@ export default Vue.extend({
       this.rows.forEach(r => { r.decision = null })
     },
     async onSave() {
-      const updates = this.rows
-        .filter(r => r.decision != null)
-        .map(r => ({ id: r.id, decision: r.decision }))
+      const changed = this.rows.filter(r => r.decision !== r.savedDecision)
+      if (!changed.length) return
+
+      const updates = changed.map(r => ({ id: r.id, decision: r.decision }))
+
       await axios.post(
         `/v1/projects/${this.$route.params.id}/disagreements/decisions/`,
         { decisions: updates }
       )
+
+      const store: Record<string, any> = {}
+      this.rows.forEach(r => {
+        if (r.decision !== null) store[r.id] = r.decision
+      })
+      localStorage.setItem(this.decisionKey, JSON.stringify(store))
+
+      // update savedDecision references
+      this.rows.forEach(r => { r.savedDecision = r.decision })
+
       this.snackbar = true
     }
   }
@@ -223,12 +263,14 @@ tr.v-data-table__tr {
   border: 2px solid;
   border-radius: 50%;
   overflow: hidden;
+  transition: border-color 0.3s ease;
 }
 .agreement-fill {
   position: absolute;
   left: 0;
   bottom: 0;
   width: 100%;
+  transition: background 0.3s ease;
 }
 .agreement-label {
   position: absolute;
