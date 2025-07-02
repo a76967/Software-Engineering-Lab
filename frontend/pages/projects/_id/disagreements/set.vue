@@ -69,7 +69,8 @@
         <v-card>
           <v-card-title>Set Disagreement State</v-card-title>
           <v-card-text>
-            Mark "<strong>{{ dialogItem?.snippet }}</strong>" as a disagreement?
+            Is there a disagreement on this annotation?
+            "<strong>{{ dialogItem?.snippet }}</strong>"?
           </v-card-text>
           <v-card-actions>
             <v-btn text @click="dialog = false">Cancel</v-btn>
