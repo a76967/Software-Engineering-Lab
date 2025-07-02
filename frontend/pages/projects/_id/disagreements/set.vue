@@ -3,100 +3,65 @@
     <v-card flat>
       <v-card-title class="d-flex align-center">
         <span class="text-h5 font-weight-medium">Set Disagreement</span>
+        <v-spacer />
+        <v-btn text @click="onReset" :disabled="!hasChanged">Reset</v-btn>
+        <v-btn color="primary" @click="onSave" :disabled="!hasChanged">Save</v-btn>
       </v-card-title>
 
-      <v-data-table
-        :headers="headers"
-        :items="rows"
-        :loading="isLoading"
-        dense
-        disable-pagination
-        hide-default-footer
-        class="elevation-1"
-        :item-class="rowClass"
-      >
-        <!-- Agreement column (unchanged visual) -->
-        <!-- eslint-disable-next-line vue/valid-v-slot -->
-        <template #item.agreement="{ item }">
-          <div class="d-flex justify-center">
-            <v-progress-circular
-              :value="item.agreement"
-              :size="36"
-              :width="4"
-              :color="agreementColor(item.agreement)"
+      <v-card-text class="pa-0">
+        <v-data-table
+          :headers="headers"
+          :items="rows"
+          :loading="isLoading"
+          dense
+          disable-pagination
+          hide-default-footer
+          class="elevation-1"
+          :item-class="rowClass"
+        >
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.agreement="{ item }">
+            <div class="d-flex justify-center">
+              <div
+                class="agreement-fill-circle"
+                :style="{ borderColor: agreementColor(item.agreement) }"
+              >
+                <div
+                  class="agreement-fill"
+                  :style="{ height: item.agreement + '%', 
+                  background: agreementColor(item.agreement) }"
+                ></div>
+                <span class="agreement-label">{{ item.agreement }}%</span>
+              </div>
+            </div>
+          </template>
+
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.conflict="{ item }">
+            <v-btn
+              icon small
+              class="pa-0 ma-0"
+              @click.stop="toggleDecision(item)"
             >
-              <small>{{ item.agreement }}%</small>
-            </v-progress-circular>
-          </div>
-        </template>
-
-        <!-- Conflict column: click to toggle Yes (✓) / No (✗) decision -->
-        <!-- eslint-disable-next-line vue/valid-v-slot -->
-        <template #item.conflict="{ item }">
-          <v-btn icon small @click.stop="toggleDecision(item)" class="pa-0 ma-0">
-            <span class="conflict-icon" :class="conflictClass(item)">
-              {{ conflictSymbol(item) }}
-            </span>
-          </v-btn>
-        </template>
-
-        <!-- Snippet column -->
-        <!-- eslint-disable-next-line vue/valid-v-slot -->
-        <template #item.snippet="{ item }">
-          <v-tooltip bottom>
-            <template #activator="{ on, attrs }">
-              <span class="snippet-text" v-bind="attrs" v-on="on">
-                {{ item.snippet }}
+              <span class="conflict-icon" :class="conflictClass(item)">
+                {{ conflictSymbol(item) }}
               </span>
-            </template>
-            <span>{{ item.snippet }}</span>
-          </v-tooltip>
-        </template>
-      </v-data-table>
+            </v-btn>
+          </template>
 
-      <v-card-actions>
-        <v-spacer />
-        <v-btn text @click="onCancel">Cancel</v-btn>
-
-        <v-btn
-          :disabled="localThreshold === initialThreshold"
-          text
-          @click="onRestore"
-        >
-          Restore Previous ({{ initialThreshold }}%)
-        </v-btn>
-
-        <v-btn
-          :disabled="localThreshold === initialThreshold"
-          color="primary"
-          @click="openConfirm"
-        >
-          Save
-        </v-btn>
-      </v-card-actions>
-
-      <!-- Confirm dialog -->
-      <v-dialog v-model="confirmDialog" max-width="400">
-        <v-card>
-          <v-card-title class="headline">Confirm Threshold Change</v-card-title>
-          <v-card-text>
-            Change threshold from
-            <strong>{{ initialThreshold }}%</strong>
-            to
-            <strong>{{ localThreshold }}%</strong>?
-          </v-card-text>
-          <v-card-actions>
-            <v-spacer />
-            <v-btn text @click="confirmDialog = false">No</v-btn>
-            <v-btn color="primary" @click="onConfirm">Yes</v-btn>
-          </v-btn>
-        </v-card>
-      </v-dialog>
-
-      <!-- Toast -->
-      <v-snackbar v-model="snackbar" top right timeout="2000">
-        Threshold updated to {{ localThreshold }}%!
-      </v-snackbar>
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.snippet="{ item }">
+            <v-tooltip bottom>
+              <template #activator="{ on, attrs }">
+                <span class="snippet-text" v-bind="attrs" v-on="on">
+                  {{ item.snippet }}
+                </span>
+              </template>
+              <span>{{ item.snippet }}</span>
+            </v-tooltip>
+          </template>
+        </v-data-table>
+      </v-card-text>
     </v-card>
   </v-container>
 </template>
@@ -111,32 +76,23 @@ export default Vue.extend({
   layout: 'project',
 
   data() {
-    const storedThresh = localStorage.getItem('disagreementThreshold')
-    const initThresh = storedThresh ? parseInt(storedThresh, 10) : 80
-
+    const stored = localStorage.getItem('disagreementThreshold')
+    const init = stored ? parseInt(stored, 10) : 80
     return {
-      initialThreshold: isNaN(initThresh) ? 80 : initThresh,
-      localThreshold: isNaN(initThresh) ? 80 : initThresh,
+      initialThreshold: isNaN(init) ? 80 : init,
+      localThreshold: isNaN(init) ? 80 : init,
       rows: [] as any[],
       headers: [] as any[],
       isLoading: false,
-      error: '',
       confirmDialog: false,
       snackbar: false
     }
   },
 
-  watch: {
-    localThreshold(val: number) {
-      const num = Math.max(0, Math.min(100, Number(val) || 0))
-      if (num !== val) {
-        this.$nextTick(() => {
-          this.localThreshold = num
-        })
-        return
-      }
-      // Re-evaluate row colors when threshold changes
-      this.rows = [...this.rows]
+  computed: {
+    // enable Save/Reset only when at least one decision made
+    hasChanged(): boolean {
+      return this.rows.some(r => r.decision !== null && r.decision !== undefined)
     }
   },
 
@@ -145,73 +101,38 @@ export default Vue.extend({
   },
 
   methods: {
-    /**
-     * Toggle decision for a given row.
-     * true  => ✓ (green)
-     * false => ✗ (red)
-     * null  => fallback to automatic (orange/green/red based on %)
-     */
-    toggleDecision(row: any) {
-      if (row.decision === null || row.decision === undefined) {
-        // First click => mark as YES (✓)
-        row.decision = true
-      } else if (row.decision === true) {
-        // Second click => mark as NO (✗)
-        row.decision = false
-      } else {
-        // Third click => reset to automatic
-        row.decision = null
-      }
-      this.saveDecisions()
-    },
-
-    saveDecisions() {
-      const map: Record<string, boolean> = {}
-      this.rows.forEach(r => {
-        if (r.decision !== null && r.decision !== undefined) {
-          map[r.id] = r.decision
-        }
-      })
-      localStorage.setItem('disagreementDecisions', JSON.stringify(map))
-    },
-
-    loadDecisions() {
-      try {
-        const data = JSON.parse(localStorage.getItem('disagreementDecisions') || '{}')
-        this.rows.forEach(r => {
-          if (data.hasOwnProperty(r.id)) {
-            r.decision = data[r.id]
-          }
-        })
-      } catch (e) {
-        // Ignore malformed JSON
-      }
+    // cycle decision only for orange cases
+    toggleDecision(item: any) {
+      const val = item.agreement
+      const defaultSym = val >= this.localThreshold
+        ? '✓' : val < this.localThreshold/2 ? '✗' : '⚠'
+      if (defaultSym !== '⚠') return
+      if (item.decision == null) item.decision = true
+      else if (item.decision) item.decision = false
+      else item.decision = null
     },
 
     conflictClass(item: any) {
       if (item.decision === true) return 'green'
       if (item.decision === false) return 'red'
-
-      // Automatic coloring based on threshold
-      const val = item.agreement
-      return val >= this.localThreshold ? 'green' : val < this.localThreshold / 2 ? 'red' : 'orange'
+      const v = item.agreement
+      return v >= this.localThreshold
+        ? 'green' : v < this.localThreshold/2 ? 'red' : 'orange'
     },
-
     conflictSymbol(item: any) {
       if (item.decision === true) return '✓'
       if (item.decision === false) return '✗'
-
-      const val = item.agreement
-      return val >= this.localThreshold ? '✓' : val < this.localThreshold / 2 ? '✗' : '⚠'
+      const v = item.agreement
+      return v >= this.localThreshold
+        ? '✓' : v < this.localThreshold/2 ? '✗' : '⚠'
     },
-
     rowClass(item: any) {
-      return item.decision === false || item.agreement < this.localThreshold / 2 ? 'low-agreement' : ''
+      return item.decision === false || item.agreement < this.localThreshold/2
+        ? 'low-agreement' : ''
     },
-
     agreementColor(val: number) {
       if (val >= this.localThreshold) return 'green'
-      if (val >= this.localThreshold / 2) return 'orange'
+      if (val >= this.localThreshold/2) return 'orange'
       return 'red'
     },
 
@@ -220,71 +141,44 @@ export default Vue.extend({
       const pid = Number(this.$route.params.id)
       try {
         const { data } = await axios.get(`/v1/projects/${pid}/metrics/span-disagreements`)
-
         const labelSet = new Set<string>()
         data.forEach((r: any) => Object.keys(r.labels).forEach(l => labelSet.add(l)))
-
         this.headers = [
-          { text: 'Snippet', value: 'snippet', width: 220 },
-          ...Array.from(labelSet)
-            .sort()
-            .map(l => ({ text: l, value: l })),
-          { text: 'Abstention', value: 'abstention' },
-          { text: 'X', value: 'x' },
-          { text: 'Total', value: 'total' },
-          { text: 'Agreement', value: 'agreement' },
+          { text: 'Snippet', value: 'snippet', width: 250 },
+          ...Array.from(labelSet).sort().map(l => ({ text: l, value: l })),
+          { text: 'Abstention', value: 'abstention', sortable: false },
+          { text: 'X', value: 'x', sortable: false },
+          { text: 'Agreement', value: 'agreement', sortable: false },
           { text: 'Conflict?', value: 'conflict', sortable: false }
         ]
-
-        this.rows = data.map((r: any) => {
-          const row: Record<string, any> = {
-            id: r.id,
-            snippet: r.snippet,
-            total: r.total,
-            agreement: r.agreement,
-            abstention: r.abstention || 0,
-            x: r.x || 0,
-            decision: null // user decision placeholder
-          }
-          Object.entries(r.labels).forEach(([k, v]: [string, any]) => {
-            row[k] = v
-          })
-          return row
-        })
-
-        // Load previously saved user decisions
-        this.loadDecisions()
-      } catch (err) {
-        this.error = "Can't load preview"
-        console.error(err)
+        this.rows = data.map((r: any) => ({
+          ...r.labels,
+          id: r.id,
+          snippet: r.snippet,
+          abstention: r.abstention || 0,
+          x: r.x || 0,
+          agreement: r.agreement,
+          decision: null
+        }))
+      } catch (e) {
+        console.error(e)
       } finally {
         this.isLoading = false
       }
     },
 
-    onCancel() {
-      const pid = this.$route.params.id
-      this.$router.push(`/projects/${pid}/disagreements/diffs`)
+    onReset() {
+      this.rows.forEach(r => { r.decision = null })
     },
-    onRestore() {
-      this.localThreshold = this.initialThreshold
-    },
-    openConfirm() {
-      this.confirmDialog = true
-    },
-    onConfirm() {
-      const v = Math.max(0, Math.min(100, this.localThreshold))
-      localStorage.setItem('disagreementThreshold', String(v))
-      this.initialThreshold = v
-      this.confirmDialog = false
-      const pid = this.$route.params.id
-      this.$router.push({
-        path: '/message',
-        query: {
-          message: `Success! Threshold updated to ${v}%`,
-          redirect: `/projects/${pid}/disagreements/diffs`
-        }
-      })
+    async onSave() {
+      const updates = this.rows
+        .filter(r => r.decision != null)
+        .map(r => ({ id: r.id, decision: r.decision }))
+      await axios.post(
+        `/v1/projects/${this.$route.params.id}/disagreements/decisions/`,
+        { decisions: updates }
+      )
+      this.snackbar = true
     }
   }
 })
@@ -302,7 +196,6 @@ export default Vue.extend({
 tr.v-data-table__tr {
   height: 64px !important;
   background-color: white !important;
-  transition: background-color 0.3s ease;
 }
 
 .low-agreement {
@@ -313,19 +206,36 @@ tr.v-data-table__tr {
   font-weight: 700;
   font-size: 1.3rem;
   line-height: 1;
-  display: inline-block;
-  width: 18px;
-  text-align: center;
-  cursor: pointer;
+  display: inline;
+  padding: 0;
+  background: transparent !important;
+  border: none !important;
   transition: color 0.3s ease;
 }
-.conflict-icon.green {
-  color: #4caf50;
+.conflict-icon.green { color: #4caf50; }
+.conflict-icon.orange { color: #ff9800; }
+.conflict-icon.red    { color: #f44336; }
+
+.agreement-fill-circle {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border: 2px solid;
+  border-radius: 50%;
+  overflow: hidden;
 }
-.conflict-icon.orange {
-  color: #ff9800;
+.agreement-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
 }
-.conflict-icon.red {
-  color: #f44336;
+.agreement-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 10px;
+  font-weight: 600;
 }
 </style>
