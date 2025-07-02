@@ -176,83 +176,44 @@ export default Vue.extend({
 
     async fetchData() {
       this.isLoading = true
-      const pid = Number(this.$route.params.id)
+      const pid = this.$route.params.id
       try {
         const { data } = await axios.get(`/v1/projects/${pid}/metrics/span-disagreements`)
-        const labelSet = new Set<string>()
-        data.forEach((r: any) => Object.keys(r.labels).forEach(l => labelSet.add(l)))
-        this.headers = [
-          { text: 'Snippet', value: 'snippet', width: 250 },
-          ...Array.from(labelSet).sort().map(l => ({ text: l, value: l })),
-          { text: 'Abstention', value: 'abstention', sortable: false },
-          { text: 'X', value: 'x', sortable: false },
-          { text: 'Agreement %', value: 'agreement', sortable: false },
-          { text: 'State', value: 'conflict', sortable: false },
-          { text: 'Actions', value: 'actions', sortable: false }
-        ]
-        this.rows = data.map((r: any) => ({
-          ...r.labels,
-          id: r.id,
-          snippet: r.snippet,
-          abstention: r.abstention || 0,
-          x: r.x || 0,
-          agreement: r.agreement,
-          decision: null,
-          savedDecision: null
-        }))
 
-        const raw = localStorage.getItem(this.decisionKey)
-        if (raw) {
-          try {
-            const obj = JSON.parse(raw)
-            this.rows.forEach(r => {
-              if (Object.prototype.hasOwnProperty.call(obj, r.id)) {
-                r.decision = obj[r.id]
-                r.savedDecision = obj[r.id]
-              }
-            })
-          } catch (err) {
-            console.error(err)
+        const labelSet = new Set<string>()
+        data.forEach((r: any) =>
+          Object.keys(r.labels).forEach(l => labelSet.add(l))
+        )
+        const labelArray = Array.from(labelSet).sort()
+
+        this.headers = [
+          { text: 'Snippet',     value: 'snippet',  width: 250 },
+          ...labelArray.map(l => ({ text: l, value: l })),
+          { text: 'Abstention',  value: 'abstention', sortable: false },
+          { text: 'X',           value: 'x',           sortable: false },
+          { text: 'Agreement %', value: 'agreement',   sortable: false },
+          { text: 'State',       value: 'conflict',    sortable: false }
+        ]
+
+        this.rows = data.map((r: any) => {
+          const row: Record<string, any> = {
+            id: r.id,
+            snippet: r.snippet,
+            abstention: r.abstention || 0,
+            x: r.x || 0,
+            agreement: r.agreement,
+            decision: r.decision
           }
-        }
-      } catch (e) {
-        console.error(e)
+          labelArray.forEach(l => {
+            row[l] = (r.labels[l] != null ? r.labels[l] : 0)
+          })
+          return row
+        })
+      } catch (err) {
+        console.error(err)
       } finally {
         this.isLoading = false
       }
-    },
-
-    onReset() {
-      this.rows.forEach(r => { r.decision = null })
-    },
-    async onSave() {
-      const changed = this.rows.filter(r => r.decision !== r.savedDecision)
-      if (!changed.length) return
-
-      const updates = changed.map(r => ({ id: r.id, decision: r.decision }))
-
-        await axios.post(
-          `/v1/projects/${this.$route.params.id}/metrics/disagreements/decisions/`,
-          { decisions: updates }
-        )
-
-        this.$router.push({
-          path: '/message',
-          query: {
-            message: 'Disagreement states saved successfully!',
-            redirect: `/projects/${this.$route.params.id}/disagreements/diffs`
-          }
-        })
-
-      const store: Record<string, any> = {}
-      this.rows.forEach(r => {
-        if (r.decision !== null) store[r.id] = r.decision
-      })
-      localStorage.setItem(this.decisionKey, JSON.stringify(store))
-
-      this.rows.forEach(r => { r.savedDecision = r.decision })
-
-      this.snackbar = true
     }
   }
 })
