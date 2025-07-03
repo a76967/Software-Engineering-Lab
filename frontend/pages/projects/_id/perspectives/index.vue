@@ -87,7 +87,7 @@
                 </v-sheet>
 
                 <v-card-text>
-                  <div v-html="formatPerspectiveText(item.text)"></div>
+                  <div v-html="formatPerspectiveText(item.text, item.id)"></div>
                   <div
                     v-if="item.linkedAnnotations && item.linkedAnnotations.length"
                   >
@@ -382,13 +382,14 @@ export default Vue.extend({
       }
       const projectId = this.$route.params.id
       this.isDeleting = true
-      const deletePromises = this.selected
+      const deletable = this.selected
         .filter(item => this.canDeletePerspective(item))
-        .map((perspective: any) =>
-          axios.delete(`/v1/projects/${projectId}/perspectives/${perspective.id}/`)
-        )
+      const deletePromises = deletable.map((perspective: any) =>
+        axios.delete(`/v1/projects/${projectId}/perspectives/${perspective.id}/`)
+      )
       Promise.all(deletePromises)
         .then(() => {
+          deletable.forEach((p: any) => this.clearPerspectiveColors(p.id))
           this.fetchPerspectives()
           this.dialogDelete = false
           this.selected = []
@@ -711,6 +712,20 @@ export default Vue.extend({
       const pos = userItems.findIndex(i => i.id === item.id)
       return pos >= 0 ? pos + 1 : 0
     },
+    colorFromString(str: string): string {
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i)
+        hash |= 0
+      }
+      const r = Math.abs(hash) % 156 + 100
+      const g = Math.abs((hash >> 8)) % 156 + 100
+      const b = Math.abs((hash >> 16)) % 156 + 100
+      return '#' + [r, g, b]
+        .map(c => c.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase()
+    },
     randomHexColor(): string {
       const r = Math.floor(Math.random() * 156 + 100)
       const g = Math.floor(Math.random() * 156 + 100)
@@ -720,7 +735,27 @@ export default Vue.extend({
         .join('')
         .toUpperCase()
     },
-    formatPerspectiveText (text: string = ''): string {
+    getSegmentColor(id: number, seg: string): string {
+      const key = `persp-color-${id}-${seg}`
+      let color = localStorage.getItem(key) || ''
+      if (!color) {
+        color = this.items.length > 1
+          ? this.randomHexColor()
+          : this.colorFromString(seg)
+        localStorage.setItem(key, color)
+      }
+      return color
+    },
+    clearPerspectiveColors(id: number) {
+      const prefix = `persp-color-${id}-`
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i) || ''
+        if (k.startsWith(prefix)) {
+          localStorage.removeItem(k)
+        }
+      }
+    },
+    formatPerspectiveText (text: string = '', id?: number): string {
       const dot = text.indexOf('. ')
 
       const metaStr =
@@ -732,7 +767,7 @@ export default Vue.extend({
         let val = valParts.join(':').trim()
         if (val.toLowerCase() === 'true')  val = 'Yes'
         if (val.toLowerCase() === 'false') val = 'No'
-        const color = this.randomHexColor()
+        const color = id ? this.getSegmentColor(id, seg) : this.colorFromString(seg)
         const textColor = this.$contrastColor(color)
         return `<span class="persp-meta" style="background-color:${color};color:${textColor};">${key}: ${val}</span>`
       })
