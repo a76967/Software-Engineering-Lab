@@ -29,7 +29,8 @@ class Perspective(models.Model):
 
     def __str__(self):
         return self.subject
-
+    class Meta:
+        db_table = "perspectives_userperspective"
 
 class PerspectiveItem(models.Model):
     TYPE_CHOICES = [
