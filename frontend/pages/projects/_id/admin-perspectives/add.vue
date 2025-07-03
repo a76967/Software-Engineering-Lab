@@ -3,13 +3,21 @@
       <v-alert v-if="dbError" type="error" dense>{{ dbError }}</v-alert>
       <v-card-text>
         <v-form ref="form" v-model="isValid" lazy-validation>
-          <v-text-field
-            v-model="adminPerspectives[0].name"
-            label="Perspective"
-            readonly
-            class="bold-label"
+          <!-- show loader until the single adminPerspective is loaded -->
+          <v-skeleton-loader
+            v-if="!adminPerspectives.length"
+            type="text"
+            class="mb-4"
           />
-          <input type="hidden" v-model="selectedPerspective" />
+          <template v-else>
+            <v-text-field
+              :value="adminPerspectives[0].name"
+              label="Perspective"
+              readonly
+              class="bold-label"
+            />
+            <input type="hidden" v-model="selectedPerspective" />
+          </template>
 
           <v-text-field
             v-model="form.name"
