@@ -719,10 +719,10 @@ export default Vue.extend({
     },
     formatPerspectiveText (text: string = ''): string {
       const dot = text.indexOf('. ')
-      if (dot === -1) return text
 
-      const metaStr = text.slice(0, dot).trim()
-      const rest    = text.slice(dot + 2).trim()
+      const metaStr =
+        dot === -1 ? text.trim() : text.slice(0, dot).trim()
+      const rest = dot === -1 ? '' : text.slice(dot + 2).trim()
 
       const segments = metaStr.split(',').map(s => s.trim()).map(seg => {
         const [key, ...valParts] = seg.split(':')
