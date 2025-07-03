@@ -711,6 +711,12 @@ export default Vue.extend({
       const pos = userItems.findIndex(i => i.id === item.id)
       return pos >= 0 ? pos + 1 : 0
     },
+    randomHexColor(): string {
+      const maxVal = 0xffffff
+      const randomNumber = Math.floor(Math.random() * maxVal)
+      const randomString = randomNumber.toString(16)
+      return `#${randomString.padStart(6, '0').toUpperCase()}`
+    },
     formatPerspectiveText (text: string = ''): string {
       const dot = text.indexOf('. ')
       if (dot === -1) return text
@@ -723,11 +729,13 @@ export default Vue.extend({
         let val = valParts.join(':').trim()
         if (val.toLowerCase() === 'true')  val = 'Yes'
         if (val.toLowerCase() === 'false') val = 'No'
-        return `<span class="persp-meta">${key}: ${val}</span>`
+        const color = this.randomHexColor()
+        const textColor = this.$contrastColor(color)
+        return `<span class="persp-meta" style="background-color:${color};color:${textColor};">${key}: ${val}</span>`
       })
 
       return `
-        <div>${segments.join(', ')}</div>
+        <div>${segments.join(' ')}</div>
         ${rest ? `<div>${rest}</div>` : ''}
       `
     }
@@ -746,5 +754,9 @@ export default Vue.extend({
 
 ::v-deep .persp-meta {
   font-weight: bold;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-right: 4px;
 }
 </style>
