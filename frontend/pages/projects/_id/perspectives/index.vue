@@ -134,12 +134,6 @@
                   </div>
                 </v-card-text>
 
-                <v-card-actions>
-                  <v-chip small>
-                    {{ item.category }}
-                  </v-chip>
-                  <v-spacer />
-                </v-card-actions>
               </v-card>
             </div>
 

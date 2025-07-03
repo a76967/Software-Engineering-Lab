@@ -11,11 +11,31 @@
           :items="adminPerspectives"
           item-text="name"
           item-value="id"
-          label="Select Admin Perspective"
-          :disabled="!!initialAdminPerspective"
-          required
+          label="Perspective"
+          readonly
           class="bold-label"
         />
+
+        <!-- fields coming from the selected Admin Perspective -->
+        <div v-for="field in extraItems" :key="field.id" class="mt-4">
+          <v-text-field
+            v-if="field.data_type === 'string' || field.data_type === 'number'"
+            v-model="form.extra[field.name]"
+            :type="field.data_type === 'number' ? 'number' : 'text'"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+            :required="field.required"
+          />
+          <v-select
+            v-else-if="field.data_type === 'boolean'"
+            v-model="form.extra[field.name]"
+            :items="booleanOptions"
+            item-text="text"
+            item-value="value"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+          />
+        </div>
 
       </v-form>
     </v-card-text>
@@ -24,7 +44,7 @@
       <v-spacer />
       <v-btn text @click="goBack">{{ $t('generic.cancel') }}</v-btn>
       <v-btn color="primary"
-             :disabled="!isValid || (extraItems.length === 0 && !allowText)"
+             :disabled="!isValid"
              @click="submitPerspective">
         {{ $t('generic.add') }}
       </v-btn>
@@ -43,24 +63,13 @@ export default Vue.extend({
   data () {
     return {
       form: {
-        text: '',
-        category: 'subjective',
         extra: {} as Record<string, any>,
         adminPerspective: null as number | null
       },
-      categories: [
-        { text: this.$t('Cultural'),   value: 'cultural'  },
-        { text: this.$t('Technic'),    value: 'technic'   },
-        { text: this.$t('Subjective'), value: 'subjective'}
-      ],
       extraItems: [] as any[],
       adminPerspectives: [] as any[],
-      selectedPerspective: null as number | null,
       isValid: false,
       dbError: '',
-      allowText: false,
-      initialAdminPerspective: Number(this.$route.query.adminPerspective) || null,
-
       booleanOptions: [
         { text: 'Yes', value: true },
         { text: 'No',  value: false }
@@ -75,20 +84,14 @@ export default Vue.extend({
     }
   },
 
-  watch: {
-    'form.adminPerspective'(val) {
-      this.selectedPerspective = val
-      this.fetchExtraItems()
-    }
-  },
-
   async mounted () {
+    // prevent duplicate user perspective
     await this.checkExistingPerspective()
-    const key = `allowText:${this.$route.params.id}`
-    this.allowText = localStorage.getItem(key) === 'true'
+    // load the single admin perspective and its fields
     await this.fetchAdminPerspectives()
-    if (this.initialAdminPerspective) {
-      this.form.adminPerspective = this.initialAdminPerspective
+    if (this.adminPerspectives.length) {
+      this.form.adminPerspective = this.adminPerspectives[0].id
+      await this.fetchExtraItems()
     }
   },
 
@@ -103,21 +106,20 @@ export default Vue.extend({
     },
 
     async fetchExtraItems () {
-      if (!this.selectedPerspective) {
+      if (!this.form.adminPerspective) {
         this.extraItems = []
         return
       }
       try {
-        const res = await this.$repositories.perspectiveField.list(
+        this.extraItems = await this.$repositories.perspectiveField.list(
           Number(this.$route.params.id),
-          this.selectedPerspective
+          this.form.adminPerspective
         )
-        this.extraItems = res
-      } catch (e) {
+      } catch {
         this.extraItems = []
       }
-      if (!this.extraItems.length && !this.allowText) {
-        this.dbError = 'Project admin has not set the items yet.'
+      if (!this.extraItems.length) {
+        this.dbError = 'No fields defined by project admin.'
       }
     },
 
@@ -140,46 +142,32 @@ export default Vue.extend({
     async submitPerspective () {
       this.dbError = ''
       ;(this.$refs.form as any).validate()
-      if (!this.selectedPerspective) {
-        this.dbError = 'Please select a perspective.'
+      if (!this.form.adminPerspective) {
+        this.dbError = 'Perspective not selected.'
         return
       }
-      const missing: string[] = []
-      for (const it of this.extraItems) {
-        if (!it.required) continue
-        const val = this.form.extra[it.name]
-        const rule = this.extraRules(it)[0](val)
-        if (rule !== true) {
-          missing.push(it.name)
-        }
-      }
+      const missing = this.extraItems
+        .filter(f => f.required && !this.form.extra[f.name])
+        .map(f => f.name)
       if (missing.length) {
-        const names = missing.join(', ')
-        this.dbError = `Please fill in: ${names}`
+        this.dbError = `Please fill: ${missing.join(', ')}`
         return
       }
+
       const projectId = Number(this.$route.params.id)
-      const userId    = this.$store.state.auth.id
-      const rawText   = this.allowText ? this.form.text.trim() : ''
-
-      const segs: string[] = []
-      for (const it of this.extraItems) {
-        const val = this.form.extra[it.name]
-        if (val !== undefined && val !== '') {
-          segs.push(`${it.name}: ${val}`)
-        }
-      }
-
-      const full = rawText ? `${segs.join(', ')}. ${rawText}` : segs.join(', ')
-      if (!full) {
-        this.dbError = 'Project admin has not set the items yet.'
-        return
-      }
+      // compose the user‐entered values into the text field
+      const text = this.extraItems
+        .map(it => {
+          const v = this.form.extra[it.name]
+          return v !== undefined && v !== '' ? `${it.name}: ${v}` : null
+        })
+        .filter(Boolean)
+        .join(', ')
       const payload = {
-        text:     full,
-        category: this.form.category,
-        user:     userId,
-        admin_perspective: this.selectedPerspective
+        user: this.$store.state.auth.id,
+        admin_perspective: this.form.adminPerspective,
+        extra: this.form.extra,
+        text
       }
 
       try {
@@ -192,14 +180,9 @@ export default Vue.extend({
           }
         })
       } catch (err:any) {
-        // print actual validation errors
-        console.error('Create perspective failed:', err.response?.data || err)
-        // show first field error
         const data = err.response?.data || {}
-        const firstKey = Object.keys(data)[0]
-        this.dbError = Array.isArray(data[firstKey])
-          ? data[firstKey][0]
-          : data[firstKey] || 'Failed to create perspective.'
+        const key = Object.keys(data)[0]
+        this.dbError = Array.isArray(data[key]) ? data[key][0] : data[key] || 'Failed to create.'
       }
     },
 
