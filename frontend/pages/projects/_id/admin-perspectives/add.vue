@@ -157,7 +157,7 @@
       async checkExisting() {
         try {
           const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
-          const exists = (res.data.results || res.data).some((p: any) => p.user === this.userId)
+          const exists = (res.data.results || res.data).length > 0
           if (exists) {
             this.$router.push(this.localePath(`/projects/${this.projectId}/admin-perspectives`))
           }

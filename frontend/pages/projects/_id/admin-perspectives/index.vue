@@ -151,10 +151,7 @@ export default Vue.extend({
       return this.selected.length === 1
     },
     canAdd(): boolean {
-      return !this.items.some(it => {
-        if (typeof it.user === 'number') return it.user === this.userId
-        return it.user && it.user.id === this.userId
-      })
+      return this.items.length === 0
     }
   },
 

@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.exceptions import ValidationError
 from .models import Perspective, PerspectiveItem, AdminPerspective
 from .serializers import (
     PerspectiveSerializer,
@@ -10,6 +11,7 @@ from .serializers import (
 from .models import Perspective, PerspectiveItem
 from .serializers import PerspectiveSerializer, PerspectiveItemSerializer
 from projects.models import Project
+from projects.permissions import IsProjectAdmin
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 
@@ -44,6 +46,13 @@ class PerspectiveItemView(viewsets.ModelViewSet):
     serializer_class = PerspectiveItemSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            self.permission_classes = [IsAuthenticated & IsProjectAdmin]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
+
     def get_queryset(self):
         project_id = self.kwargs.get("project_id")
         queryset = PerspectiveItem.objects.filter(project_id=project_id)
@@ -61,14 +70,23 @@ class AdminPerspectiveView(viewsets.ModelViewSet):
     serializer_class = AdminPerspectiveSerializer
     permission_classes = [IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ["create", "update", "partial_update", "destroy"]:
+            self.permission_classes = [IsAuthenticated & IsProjectAdmin]
+        else:
+            self.permission_classes = [IsAuthenticated]
+        return super().get_permissions()
+    
     def get_queryset(self):
         project_id = self.kwargs.get("project_id")
         return AdminPerspective.objects.filter(project_id=project_id)
-
+    
     def perform_create(self, serializer):
         project_id = self.kwargs.get("project_id")
+        if AdminPerspective.objects.filter(project_id=project_id).exists():
+            raise ValidationError("Admin perspective already exists for this project.")
         serializer.save(project_id=project_id)
-
+        
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
         Perspective.objects.filter(admin_perspective=instance).delete()
