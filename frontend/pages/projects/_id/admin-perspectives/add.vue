@@ -3,8 +3,47 @@
       <v-alert v-if="dbError" type="error" dense>{{ dbError }}</v-alert>
       <v-card-text>
         <v-form ref="form" v-model="isValid" lazy-validation>
-          <v-text-field v-model="form.name" label="Name" :rules="nameRules" required />
-          <v-textarea v-model="form.description" label="Description" rows="4" auto-grow />
+          <v-text-field
+            v-model="adminPerspectives[0].name"
+            label="Perspective"
+            readonly
+            class="bold-label"
+          />
+          <input type="hidden" v-model="selectedPerspective" />
+
+          <v-text-field
+            v-model="form.name"
+            label="Name"
+            :rules="nameRules"
+            required
+          />
+          <v-textarea
+            v-model="form.description"
+            label="Description"
+            rows="4"
+            auto-grow
+          />
+
+          <!-- dynamic fields for the chosen Admin Perspective -->
+          <div v-for="field in extraItems" :key="field.id" class="mb-4">
+            <v-text-field
+              v-if="field.data_type==='string' || field.data_type==='number'"
+              v-model="form.extra[field.name]"
+              :type="field.data_type === 'number' ? 'number' : 'text'"
+              :label="`${field.name}${field.required ? ' *' : ''}`"
+              :rules="field.required ? extraRules(field) : []"
+              :required="field.required"
+            />
+            <v-select
+              v-else-if="field.data_type==='boolean'"
+              v-model="form.extra[field.name]"
+              :items="booleanOptions"
+              :label="`${field.name}${field.required ? ' *' : ''}`"
+              :rules="field.required ? extraRules(field) : []"
+              item-text="text"
+              item-value="value"
+            />
+          </div>
         </v-form>
 
         <v-divider class="my-4" />
@@ -55,7 +94,13 @@
       </v-card-text>
       <v-card-actions class="d-flex justify-end">
         <v-btn text @click="goBack">Cancel</v-btn>
-        <v-btn color="primary" :disabled="!isValid" @click="submit">Save</v-btn>
+        <v-btn
+          :disabled="!isValid"
+          color="primary"
+          @click="submit"
+        >
+          Save
+        </v-btn>
       </v-card-actions>
     </v-card>
   </template>
@@ -69,17 +114,23 @@
     middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
     data() {
       return {
-        form: { name: '', description: '' },
+        form: { name: '', description: '', extra: {} as Record<string, any> },
         isValid: false,
         dbError: '',
         nameRules: [(v: string) => !!v || 'Name is required'],
 
-        // new items state
         types: ['string','number','boolean','enum'],
         newItem: { name: '', data_type: '' },
         itemsToAdd: [] as Array<{name:string,data_type:string}>,
         itemNameRules: [(v: string) => !!v || 'Item name required'],
-        itemTypeRules: [(v: string) => !!v || 'Type required']
+        itemTypeRules: [(v: string) => !!v || 'Type required'],
+        adminPerspectives: [] as any[],
+        selectedPerspective: null as number|null,
+        extraItems: [] as any[],
+        booleanOptions: [
+          { text: 'Yes', value: true },
+          { text: 'No',  value: false }
+        ]
       }
     },
     computed: {
@@ -88,6 +139,11 @@
     },
     async mounted() {
       await this.checkExisting()
+      await this.fetchAdminPerspectives()
+      if (this.adminPerspectives.length) {
+        this.selectedPerspective = this.adminPerspectives[0].id
+        await this.fetchExtraItems()
+      }
     },
     methods: {
       async checkExisting() {
@@ -98,6 +154,32 @@
             this.$router.push(this.localePath(`/projects/${this.projectId}/admin-perspectives`))
           }
         } catch (e) {}
+      },
+
+      async fetchAdminPerspectives () {
+        try {
+          this.adminPerspectives = await this.$repositories.adminPerspective.list(
+            Number(this.$route.params.id)
+          )
+        } catch {
+          this.adminPerspectives = []
+        }
+      },
+
+      async fetchExtraItems () {
+        if (!this.selectedPerspective) return
+        try {
+          const res = await this.$repositories.perspectiveField.list(
+            Number(this.$route.params.id),
+            this.selectedPerspective
+          )
+          this.extraItems = res
+        } catch {
+          this.extraItems = []
+        }
+        if (!this.extraItems.length) {
+          this.dbError = 'No fields defined by project admin.'
+        }
       },
 
       addItem() {

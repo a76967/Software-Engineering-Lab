@@ -3,6 +3,7 @@
     <v-card flat>
       <v-card-title>
         <span class="text-h5 font-weight-medium">Annotation Differences</span>
+        <span class="subtitle-2 ms-4">Total Labels: {{ labelNames.length }}</span>
         <v-spacer />
         <v-text-field
           v-model="search"
@@ -83,6 +84,7 @@ export default Vue.extend({
       search: '',
       rows: [] as any[],
       headers: [] as any[],
+      labelNames: [] as string[],
       threshold: 80,
       isLoading: false,
       error: '',
@@ -155,11 +157,12 @@ export default Vue.extend({
         const labelSet = new Set<string>()
         data.forEach((r: any) => Object.keys(r.labels).forEach((l: string) => labelSet.add(l)))
 
+        const labelList = Array.from(labelSet).sort()
+        this.labelNames = labelList
+
         this.headers = [
           { text: 'Snippet', value: 'snippet', width: 250 },
-          ...Array.from(labelSet)
-            .sort()
-            .map(l => ({ text: l, value: l })),
+          ...labelList.map(l => ({ text: l, value: l })),
           { text: 'Abstention', value: 'abstention', sortable: false },
           { text: 'X', value: 'x', sortable: false },
           { text: 'Agreement %', value: 'agreement', sortable: false },

@@ -41,12 +41,13 @@
           <template #item.items="{ item }">
             <ul class="ps-2 mb-0">
               <li
-                v-for="(f, i) in item.fields"
+                v-for="(f, i) in item.fields.slice(0, 3)"
                 :key="i"
                 class="small"
               >
                 {{ f.name }} ({{ f.data_type }})
               </li>
+              <li v-if="item.fields.length > 3" class="small">…</li>
             </ul>
           </template>
           <!-- eslint-disable-next-line vue/valid-v-slot -->
@@ -70,16 +71,6 @@
           <template #item.actions="{ item }">
             <v-btn text small color="primary" @click="openViewDialog(item)">
               VIEW
-            </v-btn>
-            <v-btn
-              text
-              small
-              class="ms-2"
-              color="primary"
-              :disabled="item.fields.length===0"
-              @click="assignPerspective(item.id)"
-            >
-              ASSIGN
             </v-btn>
           </template>
         </v-data-table>
@@ -275,13 +266,6 @@ export default Vue.extend({
     openViewDialog(item: any) {
       this.currentView = item
       this.viewDialog = true
-    },
-
-    assignPerspective(adminId: number) {
-      this.$router.push({
-        path: this.localePath(`/projects/${this.projectId}/perspectives/add`),
-        query: { adminPerspective: adminId }
-      })
     }
   }
 })
