@@ -164,17 +164,24 @@ export default Vue.extend({
 
     async submitPerspective () {
       this.dbError = ''
+      ;(this.$refs.form as any).validate()
       if (!this.selectedPerspective) {
         this.dbError = 'Please select a perspective.'
         return
       }
+      const missing: string[] = []
       for (const it of this.extraItems) {
+        if (!it.required) continue
         const val = this.form.extra[it.name]
         const rule = this.extraRules(it)[0](val)
         if (rule !== true) {
-          this.dbError = rule as string
-          return
+          missing.push(it.name)
         }
+      }
+      if (missing.length) {
+        const names = missing.join(', ')
+        this.dbError = `Please fill in: ${names}`
+        return
       }
       const projectId = Number(this.$route.params.id)
       const userId    = this.$store.state.auth.id
