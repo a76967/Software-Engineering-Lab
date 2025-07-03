@@ -711,14 +711,14 @@ export default Vue.extend({
       const pos = userItems.findIndex(i => i.id === item.id)
       return pos >= 0 ? pos + 1 : 0
     },
-    colorFromString(str: string): string {
-      let hash = 0;
-      for (let i = 0; i < str.length; i++) {
-        hash = str.charCodeAt(i) + ((hash << 5) - hash);
-        hash = hash & hash;
-      }
-      const color = (hash & 0xFFFFFF).toString(16).toUpperCase();
-      return `#${color.padStart(6, "0")}`;
+    randomHexColor(): string {
+      const r = Math.floor(Math.random() * 156 + 100)
+      const g = Math.floor(Math.random() * 156 + 100)
+      const b = Math.floor(Math.random() * 156 + 100)
+      return '#' + [r, g, b]
+        .map(c => c.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase()
     },
     formatPerspectiveText (text: string = ''): string {
       const dot = text.indexOf('. ')
@@ -732,7 +732,7 @@ export default Vue.extend({
         let val = valParts.join(':').trim()
         if (val.toLowerCase() === 'true')  val = 'Yes'
         if (val.toLowerCase() === 'false') val = 'No'
-        const color = this.colorFromString(`${key}:${val}`)
+        const color = this.randomHexColor()
         const textColor = this.$contrastColor(color)
         return `<span class="persp-meta" style="background-color:${color};color:${textColor};">${key}: ${val}</span>`
       })
