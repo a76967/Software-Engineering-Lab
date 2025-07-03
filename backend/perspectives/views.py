@@ -36,9 +36,9 @@ class PerspectiveView(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(project=project)
+        admin_perspective = request.data.get("admin_perspective")
+        serializer.save(project=project, admin_perspective_id=admin_perspective)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-
 
 class PerspectiveItemView(viewsets.ModelViewSet):
     serializer_class = PerspectiveItemSerializer
@@ -68,3 +68,9 @@ class AdminPerspectiveView(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         project_id = self.kwargs.get("project_id")
         serializer.save(project_id=project_id)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        Perspective.objects.filter(admin_perspective=instance).delete()
+        instance.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

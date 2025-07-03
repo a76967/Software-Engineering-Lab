@@ -8,6 +8,7 @@ class PerspectiveSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'linkedAnnotations': {'read_only': False},
             'project': {'read_only': True},
+            'admin_perspective': {'required': False, 'allow_null': True},
         }
 
 class PerspectiveItemSerializer(serializers.ModelSerializer):
