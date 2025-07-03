@@ -59,8 +59,8 @@
             />
           </template>
 
-<!-- eslint-disable-next-line vue/valid-v-slot -->
-<template #item.actions="{ item }">
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.actions="{ item }">
             <v-btn
               icon
               small
