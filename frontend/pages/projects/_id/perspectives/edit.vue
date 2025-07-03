@@ -27,7 +27,7 @@
       </div>
     </v-card-title>
     <v-card-text>
-      <v-form ref="form" v-model="isValid">
+      <v-form ref="form" v-model="isValid" lazy-validation>
         <v-select
           v-model="form.category"
           class="custom-input"
@@ -35,12 +35,32 @@
           :label="$t('Category')"
           required
         />
+
+        <div v-for="it in extraItems" :key="it.id">
+          <v-text-field
+            v-if="it.data_type === 'string' || it.data_type === 'number'"
+            :type="it.data_type === 'number' ? 'number' : 'text'"
+            v-model="form.extra[it.name]"
+            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
+            :rules="it.required ? extraRules(it) : []"
+          />
+          <v-select
+            v-else-if="it.data_type === 'boolean'"
+            v-model="form.extra[it.name]"
+            :items="booleanOptions"
+            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
+            :rules="it.required ? extraRules(it) : []"
+            item-text="text"
+            item-value="value"
+          />
+        </div>
+
         <v-textarea
+          v-if="allowText"
           v-model="form.text"
           class="custom-input"
           :label="$t('Text')"
           counter="2000"
-          required
           rows="10"
           auto-grow
         />
@@ -73,7 +93,8 @@ export default Vue.extend({
       form: {
         subject: '',
         text: '',
-        category: 'subjective'
+        category: 'subjective',
+        extra: {} as Record<string, any>
       },
       originalForm: {
         subject: '',
@@ -81,26 +102,50 @@ export default Vue.extend({
         category: 'subjective'
       },
       categories: [] as any[],
-      dbError: ""
+      extraItems: [] as any[],
+      selectedPerspective: null as number | null,
+      booleanOptions: [
+        { text: 'Yes', value: true },
+        { text: 'No', value: false }
+      ],
+      allowText: false,
+      dbError: '',
+      originalText: ''
     }
   },
   computed: {
     ...mapGetters('auth', ['getUsername'])
   },
   mounted() {
+    const key = `allowText:${this.$route.params.id}`
+    this.allowText = localStorage.getItem(key) === 'true'
     this.loadPerspective()
     this.fetchCategories()
   },
   methods: {
-    loadPerspective() {
+    async loadPerspective() {
       const perspectiveId = this.$route.query.perspectiveId
       if (perspectiveId && this.$route.params.id) {
-        axios.get(`/v1/projects/${this.$route.params.id}/perspectives/${perspectiveId}/`)
-          .then((response: any) => {
-            this.form = { ...response.data }
-            this.originalForm = { ...response.data }
-          })
-          .catch(error => console.error('Erro ao buscar perspective:', error.response || error.message))
+        try {
+          const { data } = await axios.get(
+            `/v1/projects/${this.$route.params.id}/perspectives/${perspectiveId}/`
+          )
+          this.selectedPerspective = data.admin_perspective
+          this.form.subject = data.subject
+          this.form.category = data.category
+          this.originalText = data.text
+          await this.fetchExtraItems()
+          const parsed = this.parseText(data.text)
+          this.form.extra = parsed.extra
+          this.form.text = parsed.rawText
+          this.originalForm = {
+            subject: this.form.subject,
+            text: this.form.text,
+            category: this.form.category
+          }
+        } catch (error:any) {
+          console.error('Erro ao buscar perspective:', error.response || error.message)
+        }
       }
     },
     fetchCategories() {
@@ -110,21 +155,94 @@ export default Vue.extend({
         { text: this.$t('Subjective'), value: 'subjective' }
       ]
     },
+    async fetchExtraItems() {
+      if (!this.selectedPerspective) {
+        this.extraItems = []
+        return
+      }
+      try {
+        const res = await this.$repositories.perspectiveField.list(
+          Number(this.$route.params.id),
+          this.selectedPerspective
+        )
+        this.extraItems = res
+      } catch (e) {
+        this.extraItems = []
+      }
+    },
+    parseText(text: string) {
+      const result = { extra: {} as Record<string, any>, rawText: '' }
+      let itemsPart = text
+      const dotIndex = text.indexOf('. ')
+      if (dotIndex !== -1) {
+        itemsPart = text.slice(0, dotIndex)
+        result.rawText = text.slice(dotIndex + 2)
+      }
+      if (!itemsPart.trim()) return result
+      const pairs = itemsPart.split(',')
+      for (const seg of pairs) {
+        const [name, value] = seg.split(':').map(s => s.trim())
+        const it = this.extraItems.find((e:any) => e.name === name)
+        if (!it) continue
+        let val: any = value
+        if (it.data_type === 'number') val = Number(value)
+        if (it.data_type === 'boolean') val = value === 'true' || value === 'True' || value === '1'
+        result.extra[name] = val
+      }
+      return result
+    },
+    combineText() {
+      const rawText = this.allowText ? this.form.text.trim() : ''
+      const segs: string[] = []
+      for (const it of this.extraItems) {
+        const val = this.form.extra[it.name]
+        if (val !== undefined && val !== '') {
+          segs.push(`${it.name}: ${val}`)
+        }
+      }
+      return rawText ? `${segs.join(', ')}. ${rawText}` : segs.join(', ')
+    },
+    extraRules(it: any) {
+      return [
+        (v: any) => {
+          if (it.data_type === 'boolean') {
+            return v === true || v === false || `${it.name} is required`
+          }
+          if (it.data_type === 'number') {
+            if (v === null || v === undefined || v === '') {
+              return `${it.name} is required`
+            }
+            return !isNaN(Number(v)) || `${it.name} must be a number`
+          }
+          return !!v || `${it.name} is required`
+        }
+      ]
+    },
     submitEdit() {
       const perspectiveId = this.$route.query.perspectiveId
       if (perspectiveId && this.$route.params.id) {
+        this.dbError = ''
+        for (const it of this.extraItems) {
+          const val = this.form.extra[it.name]
+          const rule = this.extraRules(it)[0](val)
+          if (rule !== true) {
+            this.dbError = rule as string
+            return
+          }
+        }
+        const fullText = this.combineText()
         const patchData: any = {}
         if (this.form.subject !== this.originalForm.subject) {
           patchData.subject = this.form.subject
         }
-        if (this.form.text !== this.originalForm.text) {
-          patchData.text = this.form.text
+        if (fullText !== this.originalText) {
+          patchData.text = fullText
         }
         if (this.form.category !== this.originalForm.category) {
           patchData.category = this.form.category
         }
         if (Object.keys(patchData).length === 0) {
-          console.log("Nenhuma alteração realizada.")
+          console.log('Nenhuma alteração realizada.')
           return
         }
         axios.patch(
