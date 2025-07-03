@@ -16,44 +16,7 @@
           required
           class="bold-label"
         />
-        <v-select
-          v-model="form.category"
-          :items="categories"
-          label="Category"
-          required
-          class="bold-label"
-        />
 
-
-
-        <div v-for="it in extraItems" :key="it.id">
-          <v-text-field
-            v-if="it.data_type === 'string' || it.data_type === 'number'"
-            :type="it.data_type === 'number' ? 'number' : 'text'"
-            v-model="form.extra[it.name]"
-            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
-            :rules="it.required ? extraRules(it) : []"
-          />
-          <v-select
-            v-else-if="it.data_type === 'boolean'"
-            v-model="form.extra[it.name]"
-            :items="booleanOptions"
-            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
-            :rules="it.required ? extraRules(it) : []"
-            item-text="text"
-            item-value="value"
-          />
-        </div>
-
-        <v-textarea
-          v-if="allowText"
-          v-model="form.text"
-          class="custom-input"
-          :label="$t('Text')"
-          counter="2000"
-          rows="10"
-          auto-grow
-        />
       </v-form>
     </v-card-text>
 
@@ -109,6 +72,13 @@ export default Vue.extend({
     ...mapGetters('auth', ['getUsername']),
     userRole (): string {
       return this.$store.state.auth.role || 'annotator'
+    }
+  },
+
+  watch: {
+    'form.adminPerspective'(val) {
+      this.selectedPerspective = val
+      this.fetchExtraItems()
     }
   },
 
