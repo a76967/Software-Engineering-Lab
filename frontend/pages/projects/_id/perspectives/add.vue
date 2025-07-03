@@ -7,12 +7,12 @@
     <v-card-text>
       <v-form ref="form" v-model="isValid" lazy-validation>
         <v-select
-          v-model="selectedPerspective"
+          v-model="form.adminPerspective"
           :items="adminPerspectives"
-          label="Select Perspective"
           item-text="name"
           item-value="id"
-          @change="fetchExtraItems"
+          label="Select Admin Perspective"
+          :disabled="!!initialAdminPerspective"
           required
           class="bold-label"
         />
@@ -82,7 +82,8 @@ export default Vue.extend({
       form: {
         text: '',
         category: 'subjective',
-        extra: {} as Record<string, any>
+        extra: {} as Record<string, any>,
+        adminPerspective: null as number | null
       },
       categories: [
         { text: this.$t('Cultural'),   value: 'cultural'  },
@@ -95,6 +96,7 @@ export default Vue.extend({
       isValid: false,
       dbError: '',
       allowText: false,
+      initialAdminPerspective: Number(this.$route.query.adminPerspective) || null,
 
       booleanOptions: [
         { text: 'Yes', value: true },
@@ -115,6 +117,9 @@ export default Vue.extend({
     const key = `allowText:${this.$route.params.id}`
     this.allowText = localStorage.getItem(key) === 'true'
     await this.fetchAdminPerspectives()
+    if (this.initialAdminPerspective) {
+      this.form.adminPerspective = this.initialAdminPerspective
+    }
   },
 
   methods: {

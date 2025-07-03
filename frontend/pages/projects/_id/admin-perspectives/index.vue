@@ -1,24 +1,25 @@
+<!-- eslint-disable vue/valid-v-slot -->
 <template>
   <v-container fluid class="pa-4">
     <v-card flat>
       <v-card-title>
         <span class="text-h5 font-weight-medium">Admin Perspectives</span>
-        <v-spacer/>
-        <v-btn color="primary" @click="goToAdd" :disabled="!canAdd">Add</v-btn>
+        <v-spacer />
+        <v-btn :disabled="!canAdd" color="primary" @click="goToAdd">Add</v-btn>
         <v-btn
+          :disabled="!canEdit"
           class="ms-2"
           outlined
           @click="editItem"
-          :disabled="!canEdit"
         >
           Edit
         </v-btn>
         <v-btn
+          :disabled="!selected.length"
           class="ms-2"
           color="error"
           outlined
           @click="dialogDelete = true"
-          :disabled="!selected.length"
         >
           Delete
         </v-btn>
@@ -26,15 +27,28 @@
 
       <v-card-text>
         <v-data-table
+          v-model="selected"
           :headers="headers"
           :items="items"
           item-key="id"
           show-select
-          v-model="selected"
           disable-pagination
           hide-default-footer
           class="elevation-1"
         >
+          <!-- render the child items column -->
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.items="{ item }">
+            <ul class="ps-2 mb-0">
+              <li
+                v-for="(f, i) in item.fields"
+                :key="i"
+                class="small"
+              >
+                {{ f.name }} ({{ f.data_type }})
+              </li>
+            </ul>
+          </template>
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.subject="{ item }">
             {{ item.subject }}
@@ -48,17 +62,51 @@
             {{ item.user.username }}
           </template>
           <!-- format Created At -->
-          <template #[`item.created_at`]="{ item }">
+          <template #item.created_at="{ item }">
             <span>{{ timeAgo(item.created_at) }}</span>
+          </template>
+          <!-- Actions column slot -->
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.actions="{ item }">
+            <v-btn text small color="primary" @click="openViewDialog(item)">
+              VIEW
+            </v-btn>
+            <v-btn
+              text
+              small
+              class="ms-2"
+              color="primary"
+              :disabled="item.fields.length===0"
+              @click="assignPerspective(item.id)"
+            >
+              ASSIGN
+            </v-btn>
           </template>
         </v-data-table>
       </v-card-text>
 
+      <!-- View-items dialog -->
+      <v-dialog v-model="viewDialog" max-width="400px">
+        <v-card>
+          <v-card-title>Items of {{ currentView.name }}</v-card-title>
+          <v-card-text>
+            <ul>
+              <li v-for="(f,i) in currentView.fields" :key="i">
+                {{ f.name }} ({{ f.data_type }})
+              </li>
+            </ul>
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer/>
+            <v-btn text @click="viewDialog = false">Close</v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
       <delete-dialog
         v-model="dialogDelete"
-        deleteDialogText="Delete selected perspectives?
-        By deleting this perspective, all its items and user perspectives will also be deleted."
-        :isDeleting="isDeleting"
+        :delete-dialog-text="deleteDialogText"
+        :is-deleting="isDeleting"
         @confirm-delete="removeSelected"
         @cancel-delete="dialogDelete = false"
       />
@@ -72,11 +120,11 @@ import axios from 'axios'
 import DeleteDialog from '~/pages/projects/_id/admin-perspectives/delete.vue'
 
 export default Vue.extend({
-  layout: 'project',
-  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
   components: {
     DeleteDialog
   },
+  layout: 'project',
+  middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
 
   data() {
     return {
@@ -86,11 +134,18 @@ export default Vue.extend({
         { text: 'Name', value: 'name' },
         { text: 'Description', value: 'description' },
         { text: 'Created At', value: 'created_at' },
-        { text: 'Created By', value: 'user', sortable: false }
+        { text: 'Items', value: 'items', sortable: false },
+        { text: 'Created By', value: 'user', sortable: false },
+        { text: 'Actions', value: 'actions', sortable: false }
       ],
       dialogDelete: false,
       isDeleting: false,
-      dbError: ''
+      deleteDialogText:
+        'Delete selected perspectives?\nBy deleting this perspective, all its items and user perspectives will also be deleted.',
+      dbError: '',
+      // view dialog state
+      viewDialog: false,
+      currentView: {} as any
     }
   },
 
@@ -120,19 +175,25 @@ export default Vue.extend({
     async fetchItems() {
       try {
         const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
-        const items = res.data.results || res.data
-        const promises = items.map(async (it: any) => {
-          if (typeof it.user === 'number') {
+        const list = res.data.results || res.data
+
+        // fetch child perspective-items for each perspective
+        const withFields = await Promise.all(
+          list.map(async (p: any) => {
             try {
-              const userRes = await axios.get(`/v1/users/${it.user}/`)
-              it.user = userRes.data
+              const r = await axios.get(
+                `/v1/projects/${this.projectId}/perspective-items/`,
+                { params: { admin_perspective: p.id } }
+              )
+              p.fields = r.data.results || r.data
             } catch {
-              it.user = { id: it.user, username: 'N/A' }
+              p.fields = []
             }
-          }
-        })
-        await Promise.all(promises)
-        this.items = items
+            return p
+          })
+        )
+
+        this.items = withFields
       } catch {
         this.items = []
       }
@@ -145,12 +206,13 @@ export default Vue.extend({
       ))
     },
 
-    editItem() {
-      if (!this.canEdit) return
-      const id = this.selected[0].id
-      this.$router.push(this.localePath(
-        `/projects/${this.projectId}/admin-perspectives/edit?perspectiveId=${id}`
-      ))
+    editItem(id?: number) {
+      const pid = this.projectId
+      const perspectiveId = id ?? (this.selected[0] && this.selected[0].id)
+      if (!perspectiveId) return
+      this.$router.push(
+        this.localePath(`/projects/${pid}/admin-perspectives/edit?perspectiveId=${perspectiveId}`)
+      )
     },
 
     async removeOne(item: any) {
@@ -208,6 +270,18 @@ export default Vue.extend({
       if (diffMonths < 12) return `${diffMonths} months ago`
       const diffYears = Math.floor(diffMonths / 12)
       return `${diffYears} years ago`
+    },
+
+    openViewDialog(item: any) {
+      this.currentView = item
+      this.viewDialog = true
+    },
+
+    assignPerspective(adminId: number) {
+      this.$router.push({
+        path: this.localePath(`/projects/${this.projectId}/perspectives/add`),
+        query: { adminPerspective: adminId }
+      })
     }
   }
 })
