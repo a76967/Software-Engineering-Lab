@@ -72,27 +72,28 @@
           </v-card-title>
           <v-card-text>
             <div v-if="rulesLoading" class="text--secondary">Loading…</div>
-            <v-list two-line v-else>
-              <v-list-item
+            <div v-else>
+              <v-card
                 v-for="(rule, idx) in currentRules"
                 :key="idx"
-                class="rule-item"
+                class="mb-2"
+                outlined
               >
-                <v-list-item-content>
-                  <v-list-item-title>
-                    {{ idx + 1 }}. {{ rule }}
-                  </v-list-item-title>
-                </v-list-item-content>
-                <v-list-item-action v-if="canEditCurrent">
+                <v-card-title class="d-flex justify-space-between">
+                  <div>#{{ idx + 1 }} - {{ rule }}</div>
+                  <v-btn small text @click="viewRule(rule, idx)">View</v-btn>
+                </v-card-title>
+                <v-card-actions v-if="canEditCurrent">
+                  <v-spacer />
                   <v-btn icon small @click="startEdit(idx)">
                     <v-icon small>mdi-pencil</v-icon>
                   </v-btn>
                   <v-btn icon small @click="removeRule(idx)">
                     <v-icon small color="error">mdi-delete</v-icon>
                   </v-btn>
-                </v-list-item-action>
-              </v-list-item>
-            </v-list>
+                </v-card-actions>
+              </v-card>
+            </div>
             <div v-if="canEditCurrent" class="mt-4">
               <v-text-field
                 v-model="newRule"
@@ -119,22 +120,41 @@
       <v-card>
         <v-card-title>Voting Results</v-card-title>
         <v-card-text>
-          <v-list two-line>
-            <v-list-item v-for="res in results" :key="res.version">
-              <v-list-item-content>
-                <v-list-item-title>
-                  v{{ res.version }} by {{ res.author }}
-                </v-list-item-title>
-                <v-list-item-subtitle>
-                  Votes: {{ res.votes }}
-                </v-list-item-subtitle>
-              </v-list-item-content>
-            </v-list-item>
-          </v-list>
+          <div v-for="res in results" :key="res.version" class="mb-2">
+            <v-card outlined>
+              <v-card-title class="d-flex justify-space-between">
+                <span>v{{ res.version }} by {{ res.author }}</span>
+                <v-chip
+                  v-if="voteClosed"
+                  :color="res.accepted ? 'green' : 'red'"
+                  text-color="white"
+                  small
+                >
+                  {{ res.accepted ? 'Accepted' : 'Rejected' }}
+                </v-chip>
+              </v-card-title>
+              <v-card-text>Votes: {{ res.votes }}</v-card-text>
+            </v-card>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer/>
           <v-btn text @click="showResultsDialog = false">Close</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="showRuleDialog" max-width="500">
+      <v-card>
+        <v-card-title>Rule #{{ selectedRuleIndex + 1 }}</v-card-title>
+        <v-card-text>
+          <div>{{ selectedRuleText }}</div>
+          <div class="text--secondary">Author: {{ currentAuthor }}</div>
+          <div class="text--secondary">Submitted: {{ formattedSubmitted }}</div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="showRuleDialog = false">Close</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -155,6 +175,7 @@ interface ResultItem {
   version: number
   author: string
   votes: number
+  accepted: boolean
 }
 
 export default Vue.extend({
@@ -170,10 +191,15 @@ export default Vue.extend({
       userVotedVersions: [] as number[],
       rulesLoading: false,
       currentRules: [] as string[],
+      currentRulesAuthor: '' as string,
+      currentRulesSubmitted: '' as string,
       newRule: '' as string,
       savingRules: false,
       isAdmin: false,
-      meta: null as { start: number; end: number; phase: number } | null
+      meta: null as { start: number; end: number; phase: number } | null,
+      showRuleDialog: false,
+      selectedRuleText: '',
+      selectedRuleIndex: -1
     }
   },
   async mounted() {
@@ -245,6 +271,8 @@ export default Vue.extend({
         const repo = new APIAnnotationRuleRepository()
         const grid = await repo.get(Number(this.$route.params.id), id)
         this.currentRules = grid.rules
+        this.currentRulesAuthor = grid.createdBy
+        this.currentRulesSubmitted = grid.createdAt
       } catch (e) {
         console.error('Failed to load rules', e)
         this.currentRules = []
@@ -264,6 +292,11 @@ export default Vue.extend({
     },
     removeRule(idx: number) {
       this.currentRules.splice(idx, 1)
+    },
+    viewRule(rule: string, idx: number) {
+      this.selectedRuleText = rule
+      this.selectedRuleIndex = idx
+      this.showRuleDialog = true
     },
     async saveRules() {
       if (!this.currentRules.length) return
@@ -323,7 +356,8 @@ export default Vue.extend({
       this.results = this.history.map(h => ({
         version: h.version,
         author: h.author,
-        votes: all.filter(v => v === h.version).length
+        votes: all.filter(v => v === h.version).length,
+        accepted: this.voteClosed && all.filter(v => v === h.version).length > 0
       }))
       this.showResultsDialog = true
     }
@@ -350,6 +384,12 @@ export default Vue.extend({
       const votesMap = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, number[]>
       const all = Object.values(votesMap).flat()
       return this.selectedVersion ? all.filter(v => v === this.selectedVersion).length : 0
+    },
+    formattedSubmitted(): string {
+      return this.currentRulesSubmitted ? new Date(this.currentRulesSubmitted).toLocaleString() : ''
+    },
+    currentAuthor(): string {
+      return this.currentRulesAuthor
     },
     currentUsername() {
       return this.$store.state.auth.username
