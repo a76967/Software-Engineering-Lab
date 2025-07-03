@@ -37,13 +37,20 @@ class PerspectiveItem(models.Model):
         on_delete=models.CASCADE,
         related_name="perspective_items",
     )
+    admin_perspective = models.ForeignKey(
+        "AdminPerspective",
+        on_delete=models.CASCADE,
+        related_name="items",
+        null=True,
+        blank=True,
+    )
     name = models.CharField(max_length=100)
     data_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     required = models.BooleanField(default=False)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:
-        unique_together = ("project", "name")
+        unique_together = ("project", "admin_perspective", "name")
         ordering = ["order", "id"]
 
     def __str__(self):

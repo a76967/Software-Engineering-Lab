@@ -59,8 +59,8 @@
             />
           </template>
 
-          <!-- eslint-disable-next-line vue/valid-v-slot -->
-          <template #item.actions="{ item }">
+<!-- eslint-disable-next-line vue/valid-v-slot -->
+<template #item.actions="{ item }">
             <v-btn
               icon
               small
@@ -70,6 +70,11 @@
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
+          </template>
+
+          <!-- eslint-disable-next-line vue/valid-v-slot -->
+          <template #item.admin_perspective="{ item }">
+            {{ perspectiveName(item.admin_perspective) }}
           </template>
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
@@ -104,9 +109,11 @@ export default Vue.extend({
       selected: [] as any[],
       items: [] as any[],
       builtinItems: [],
+      adminPerspectives: [] as any[],
       hasPerspectives: false,
       headers: [
         { text: 'Name', value: 'name' },
+        { text: 'Perspective', value: 'admin_perspective' },
         { text: 'Data Type', value: 'data_type' },
         { text: 'Required', value: 'required' },
         { text: '', value: 'actions', sortable: false }
@@ -143,8 +150,10 @@ export default Vue.extend({
     }
   },
 
+
   mounted() {
     this.fetchItems()
+    this.fetchAdminPerspectives()
     const key = `allowText:${this.projectId}`
     this.allowText = localStorage.getItem(key) === 'true'
     this.checkPerspectives()
@@ -196,6 +205,20 @@ export default Vue.extend({
       } catch {
         this.items = []
       }
+    },
+
+    async fetchAdminPerspectives() {
+      try {
+        const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
+        this.adminPerspectives = res.data.results || res.data
+      } catch {
+        this.adminPerspectives = []
+      }
+    },
+
+    perspectiveName(id: number | null): string {
+      const p = this.adminPerspectives.find((ap: any) => ap.id === id)
+      return p ? p.name : ''
     },
 
     goToAdd() {

@@ -46,11 +46,16 @@ class PerspectiveItemView(viewsets.ModelViewSet):
 
     def get_queryset(self):
         project_id = self.kwargs.get("project_id")
-        return PerspectiveItem.objects.filter(project_id=project_id)
+        queryset = PerspectiveItem.objects.filter(project_id=project_id)
+        admin_perspective = self.request.query_params.get("admin_perspective")
+        if admin_perspective:
+            queryset = queryset.filter(admin_perspective_id=admin_perspective)
+        return queryset
 
     def perform_create(self, serializer):
         project_id = self.kwargs.get("project_id")
-        serializer.save(project_id=project_id)
+        admin_perspective = self.request.data.get("admin_perspective")
+        serializer.save(project_id=project_id, admin_perspective_id=admin_perspective)
 
 class AdminPerspectiveView(viewsets.ModelViewSet):
     serializer_class = AdminPerspectiveSerializer

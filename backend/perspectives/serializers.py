@@ -17,6 +17,7 @@ class PerspectiveItemSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'order': {'required': False},
             'project': {'read_only': True},
+            'admin_perspective': {'required': False, 'allow_null': True},
         }
 
 class AdminPerspectiveSerializer(serializers.ModelSerializer):

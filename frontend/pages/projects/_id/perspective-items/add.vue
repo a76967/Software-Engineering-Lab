@@ -8,6 +8,14 @@
       <v-form ref="form" v-model="isValid" lazy-validation>
         <v-text-field v-model="newItem.name" label="Name" required :rules="nameRules" />
         <v-select
+          v-model="newItem.admin_perspective"
+          :items="adminPerspectives"
+          item-text="name"
+          item-value="id"
+          label="Admin Perspective"
+          required
+        />
+        <v-select
           v-model="newItem.data_type"
           :items="types"
           label="Data Type"
@@ -24,6 +32,7 @@
         <thead>
           <tr>
             <th>Name</th>
+            <th>Perspective</th>
             <th>Type</th>
             <th>Required</th>
           </tr>
@@ -31,6 +40,7 @@
         <tbody>
           <tr v-for="(it, i) in pendingItems" :key="i">
             <td>{{ it.name }}</td>
+            <td>{{ perspectiveName(it.admin_perspective) }}</td>
             <td>{{ it.data_type }}</td>
             <td>
               <v-icon small color="green" v-if="it.required">mdi-check</v-icon>
@@ -76,7 +86,8 @@ export default Vue.extend({
   data() {
     return {
       items: [] as any[],
-      newItem: { name: '', data_type: '', required: false },
+      adminPerspectives: [] as any[],
+      newItem: { name: '', admin_perspective: null, data_type: '', required: false },
       types: ['string', 'number', 'boolean', 'enum'],
       pendingItems: [] as any[],
       isValid: false,
@@ -113,12 +124,13 @@ export default Vue.extend({
   mounted() {
     this.checkPerspectives()
     this.fetchItems()
+    this.fetchAdminPerspectives()
     this.pendingItems = []
     const key = `allowText:${this.projectId}`
     this.allowText = localStorage.getItem(key) === 'true'
-    // remember original state
     this.originalAllowText = this.allowText
   },
+
 
   methods: {
     async checkPerspectives() {
@@ -151,13 +163,25 @@ export default Vue.extend({
         this.items = []
       }
     },
+    async fetchAdminPerspectives() {
+      try {
+        const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
+        this.adminPerspectives = res.data.results || res.data
+      } catch {
+        this.adminPerspectives = []
+      }
+    },
+    perspectiveName(id: number | null): string {
+      const p = this.adminPerspectives.find((ap: any) => ap.id === id)
+      return p ? p.name : ''
+    },
 
     addItem() {
       if (this.hasPerspectives) return
       if (!(this.$refs.form as any).validate()) return
       this.errorMessage = ''
       this.pendingItems.push({ ...this.newItem })
-      this.newItem = { name: '', data_type: '', required: false }
+      this.newItem = { name: '', admin_perspective: null, data_type: '', required: false }
       ;(this.$refs.form as any).resetValidation()
     },
 
