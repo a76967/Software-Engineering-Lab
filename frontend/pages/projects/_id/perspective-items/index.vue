@@ -4,31 +4,35 @@
       <v-card-title>
         <span class="text-h5 font-weight-medium">Perspective Items</span>
         <v-spacer />
-        <v-btn
-          color="primary"
-          @click="goToAdd"
-          :disabled="selected.length > 0"
-        >
+        <v-btn color="primary" @click="goToAdd" :disabled="selected.length > 0 || hasPerspectives">
           Add
         </v-btn>
         <v-btn
           color="error"
           class="ms-2"
           @click="removeSelected"
-          :disabled="selected.length === 0"
+          :disabled="selected.length === 0 || hasPerspectives"
         >
           Delete
         </v-btn>
       </v-card-title>
 
       <v-card-text>
+        <v-alert
+          v-if="hasPerspectives"
+          color="primary"
+          dense
+          class="mb-4 white--text"
+        >
+          At least 1 user perspective exists! Delete all to modify these items.
+        </v-alert>
         <v-data-table
           :headers="headers"
           :items="allItems"
           item-key="name"
           show-select
           v-model="selected"
-          :item-disabled="item => item.builtin"
+          :item-disabled="(item) => item.builtin || hasPerspectives"
           disable-pagination
           hide-default-footer
         >
@@ -37,8 +41,9 @@
             <v-simple-checkbox
               :indeterminate="selected.length > 0 && selected.length < selectableItems.length"
               :value="selected.length === selectableItems.length && selectableItems.length > 0"
-              :disabled="selectableItems.length === 0"
-              @click.stop="toggleSelectAll"
+              :disabled="selectableItems.length === 0 || hasPerspectives"
+              @click.stop="(selectableItems.length === 0 ||
+              hasPerspectives) ? null : toggleSelectAll()"
             />
           </template>
 
@@ -46,9 +51,11 @@
           <template #item.data-table-select="{ item, isSelected, select }">
             <v-simple-checkbox
               :value="isSelected"
-              @click.stop="select(!isSelected)"
-              :disabled="item.builtin"
-              :class="{ 'builtin-checkbox': item.builtin }"
+              @click.stop="(item.builtin || hasPerspectives)
+              ? null : select(!isSelected)"
+              :disabled="item.builtin || hasPerspectives"
+              :class="{ 'builtin-checkbox': item.builtin,
+              'perspective-disabled-checkbox': hasPerspectives && !item.builtin }"
             />
           </template>
 
@@ -59,7 +66,7 @@
               small
               color="red"
               @click="removeItem(item)"
-              :disabled="item.builtin"
+              :disabled="item.builtin || hasPerspectives"
             >
               <v-icon>mdi-delete</v-icon>
             </v-btn>
@@ -67,10 +74,7 @@
 
           <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.required="{ item }">
-            <span
-              class="required-icon"
-              :class="item.required ? 'green' : 'red'"
-            >
+            <span class="required-icon" :class="item.required ? 'green' : 'red'">
               {{ item.required ? '✓' : '✗' }}
             </span>
           </template>
@@ -100,6 +104,7 @@ export default Vue.extend({
       selected: [] as any[],
       items: [] as any[],
       builtinItems: [],
+      hasPerspectives: false,
       headers: [
         { text: 'Name', value: 'name' },
         { text: 'Data Type', value: 'data_type' },
@@ -111,16 +116,15 @@ export default Vue.extend({
       nameRules: [
         (v: string) => !!v || 'Name is required',
         (v: string) => {
-          const s = (this as any)
-          const dup = s.items.concat(s.pendingItems)
-            .some((it: any) => it.name === v)
+          const s = this as any
+          const dup = s.items.concat(s.pendingItems).some((it: any) => it.name === v)
           return !dup || 'Name duplicated'
         }
       ],
       dataTypeRules: [
         (v: string) => !!v || 'Data Type is required',
         (v: string) => {
-          const s = (this as any)
+          const s = this as any
           return s.types.includes(v) || 'Invalid Data Type'
         }
       ]
@@ -135,7 +139,7 @@ export default Vue.extend({
       return [...this.builtinItems, ...this.items]
     },
     selectableItems(): any[] {
-      return this.allItems.filter(it => !it.builtin)
+      return this.allItems.filter((it) => !it.builtin)
     }
   },
 
@@ -143,9 +147,21 @@ export default Vue.extend({
     this.fetchItems()
     const key = `allowText:${this.projectId}`
     this.allowText = localStorage.getItem(key) === 'true'
+    this.checkPerspectives()
   },
 
   methods: {
+    async checkPerspectives() {
+      try {
+        const res = await axios.get(`/v1/projects/${this.projectId}/perspectives/`, {
+          params: { limit: 1 }
+        })
+        const data = res.data.results || res.data
+        this.hasPerspectives = data.length > 0
+      } catch {
+        this.hasPerspectives = false
+      }
+    },
     toggleSelectAll() {
       if (this.selected.length === this.selectableItems.length) {
         this.selected = []
@@ -155,6 +171,7 @@ export default Vue.extend({
     },
 
     async removeSelected() {
+      if (this.hasPerspectives) return
       for (const it of this.selected) {
         await this.removeItem(it)
       }
@@ -164,9 +181,7 @@ export default Vue.extend({
         path: this.localePath('/message'),
         query: {
           message: 'Perspective items deleted!',
-          redirect: this.localePath(
-            `/projects/${this.projectId}/perspective-items`
-          )
+          redirect: this.localePath(`/projects/${this.projectId}/perspective-items`)
         }
       })
     },
@@ -184,16 +199,13 @@ export default Vue.extend({
     },
 
     goToAdd() {
-      this.$router.push(
-        this.localePath(`/projects/${this.projectId}/perspective-items/add`)
-      )
+      if (this.hasPerspectives) return
+      this.$router.push(this.localePath(`/projects/${this.projectId}/perspective-items/add`))
     },
 
     async removeItem(item: any) {
-      if (item.builtin) return
-      await axios.delete(
-        `/v1/projects/${this.projectId}/perspective-items/${item.id}/`
-      )
+      if (item.builtin || this.hasPerspectives) return
+      await axios.delete(`/v1/projects/${this.projectId}/perspective-items/${item.id}/`)
     }
   }
 })
@@ -221,6 +233,9 @@ export default Vue.extend({
   color: #f44336;
 }
 .builtin-checkbox {
+  pointer-events: none;
+}
+.perspective-disabled-checkbox {
   pointer-events: none;
 }
 </style>
