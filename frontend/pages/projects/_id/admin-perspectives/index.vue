@@ -56,7 +56,8 @@
 
       <delete-dialog
         v-model="dialogDelete"
-        deleteDialogText="Delete selected perspectives?"
+        deleteDialogText="Delete selected perspectives? 
+        By deleting a perspective, all its items and user perspectives will also be deleted."
         :isDeleting="isDeleting"
         @confirm-delete="removeSelected"
         @cancel-delete="dialogDelete = false"
