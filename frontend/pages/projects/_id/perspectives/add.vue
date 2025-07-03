@@ -7,6 +7,16 @@
     <v-card-text>
       <v-form ref="form" v-model="isValid" lazy-validation>
         <v-select
+          v-model="selectedPerspective"
+          :items="adminPerspectives"
+          label="Select Perspective"
+          item-text="name"
+          item-value="id"
+          @change="fetchExtraItems"
+          required
+          class="bold-label"
+        />
+        <v-select
           v-model="form.category"
           :items="categories"
           label="Category"
@@ -80,6 +90,8 @@ export default Vue.extend({
         { text: this.$t('Subjective'), value: 'subjective'}
       ],
       extraItems: [] as any[],
+      adminPerspectives: [] as any[],
+      selectedPerspective: null as number | null,
       isValid: false,
       dbError: '',
       allowText: false,
@@ -102,13 +114,29 @@ export default Vue.extend({
     await this.checkExistingPerspective()
     const key = `allowText:${this.$route.params.id}`
     this.allowText = localStorage.getItem(key) === 'true'
-    await this.fetchExtraItems()
+    await this.fetchAdminPerspectives()
   },
 
   methods: {
-    async fetchExtraItems () {
+    async fetchAdminPerspectives () {
       try {
-        const res = await this.$repositories.perspectiveField.list(Number(this.$route.params.id))
+        const res = await this.$repositories.adminPerspective.list(Number(this.$route.params.id))
+        this.adminPerspectives = res
+      } catch (e) {
+        this.adminPerspectives = []
+      }
+    },
+
+    async fetchExtraItems () {
+      if (!this.selectedPerspective) {
+        this.extraItems = []
+        return
+      }
+      try {
+        const res = await this.$repositories.perspectiveField.list(
+          Number(this.$route.params.id),
+          this.selectedPerspective
+        )
         this.extraItems = res
       } catch (e) {
         this.extraItems = []
@@ -136,6 +164,10 @@ export default Vue.extend({
 
     async submitPerspective () {
       this.dbError = ''
+      if (!this.selectedPerspective) {
+        this.dbError = 'Please select a perspective.'
+        return
+      }
       for (const it of this.extraItems) {
         const val = this.form.extra[it.name]
         const rule = this.extraRules(it)[0](val)
@@ -164,7 +196,8 @@ export default Vue.extend({
       const payload = {
         text:     full,
         category: this.form.category,
-        user:     userId
+        user:     userId,
+        admin_perspective: this.selectedPerspective
       }
 
       try {
@@ -195,7 +228,10 @@ export default Vue.extend({
             return v === true || v === false || `${it.name} is required`
           }
           if (it.data_type === 'number') {
-            return v !== null && v !== undefined && v !== '' || `${it.name} is required`
+            if (v === null || v === undefined || v === '') {
+              return `${it.name} is required`
+            }
+            return !isNaN(Number(v)) || `${it.name} must be a number`
           }
           return !!v || `${it.name} is required`
         }
