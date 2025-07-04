@@ -9,6 +9,7 @@ import { APIMemberRepository } from '@/repositories/member/apiMemberRepository'
 import { APIRoleRepository } from '@/repositories/role/apiRoleRepository'
 import { APITagRepository } from '@/repositories/tag/apiTagRepository'
 import { APIRuleVoteRepository } from '@/repositories/annotation-rule/apiRuleVoteRepository'
+import { APIGridVoteRepository } from '@/repositories/annotation-rule/apiGridVoteRepository'
 import { APIExampleRepository } from '@/repositories/example/apiDocumentRepository'
 import { APICommentRepository } from '@/repositories/comment/apiCommentRepository'
 import { APITaskStatusRepository } from '@/repositories/celery/apiTaskStatusRepository'
@@ -46,6 +47,7 @@ export interface Repositories {
   role: APIRoleRepository
   tag: APITagRepository
   ruleVote: APIRuleVoteRepository
+  gridVote: APIGridVoteRepository
 
   // Examples & comments
   example: APIExampleRepository
@@ -105,6 +107,7 @@ const repositories: Repositories = {
   role: new APIRoleRepository(),
   tag: new APITagRepository(),
   ruleVote: new APIRuleVoteRepository(),
+  gridVote: new APIGridVoteRepository(),
 
   // Examples & comments
   example: new APIExampleRepository(),

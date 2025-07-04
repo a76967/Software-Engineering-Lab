@@ -64,3 +64,23 @@ class RuleVote(models.Model):
 
     def __str__(self):
         return f"Vote {self.value} by {self.user} on grid {self.grid_id} rule {self.rule_index}"
+
+
+class GridVote(models.Model):
+    grid = models.ForeignKey(
+        AnnotationRuleGrid,
+        on_delete=models.CASCADE,
+        related_name="grid_votes",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("grid", "user")
+
+    def __str__(self):
+        return f"Grid vote by {self.user} on grid {self.grid_id}"

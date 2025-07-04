@@ -1,6 +1,10 @@
 from rest_framework import viewsets, permissions
-from .models import AnnotationRuleGrid, RuleVote
-from .serializers import AnnotationRuleGridSerializer, RuleVoteSerializer
+from .models import AnnotationRuleGrid, RuleVote, GridVote
+from .serializers import (
+    AnnotationRuleGridSerializer,
+    RuleVoteSerializer,
+    GridVoteSerializer,
+)
 
 class AnnotationRuleGridViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
@@ -28,6 +32,18 @@ class RuleVoteViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         pid = self.kwargs["project_pk"]
         return RuleVote.objects.filter(grid__project__pk=pid)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class GridVoteViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = GridVoteSerializer
+
+    def get_queryset(self):
+        pid = self.kwargs["project_pk"]
+        return GridVote.objects.filter(grid__project__pk=pid)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)

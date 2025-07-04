@@ -49,14 +49,6 @@
               Vote
             </v-btn>
             <v-btn text @click="openResultsDialog">Results</v-btn>
-            <v-btn
-              v-if="isAdmin && !voteClosed"
-              text
-              color="error"
-              @click="closeVote"
-            >
-              Close Vote
-            </v-btn>
           </v-card-actions>
         </v-card>
 
@@ -85,6 +77,15 @@
             Rules
             <v-spacer/>
             <span>v{{ selectedVersion || '-' }}</span>
+            <v-btn
+              v-if="canEditCurrent"
+              icon
+              size="small"
+              class="ml-2"
+              @click="scrollToAddInput"
+            >
+              <v-icon>mdi-plus</v-icon>
+            </v-btn>
           </v-card-title>
           <v-card-text>
             <div v-if="rulesLoading" class="text--secondary">Loading…</div>
@@ -141,6 +142,7 @@
                 label="New rule"
                 dense
                 hide-details
+                id="new-rule-input"
                 @keyup.enter="addRule"
               />
               <v-btn
@@ -159,6 +161,35 @@
               </v-btn>
             </div>
           </v-card-text>
+        </v-card>
+
+        <v-card class="my-6">
+          <v-card-title>
+            Voting Period
+            <v-spacer/>
+            <span v-if="meta" class="period-dates">{{ formattedStart }} - {{ formattedEnd }}</span>
+          </v-card-title>
+          <v-card-actions>
+            <v-spacer/>
+            <v-btn
+              v-if="isAdmin && !voteClosed"
+              text
+              color="primary"
+              class="me-2"
+              @click="openEditDialog"
+            >
+              <v-icon left small>mdi-pencil</v-icon>
+              Edit
+            </v-btn>
+            <v-btn
+              v-if="isAdmin && !voteClosed"
+              text
+              color="error"
+              @click="closeVote"
+            >
+              Close
+            </v-btn>
+          </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
@@ -206,23 +237,69 @@
       </v-card>
     </v-dialog>
 
-    <v-dialog v-model="editDialog" max-width="400">
+    <v-dialog v-model="editDialog" persistent max-width="600">
       <v-card>
         <v-card-title>Edit Voting Period</v-card-title>
         <v-card-text>
-          <v-text-field
-            v-model="editStart"
-            label="Start"
-            type="datetime-local"
-          />
-          <v-text-field
-            v-model="editEnd"
-            label="End"
-            type="datetime-local"
-          />
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-menu
+                v-model="startMenu"
+                :close-on-content-click="false"
+                offset-y
+                transition="scale-transition"
+              >
+                <template #activator="{ attrs, on }">
+                  <v-text-field
+                    v-model="editStart"
+                    label="Start"
+                    prepend-icon="mdi-clock-outline"
+                    readonly
+                    v-bind="attrs"
+                    v-on="on"
+                  />
+                </template>
+                <v-card>
+                  <v-date-picker v-model="startDate" no-title scrollable/>
+                  <v-time-picker v-model="startTime" format="24hr"/>
+                  <v-card-actions>
+                    <v-spacer/>
+                    <v-btn text color="primary" @click="applyStart">OK</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-menu>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-menu
+                v-model="endMenu"
+                :close-on-content-click="false"
+                offset-y
+                transition="scale-transition"
+              >
+                <template #activator="{ attrs, on }">
+                  <v-text-field
+                    v-model="editEnd"
+                    label="End"
+                    prepend-icon="mdi-clock-outline"
+                    readonly
+                    v-bind="attrs"
+                    v-on="on"
+                  />
+                </template>
+                <v-card>
+                  <v-date-picker v-model="endDate" no-title scrollable/>
+                  <v-time-picker v-model="endTime" format="24hr"/>
+                  <v-card-actions>
+                    <v-spacer/>
+                    <v-btn text color="primary" @click="applyEnd">OK</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-menu>
+            </v-col>
+          </v-row>
         </v-card-text>
         <v-card-actions>
-          <v-spacer />
+          <v-spacer/>
           <v-btn text @click="editDialog = false">Cancel</v-btn>
           <v-btn color="primary" text @click="saveEditPeriod">Save</v-btn>
         </v-card-actions>
@@ -235,6 +312,7 @@
 import Vue from 'vue'
 import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
 import { APIRuleVoteRepository } from '@/repositories/annotation-rule/apiRuleVoteRepository'
+import { APIGridVoteRepository } from '~/repositories/annotation-rule/apiGridVoteRepository'
 
 interface HistoryItem {
   id: number
@@ -276,7 +354,14 @@ export default Vue.extend({
       editStart: '',
       editEnd: '',
       ruleResults: {} as Record<number, { up: number; down: number }>,
-      userRuleVotes: {} as Record<number, string>
+      userRuleVotes: {} as Record<number, string>,
+      versionVoteCounts: {} as Record<number, number>,
+      startMenu: false,
+      endMenu: false,
+      startDate: '',
+      startTime: '',
+      endDate: '',
+      endTime: ''
     }
   },
   computed: {
@@ -296,11 +381,7 @@ export default Vue.extend({
       return this.isAdmin && !this.voteClosed && this.voteCountForCurrent === 0
     },
     voteCountForCurrent(): number {
-      const pid = Number(this.$route.params.id)
-      const key = `annotation_rule_votes_${pid}`
-      const votesMap = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, number[]>
-      const all = Object.values(votesMap).flat()
-      return this.selectedVersion ? all.filter(v => v === this.selectedVersion).length : 0
+      return this.selectedVersion ? this.versionVoteCounts[this.selectedVersion] || 0 : 0
     },
     formattedSubmitted(): string {
       return this.currentRulesSubmitted ? new Date(this.currentRulesSubmitted).toLocaleString() : ''
@@ -337,7 +418,7 @@ export default Vue.extend({
         version: g.version,
         author: g.createdBy
       }))
-      this.initVoteState()
+      await this.loadVersionVotes()
       if (this.history.length) {
         this.selectedVersion = this.history[0].version
         await this.fetchRules(this.history[0].id)
@@ -379,17 +460,22 @@ export default Vue.extend({
       const key = `annotation_rule_vote_meta_${pid}`
       localStorage.setItem(key, JSON.stringify(this.meta))
     },
-    initVoteState() {
+    async loadVersionVotes() {
       const pid = Number(this.$route.params.id)
-      const key = `annotation_rule_votes_${pid}`
-      let votesMap: Record<string, any>
-      try {
-        votesMap = JSON.parse(localStorage.getItem(key) || '{}')
-      } catch {
-        votesMap = {}
-      }
-      const arr = votesMap[this.currentUsername]
-      this.userVotedVersions = Array.isArray(arr) ? arr : []
+      const repo = new APIGridVoteRepository()
+      const promises = this.history.map(h => repo.list(pid, h.id))
+      const lists = await Promise.all(promises)
+      const counts: Record<number, number> = {}
+      const userArr: number[] = []
+      lists.forEach((votes, idx) => {
+        const ver = this.history[idx].version
+        counts[ver] = votes.length
+        if (votes.some((v: any) => v.user === this.currentUsername)) {
+          userArr.push(ver)
+        }
+      })
+      this.versionVoteCounts = counts
+      this.userVotedVersions = userArr
     },
     async fetchRules(id: number) {
       this.rulesLoading = true
@@ -421,6 +507,12 @@ export default Vue.extend({
     removeRule(idx: number) {
       this.currentRules.splice(idx, 1)
     },
+    scrollToAddInput() {
+      this.$nextTick(() => {
+        const el = document.getElementById('new-rule-input') as HTMLElement
+        el?.focus()
+      })
+    },
     viewRule(rule: string, idx: number) {
       this.selectedRuleText = rule
       this.selectedRuleIndex = idx
@@ -437,17 +529,27 @@ export default Vue.extend({
     },
     openEditDialog() {
       if (!this.meta) return
-      this.editStart = new Date(this.meta.start).toISOString().slice(0,16)
-      this.editEnd = new Date(this.meta.end).toISOString().slice(0,16)
+      // init pickers from meta timestamps
+      const s = new Date(this.meta.start)
+      this.startDate = s.toISOString().slice(0,10)
+      this.startTime = s.toTimeString().slice(0,5)
+      this.editStart = `${this.startDate} ${this.startTime}`
+
+      const e = new Date(this.meta.end)
+      this.endDate = e.toISOString().slice(0,10)
+      this.endTime = e.toTimeString().slice(0,5)
+      this.editEnd = `${this.endDate} ${this.endTime}`
+
       this.editDialog = true
     },
     saveEditPeriod() {
       if (!this.meta) return
-      const start = new Date(this.editStart).getTime()
-      const end = new Date(this.editEnd).getTime()
-      if (start && end) {
-        this.meta.start = start
-        this.meta.end = end
+      // parse back into timestamps
+      const startTs = new Date(`${this.startDate}T${this.startTime}`).getTime()
+      const endTs   = new Date(`${this.endDate}T${this.endTime}`).getTime()
+      if (startTs && endTs) {
+        this.meta.start = startTs
+        this.meta.end   = endTs
         this.saveMeta()
       }
       this.editDialog = false
@@ -501,20 +603,18 @@ export default Vue.extend({
       })
       this.loadRuleVotes()
     },
-    submitVote() {
+    async submitVote() {
       if (!this.selectedVersion || this.voteClosed) return
       this.saving = true
-
       const pid = Number(this.$route.params.id)
-      const key = `annotation_rule_votes_${pid}`
-      let votesMap: Record<string, number[]> = {}
-      try { votesMap = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
-      const me = this.currentUsername
-      const userArr = Array.isArray(votesMap[me]) ? votesMap[me] : []
-      if (!userArr.includes(this.selectedVersion)) userArr.push(this.selectedVersion)
-      votesMap[me] = userArr
-      localStorage.setItem(key, JSON.stringify(votesMap))
-      this.userVotedVersions = userArr
+      const gridId = this.history.find(h => h.version === this.selectedVersion)?.id
+      if (!gridId) {
+        this.saving = false
+        return
+      }
+      const repo = new APIGridVoteRepository()
+      await repo.create(pid, { grid: gridId })
+      await this.loadVersionVotes()
       this.saving = false
 
       const votedVer = this.selectedVersion
@@ -527,10 +627,9 @@ export default Vue.extend({
       })
     },
     async openResultsDialog() {
-      const repo = new APIRuleVoteRepository()
-      const resPromises = this.history.map(h =>
-        repo.list(Number(this.$route.params.id), h.id)
-      )
+      const pid = Number(this.$route.params.id)
+      const repo = new APIGridVoteRepository()
+      const resPromises = this.history.map(h => repo.list(pid, h.id))
       const lists = await Promise.all(resPromises)
       this.results = this.history.map((h, idx) => {
         const votes = lists[idx]
@@ -542,6 +641,14 @@ export default Vue.extend({
         }
       })
       this.showResultsDialog = true
+    },
+    applyStart() {
+      this.editStart = `${this.startDate} ${this.startTime}`
+      this.startMenu = false
+    },
+    applyEnd() {
+      this.editEnd = `${this.endDate} ${this.endTime}`
+      this.endMenu = false
     }
   },
   }
@@ -549,4 +656,8 @@ export default Vue.extend({
 </script>
 
 <style scoped>
+.period-dates {
+  font-size: 0.95rem;
+  color: rgba(0,0,0,0.7);
+}
 </style>
