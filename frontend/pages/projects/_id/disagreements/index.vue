@@ -60,13 +60,22 @@
             <div class="mb-2 text-center">
               <strong>{{ disagreement.count }} different annotators assigned.</strong> 
             </div>
-            <v-card-actions class="justify-center">
-              <v-btn color="secondary" small @click="checkDisagreement(disagreement)">
-                Check Disagreement
-              </v-btn>
-            </v-card-actions>
           </v-card>
         </div>
+      </div>
+
+      <!-- single centralized button -->
+      <div
+        v-if="!isLoading && disagreements.length > 0"
+        class="text-center mt-4"
+      >
+        <v-btn
+          color="secondary"
+          small
+          @click="checkDisagreement(disagreements[0])"
+        >
+          Check Disagreement
+        </v-btn>
       </div>
     </v-card-text>
   </v-card>
