@@ -51,10 +51,7 @@
       <v-spacer />
       <v-btn text @click="goBack">{{ $t('generic.cancel') }}</v-btn>
       <v-btn color="primary"
-             :disabled="!isValid || extraItems.some(f => {
-               const v = form.extra[f.name]
-               return v === undefined || v === ''
-             })"
+             :disabled="!isValid"
              @click="submitPerspective">
         {{ $t('generic.add') }}
       </v-btn>
@@ -83,6 +80,7 @@ export default Vue.extend({
         adminPerspective: null as number | null
       },
       extraItems: [] as any[],
+      adminPerspectives: [] as any[],
       booleanOptions: [
         { text: 'Yes', value: true },
         { text: 'No',  value: false }
@@ -180,7 +178,7 @@ export default Vue.extend({
         })
         .map(f => f.name)
       if (missing.length) {
-        this.dbError = `Insert data for: ${missing.join(', ')}`
+        this.dbError = 'Insert all data before saving'
         return
       }
 
