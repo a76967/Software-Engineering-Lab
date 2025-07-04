@@ -36,6 +36,53 @@
                   :disabled="userVotedVersions.includes(item.version) || voteClosed"
                 />
               </v-radio-group>
+              <div class="mt-4">
+                <div v-if="rulesLoading" class="text--secondary">Loading…</div>
+                <template v-else>
+                  <v-card
+                    v-for="(rule, idx) in currentRules"
+                    :key="idx"
+                    class="mb-2"
+                    outlined
+                  >
+                    <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                    <v-card-actions v-if="!voteClosed">
+                      <v-spacer />
+                      <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
+                        <v-icon color="green">mdi-thumb-up</v-icon>
+                      </v-btn>
+                      <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
+                        <v-icon color="red">mdi-thumb-down</v-icon>
+                      </v-btn>
+                    </v-card-actions>
+                    <v-card-actions v-else>
+                      <v-spacer />
+                      <div v-if="ruleResults[idx]" class="mr-2">
+                        {{ ruleResults[idx].up }} <v-icon small color="green">mdi-thumb-up</v-icon>
+                        {{ ruleResults[idx].down }} <v-icon small color="red">
+                          mdi-thumb-down</v-icon>
+                      </div>
+                      <v-chip
+                        :color="
+                          ruleResults[idx] &&
+                          ruleResults[idx].up >= ruleResults[idx].down
+                            ? 'green'
+                            : 'red'
+                        "
+                        text-color="white"
+                        small
+                      >
+                        {{
+                          ruleResults[idx] &&
+                          ruleResults[idx].up >= ruleResults[idx].down
+                            ? 'Approved'
+                            : 'Rejected'
+                        }}
+                      </v-chip>
+                    </v-card-actions>
+                  </v-card>
+                </template>
+              </div>
             </div>
           </v-card-text>
           <v-card-actions>
@@ -55,18 +102,23 @@
         <v-card class="my-6" max-width="800">
           <v-card-title>Voting Results</v-card-title>
           <v-card-text>
-            <v-list two-line>
-              <v-list-item v-for="res in results" :key="res.version">
-                <v-list-item-content>
-                  <v-list-item-title>
-                    v{{ res.version }} by {{ res.author }}
-                  </v-list-item-title>
-                  <v-list-item-subtitle>
-                    Votes: {{ res.votes }}
-                  </v-list-item-subtitle>
-                </v-list-item-content>
-              </v-list-item>
-            </v-list>
+            <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
+            <div v-else>
+                <v-card
+                  v-for="(rule, idx) in currentRules"
+                  :key="idx"
+                  class="mb-2"
+                  outlined
+                >
+                  <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                  <v-card-text>
+                    {{ ruleResults[idx]?.up || 0 }}
+                    <v-icon small color="green">mdi-thumb-up</v-icon>
+                    {{ ruleResults[idx]?.down || 0 }}
+                    <v-icon small color="red">mdi-thumb-down</v-icon>
+                  </v-card-text>
+                </v-card>
+            </div>
           </v-card-text>
         </v-card>
       </v-col>
@@ -100,29 +152,30 @@
                   <div>#{{ idx + 1 }} - {{ rule }}</div>
                   <v-btn small text @click="viewRule(rule, idx)">View</v-btn>
                 </v-card-title>
-                <v-card-actions v-if="!voteClosed">
-                  <v-spacer />
-                  <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
-                    <v-icon color="green">mdi-thumb-up</v-icon>
-                  </v-btn>
-                  <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
-                    <v-icon color="red">mdi-thumb-down</v-icon>
-                  </v-btn>
-                </v-card-actions>
-                <v-card-actions v-else>
+                <v-card-actions>
                   <v-spacer />
                   <div v-if="ruleResults[idx]" class="mr-2">
-                    {{ ruleResults[idx].up }} <v-icon small color="green">mdi-thumb-up</v-icon>
-                    {{ ruleResults[idx].down }} <v-icon small color="red">mdi-thumb-down</v-icon>
+                    {{ ruleResults[idx].up }}
+                    <v-icon small color="green">mdi-thumb-up</v-icon>
+                    {{ ruleResults[idx].down }}
+                    <v-icon small color="red">mdi-thumb-down</v-icon>
                   </div>
                   <v-chip
-                    :color="ruleResults[idx] && ruleResults[idx].up 
-                    >= ruleResults[idx].down ? 'green' : 'red'"
+                    :color="
+                      ruleResults[idx] &&
+                      ruleResults[idx].up >= ruleResults[idx].down
+                        ? 'green'
+                        : 'red'
+                    "
                     text-color="white"
                     small
                   >
-                    {{ ruleResults[idx] && ruleResults[idx].up 
-                    >= ruleResults[idx].down ? 'Approved' : 'Rejected' }}
+                    {{
+                      ruleResults[idx] &&
+                      ruleResults[idx].up >= ruleResults[idx].down
+                        ? 'Approved'
+                        : 'Rejected'
+                    }}
                   </v-chip>
                 </v-card-actions>
                 <v-card-actions v-if="canEditCurrent">
@@ -140,9 +193,9 @@
               <v-text-field
                 v-model="newRule"
                 label="New rule"
+                id="new-rule-input"
                 dense
                 hide-details
-                id="new-rule-input"
                 @keyup.enter="addRule"
               />
               <v-btn
@@ -198,22 +251,18 @@
       <v-card>
         <v-card-title>Voting Results</v-card-title>
         <v-card-text>
-          <div v-for="res in results" :key="res.version" class="mb-2">
-            <v-card outlined>
-              <v-card-title class="d-flex justify-space-between">
-                <span>v{{ res.version }} by {{ res.author }}</span>
-                <v-chip
-                  v-if="voteClosed"
-                  :color="res.accepted ? 'green' : 'red'"
-                  text-color="white"
-                  small
-                >
-                  {{ res.accepted ? 'Accepted' : 'Rejected' }}
-                </v-chip>
-              </v-card-title>
-              <v-card-text>Votes: {{ res.votes }}</v-card-text>
-            </v-card>
-          </div>
+          <v-card
+            v-for="(rule, idx) in currentRules"
+            :key="idx"
+            class="mb-2"
+            outlined
+          >
+            <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+            <v-card-text>
+              {{ ruleResults[idx]?.up || 0 }} <v-icon small color="green">mdi-thumb-up</v-icon>
+              {{ ruleResults[idx]?.down || 0 }} <v-icon small color="red">mdi-thumb-down</v-icon>
+            </v-card-text>
+          </v-card>
         </v-card-text>
         <v-card-actions>
           <v-spacer/>
@@ -320,13 +369,6 @@ interface HistoryItem {
   author: string
 }
 
-interface ResultItem {
-  version: number
-  author: string
-  votes: number
-  accepted: boolean
-}
-
 export default Vue.extend({
   layout: 'project',
   data() {
@@ -336,7 +378,6 @@ export default Vue.extend({
       loading: false,
       saving: false,
       showResultsDialog: false,
-      results: [] as ResultItem[],
       userVotedVersions: [] as number[],
       rulesLoading: false,
       currentRules: [] as string[],
@@ -626,20 +667,7 @@ export default Vue.extend({
         }
       })
     },
-    async openResultsDialog() {
-      const pid = Number(this.$route.params.id)
-      const repo = new APIGridVoteRepository()
-      const resPromises = this.history.map(h => repo.list(pid, h.id))
-      const lists = await Promise.all(resPromises)
-      this.results = this.history.map((h, idx) => {
-        const votes = lists[idx]
-        return {
-          version: h.version,
-          author: h.author,
-          votes: votes.length,
-          accepted: this.voteClosed && votes.length > 0
-        }
-      })
+    openResultsDialog() {
       this.showResultsDialog = true
     },
     applyStart() {
@@ -651,8 +679,7 @@ export default Vue.extend({
       this.endMenu = false
     }
   },
-  }
-)
+})
 </script>
 
 <style scoped>
