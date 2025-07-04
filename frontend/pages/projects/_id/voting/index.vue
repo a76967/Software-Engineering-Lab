@@ -8,6 +8,22 @@
             <v-spacer />
             <span v-if="meta">Ends in {{ timeRemaining }}</span>
           </v-card-title>
+          <v-card-subtitle v-if="meta" class="d-flex align-center">
+            <div>
+              Start: {{ formattedStart }}
+              <br>
+              End: {{ formattedEnd }}
+            </div>
+            <v-spacer />
+            <v-btn
+              v-if="isAdmin && !voteClosed"
+              icon
+              size="small"
+              @click="openEditDialog"
+            >
+              <v-icon>mdi-pencil</v-icon>
+            </v-btn>
+          </v-card-subtitle>
           <v-card-text>
             <div v-if="loading" class="text--secondary">Loading history…</div>
             <div v-else>
@@ -83,6 +99,31 @@
                   <div>#{{ idx + 1 }} - {{ rule }}</div>
                   <v-btn small text @click="viewRule(rule, idx)">View</v-btn>
                 </v-card-title>
+                <v-card-actions v-if="!voteClosed">
+                  <v-spacer />
+                  <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
+                    <v-icon color="green">mdi-thumb-up</v-icon>
+                  </v-btn>
+                  <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
+                    <v-icon color="red">mdi-thumb-down</v-icon>
+                  </v-btn>
+                </v-card-actions>
+                <v-card-actions v-else>
+                  <v-spacer />
+                  <div v-if="ruleResults[idx]" class="mr-2">
+                    {{ ruleResults[idx].up }} <v-icon small color="green">mdi-thumb-up</v-icon>
+                    {{ ruleResults[idx].down }} <v-icon small color="red">mdi-thumb-down</v-icon>
+                  </div>
+                  <v-chip
+                    :color="ruleResults[idx] && ruleResults[idx].up 
+                    >= ruleResults[idx].down ? 'green' : 'red'"
+                    text-color="white"
+                    small
+                  >
+                    {{ ruleResults[idx] && ruleResults[idx].up 
+                    >= ruleResults[idx].down ? 'Approved' : 'Rejected' }}
+                  </v-chip>
+                </v-card-actions>
                 <v-card-actions v-if="canEditCurrent">
                   <v-spacer />
                   <v-btn icon small @click="startEdit(idx)">
@@ -102,12 +143,18 @@
                 hide-details
                 @keyup.enter="addRule"
               />
-              <v-btn small color="primary" 
-              class="mr-2" @click="addRule" :disabled="!newRule.trim()">
-                Add
+              <v-btn
+                small
+                color="primary"
+                class="mr-2"
+                icon
+                :disabled="!newRule.trim()"
+                @click="addRule"
+              >
+                <v-icon>mdi-plus</v-icon>
               </v-btn>
-              <v-btn small color="success" @click="saveRules" :loading="savingRules" 
-              :disabled="savingRules">
+              <v-btn small color="success" :loading="savingRules" :disabled="savingRules" 
+              @click="saveRules">
                 Save
               </v-btn>
             </div>
@@ -158,6 +205,29 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="editDialog" max-width="400">
+      <v-card>
+        <v-card-title>Edit Voting Period</v-card-title>
+        <v-card-text>
+          <v-text-field
+            v-model="editStart"
+            label="Start"
+            type="datetime-local"
+          />
+          <v-text-field
+            v-model="editEnd"
+            label="End"
+            type="datetime-local"
+          />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="editDialog = false">Cancel</v-btn>
+          <v-btn color="primary" text @click="saveEditPeriod">Save</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -199,7 +269,60 @@ export default Vue.extend({
       meta: null as { start: number; end: number; phase: number } | null,
       showRuleDialog: false,
       selectedRuleText: '',
-      selectedRuleIndex: -1
+      selectedRuleIndex: -1,
+      editDialog: false,
+      editStart: '',
+      editEnd: '',
+      ruleResults: {} as Record<number, { up: number; down: number }>,
+      userRuleVotes: {} as Record<number, string>
+    }
+  },
+  computed: {
+    voteClosed(): boolean {
+      return !!(this.meta && Date.now() > this.meta.end)
+    },
+    timeRemaining(): string {
+      if (!this.meta) return ''
+      const diff = this.meta.end - Date.now()
+      if (diff <= 0) return 'ended'
+      const mins = Math.floor(diff / 60000)
+      const hrs = Math.floor(mins / 60)
+      const m = mins % 60
+      return `${hrs}h ${m}m`
+    },
+    canEditCurrent(): boolean {
+      return this.isAdmin && !this.voteClosed && this.voteCountForCurrent === 0
+    },
+    voteCountForCurrent(): number {
+      const pid = Number(this.$route.params.id)
+      const key = `annotation_rule_votes_${pid}`
+      const votesMap = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, number[]>
+      const all = Object.values(votesMap).flat()
+      return this.selectedVersion ? all.filter(v => v === this.selectedVersion).length : 0
+    },
+    formattedSubmitted(): string {
+      return this.currentRulesSubmitted ? new Date(this.currentRulesSubmitted).toLocaleString() : ''
+    },
+    formattedStart(): string {
+      return this.meta ? this.formatDate(this.meta.start) : ''
+    },
+    formattedEnd(): string {
+      return this.meta ? this.formatDate(this.meta.end) : ''
+    },
+    currentAuthor(): string {
+      return this.currentRulesAuthor
+    },
+    currentUsername() {
+      return this.$store.state.auth.username
+    }
+  },
+  watch: {
+    selectedVersion(val) {
+      const item = this.history.find(h => h.version === val)
+      if (item) {
+        this.fetchRules(item.id)
+        this.loadRuleVotes()
+      }
     }
   },
   async mounted() {
@@ -216,6 +339,7 @@ export default Vue.extend({
       if (this.history.length) {
         this.selectedVersion = this.history[0].version
         await this.fetchRules(this.history[0].id)
+        this.loadRuleVotes()
       }
       await this.fetchRole()
       this.loadMeta()
@@ -273,6 +397,7 @@ export default Vue.extend({
         this.currentRules = grid.rules
         this.currentRulesAuthor = grid.createdBy
         this.currentRulesSubmitted = grid.createdAt
+        this.loadRuleVotes()
       } catch (e) {
         console.error('Failed to load rules', e)
         this.currentRules = []
@@ -298,6 +423,32 @@ export default Vue.extend({
       this.selectedRuleIndex = idx
       this.showRuleDialog = true
     },
+    formatDate(ts: number): string {
+      const d = new Date(ts)
+      const day = String(d.getDate()).padStart(2, '0')
+      const mon = String(d.getMonth() + 1).padStart(2, '0')
+      const year = d.getFullYear()
+      const hours = String(d.getHours()).padStart(2, '0')
+      const mins = String(d.getMinutes()).padStart(2, '0')
+      return `${day}/${mon}/${year} ${hours}:${mins}`
+    },
+    openEditDialog() {
+      if (!this.meta) return
+      this.editStart = new Date(this.meta.start).toISOString().slice(0,16)
+      this.editEnd = new Date(this.meta.end).toISOString().slice(0,16)
+      this.editDialog = true
+    },
+    saveEditPeriod() {
+      if (!this.meta) return
+      const start = new Date(this.editStart).getTime()
+      const end = new Date(this.editEnd).getTime()
+      if (start && end) {
+        this.meta.start = start
+        this.meta.end = end
+        this.saveMeta()
+      }
+      this.editDialog = false
+    },
     async saveRules() {
       if (!this.currentRules.length) return
       this.savingRules = true
@@ -321,6 +472,36 @@ export default Vue.extend({
       if (!this.meta) return
       this.meta.end = Date.now()
       this.saveMeta()
+    },
+    loadRuleVotes() {
+      if (!this.selectedVersion) return
+      const pid = Number(this.$route.params.id)
+      const key = `rule_votes_${pid}_${this.selectedVersion}`
+      let map: Record<string, Record<number, string>> = {}
+      try { map = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
+      const counts: Record<number, { up: number; down: number }> = {}
+      Object.values(map).forEach(v => {
+        Object.entries(v).forEach(([idx, val]) => {
+          const i = Number(idx)
+          if (!counts[i]) counts[i] = { up: 0, down: 0 }
+          if (val === 'up') counts[i].up++
+          else counts[i].down++
+        })
+      })
+      this.ruleResults = counts
+      this.userRuleVotes = map[this.currentUsername] || {}
+    },
+    voteRule(idx: number, val: string) {
+      if (this.voteClosed || this.userRuleVotes[idx]) return
+      const pid = Number(this.$route.params.id)
+      const key = `rule_votes_${pid}_${this.selectedVersion}`
+      let map: Record<string, Record<number, string>> = {}
+      try { map = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
+      const me = this.currentUsername
+      if (!map[me]) map[me] = {}
+      map[me][idx] = val
+      localStorage.setItem(key, JSON.stringify(map))
+      this.loadRuleVotes()
     },
     submitVote() {
       if (!this.selectedVersion || this.voteClosed) return
@@ -362,46 +543,8 @@ export default Vue.extend({
       this.showResultsDialog = true
     }
   },
-  computed: {
-    voteClosed(): boolean {
-      return !!(this.meta && Date.now() > this.meta.end)
-    },
-    timeRemaining(): string {
-      if (!this.meta) return ''
-      const diff = this.meta.end - Date.now()
-      if (diff <= 0) return 'ended'
-      const mins = Math.floor(diff / 60000)
-      const hrs = Math.floor(mins / 60)
-      const m = mins % 60
-      return `${hrs}h ${m}m`
-    },
-    canEditCurrent(): boolean {
-      return this.isAdmin && !this.voteClosed && this.voteCountForCurrent === 0
-    },
-    voteCountForCurrent(): number {
-      const pid = Number(this.$route.params.id)
-      const key = `annotation_rule_votes_${pid}`
-      const votesMap = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, number[]>
-      const all = Object.values(votesMap).flat()
-      return this.selectedVersion ? all.filter(v => v === this.selectedVersion).length : 0
-    },
-    formattedSubmitted(): string {
-      return this.currentRulesSubmitted ? new Date(this.currentRulesSubmitted).toLocaleString() : ''
-    },
-    currentAuthor(): string {
-      return this.currentRulesAuthor
-    },
-    currentUsername() {
-      return this.$store.state.auth.username
-    }
-  },
-  watch: {
-    selectedVersion(val) {
-      const item = this.history.find(h => h.version === val)
-      if (item) this.fetchRules(item.id)
-    }
   }
-})
+)
 </script>
 
 <style scoped>
