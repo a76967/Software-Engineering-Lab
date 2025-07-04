@@ -4,4 +4,5 @@ export interface Discussion {
   senderId: number
   senderName: string
   timestamp: string
+  session: number
 }
