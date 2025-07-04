@@ -16,3 +16,4 @@ class DiscussionSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = DiscussionSession
         fields = ['id', 'number']
+        read_only_fields = ['number']
