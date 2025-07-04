@@ -5,7 +5,7 @@
     </v-alert>
 
     <v-card-text>
-      <v-form ref="form" v-model="isValid" lazy-validation>
+      <v-form ref="form" v-model="isValid">
         <v-select
           v-model="form.adminPerspective"
           :items="adminPerspectives"
@@ -51,7 +51,10 @@
       <v-spacer />
       <v-btn text @click="goBack">{{ $t('generic.cancel') }}</v-btn>
       <v-btn color="primary"
-             :disabled="!isValid"
+             :disabled="!isValid || extraItems.some(f => {
+               const v = form.extra[f.name]
+               return v === undefined || v === ''
+             })"
              @click="submitPerspective">
         {{ $t('generic.add') }}
       </v-btn>
@@ -69,18 +72,23 @@ export default Vue.extend({
 
   data () {
     return {
+      // master lists for lookups
+      countries: [] as string[],
+      allowedGenders: [
+        'M','F','Male','Female',
+        'Masculine','Feminine','Masculino','Feminino'
+      ],
       form: {
         extra: {} as Record<string, any>,
         adminPerspective: null as number | null
       },
       extraItems: [] as any[],
-      adminPerspectives: [] as any[],
-      isValid: false,
-      dbError: '',
       booleanOptions: [
         { text: 'Yes', value: true },
         { text: 'No',  value: false }
-      ]
+      ],
+      isValid: false,
+      dbError: ''
     }
   },
 
@@ -99,6 +107,12 @@ export default Vue.extend({
     if (this.adminPerspectives.length) {
       this.form.adminPerspective = this.adminPerspectives[0].id
       await this.fetchExtraItems()
+    }
+    // now also fetch the master list of countries
+    try {
+      this.countries = await this.$axios.$get('/v1/perspectives/countries/')
+    } catch (_) {
+      this.countries = []
     }
   },
 
@@ -148,16 +162,25 @@ export default Vue.extend({
 
     async submitPerspective () {
       this.dbError = ''
-      ;(this.$refs.form as any).validate()
+      // run full form validation and block save if invalid
+      const formValid = (this.$refs.form as any).validate()
+      if (!formValid) {
+        this.dbError = 'Insert all data before saving'
+        return
+      }
       if (!this.form.adminPerspective) {
         this.dbError = 'Perspective not selected.'
         return
       }
+      // require every field to be filled
       const missing = this.extraItems
-        .filter(f => f.required && !this.form.extra[f.name])
+        .filter(f => {
+          const v = this.form.extra[f.name]
+          return v === undefined || v === ''
+        })
         .map(f => f.name)
       if (missing.length) {
-        this.dbError = `Please fill: ${missing.join(', ')}`
+        this.dbError = `Insert data for: ${missing.join(', ')}`
         return
       }
 
@@ -194,30 +217,58 @@ export default Vue.extend({
     },
 
     extraRules(it: any) {
-      return [
-        (v: any) => {
-          if (it.data_type === 'boolean') {
-            return v === true || v === false || `${it.name} is required`
-          }
-          if (it.data_type === 'number') {
-            if (v === null || v === undefined || v === '') {
-              return `${it.name} is required`
-            }
-            const num = Number(v)
-            if (isNaN(num)) return `${it.name} must be a number`
-            if (!Number.isInteger(num)) return `${it.name} must be an integer`
-            if (num < 0) return `${it.name} must be non-negative`
-            return true
-          }
-          if (it.data_type === 'enum') {
-            return !!v || `${it.name} is required`
-          }
-          if (it.data_type === 'enum') {
-            return !!v || `${it.name} is required`
-          }
-          return !!v || `${it.name} is required`
+      // build a list of validator functions:
+      const rules: Array<(v: any)=> true|string> = []
+
+      // boolean is always just required
+      if (it.data_type === 'boolean') {
+        rules.push(v => v === true || v === false || `${it.name} is required`)
+      }
+
+      // number → integer ≥ 0, with special “Age” name hint
+      else if (it.data_type === 'number') {
+        // required
+        rules.push(v => v!=='' && v!==null && v!==undefined || `${it.name} is required`)
+        // integer check
+        rules.push(v => {
+          const n = Number(v)
+          if (isNaN(n))         return `${it.name} must be a number`
+          if (!Number.isInteger(n)) return `${it.name} must be an integer`
+          if (n < 0)            return `${it.name} must be non-negative`
+          return true
+        })
+      }
+
+      // string → possibly country/nationality or gender
+      else if (it.data_type === 'string') {
+        // required
+        rules.push(v => !!v || `${it.name} is required`)
+
+        const nm = it.name.toLowerCase()
+        if (['country','nationality'].includes(nm)) {
+          // must match real country
+          rules.push(v =>
+            this.countries.includes(v)
+              ? true
+              : 'This country does not exist'
+          )
         }
-      ]
+        else if (nm === 'gender') {
+          // must be one of allowed genders
+          rules.push(v =>
+            this.allowedGenders.includes(v)
+              ? true
+              : `${it.name} must be one of: ${this.allowedGenders.join(', ')}`
+          )
+        }
+      }
+
+      // enum → just required (you already bound items to the enum list)
+      else if (it.data_type === 'enum') {
+        rules.push(v => !!v || `${it.name} is required`)
+      }
+
+      return rules
     },
 
     goBack () {

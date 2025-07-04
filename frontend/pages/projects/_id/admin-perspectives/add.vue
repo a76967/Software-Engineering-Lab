@@ -58,14 +58,16 @@
         <h6 class="mb-2">Items</h6>
         <v-simple-table v-if="itemsToAdd.length" dense>
           <thead>
-            <tr><th>Name</th><th>Type</th><th>Enum</th><th></th></tr>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th></th>  <!-- delete‐button column -->
+            </tr>
           </thead>
           <tbody>
             <tr v-for="(it,i) in itemsToAdd" :key="i">
               <td>{{ it.name }}</td>
               <td>{{ it.data_type }}</td>
-              <td class="text-truncate" style="max-width:120px">
-                {{ it.enum ? it.enum.join(', ') : '' }}</td>
               <td>
                 <v-btn icon small @click="itemsToAdd.splice(i,1)">
                   <v-icon small>mdi-delete</v-icon>
@@ -93,20 +95,15 @@
               dense
             />
           </v-col>
-          <v-col cols="10" v-if="newItem.data_type === 'enum'">
-            <v-text-field
-              v-model="newItem.enumValues"
-              label="Enum values (comma separated)"
-              dense
-            />
-            <v-btn small class="mt-1" v-if="newItem.name.toLowerCase() 
-            === 'country'" @click="loadCountries">Load Countries</v-btn>
-          </v-col>
           <v-col cols="2">
             <v-btn
               color="primary"
               @click="addItem"
-              :disabled="!newItem.name || !newItem.data_type"
+              :disabled="
+                !newItem.name ||
+                !newItem.data_type ||
+                (newItem.data_type === 'enum' && !newItem.enumValues)
+              "
             >Add</v-btn>
           </v-col>
         </v-row>
@@ -240,7 +237,11 @@
           await Promise.all(this.itemsToAdd.map(it =>
             axios.post(
               `/v1/projects/${this.projectId}/perspective-items/`,
-              { name: it.name, data_type: it.data_type, admin_perspective: pid, enum: it.enum }
+              {
+                name: it.name,
+                data_type: it.data_type,
+                admin_perspective: pid  // no enum property
+              }
             )
           ))
 
