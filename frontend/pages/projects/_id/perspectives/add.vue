@@ -35,6 +35,13 @@
             :label="`${field.name}${field.required ? ' *' : ''}`"
             :rules="field.required ? extraRules(field) : []"
           />
+          <v-select
+            v-else-if="field.data_type === 'enum'"
+            v-model="form.extra[field.name]"
+            :items="field.enum || []"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+          />
         </div>
 
       </v-form>
@@ -196,7 +203,14 @@ export default Vue.extend({
             if (v === null || v === undefined || v === '') {
               return `${it.name} is required`
             }
-            return !isNaN(Number(v)) || `${it.name} must be a number`
+            const num = Number(v)
+            if (isNaN(num)) return `${it.name} must be a number`
+            if (!Number.isInteger(num)) return `${it.name} must be an integer`
+            if (num < 0) return `${it.name} must be non-negative`
+            return true
+          }
+          if (it.data_type === 'enum') {
+            return !!v || `${it.name} is required`
           }
           return !!v || `${it.name} is required`
         }

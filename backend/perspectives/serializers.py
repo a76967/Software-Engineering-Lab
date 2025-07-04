@@ -12,6 +12,16 @@ class PerspectiveSerializer(serializers.ModelSerializer):
         }
 
 class PerspectiveItemSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        if attrs.get('data_type') == 'enum' and not attrs.get('enum'):
+            raise serializers.ValidationError({'enum': 'This field is required for enum type.'})
+        return attrs
+
+    def create(self, validated_data):
+        if 'enum' not in validated_data:
+            validated_data['enum'] = []
+        return super().create(validated_data)
+
     class Meta:
         model = PerspectiveItem
         fields = '__all__'

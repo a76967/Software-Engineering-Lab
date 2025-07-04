@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import PerspectiveView, PerspectiveItemView, AdminPerspectiveView
+from .views import PerspectiveView, PerspectiveItemView, AdminPerspectiveView, countries
 
 urlpatterns = [
     path(
@@ -32,4 +32,5 @@ urlpatterns = [
         PerspectiveItemView.as_view({"get": "retrieve", "patch": "partial_update", "delete": "destroy"}),
         name="project-perspective-item-detail",
     ),
+    path("countries/", countries, name="countries"),
 ]

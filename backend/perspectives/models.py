@@ -55,6 +55,7 @@ class PerspectiveItem(models.Model):
     name = models.CharField(max_length=100)
     data_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     required = models.BooleanField(default=False)
+    enum = JSONField(default=list, blank=True)
     order = models.PositiveIntegerField(default=0)
 
     class Meta:

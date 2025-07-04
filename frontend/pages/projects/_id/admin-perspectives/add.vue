@@ -58,12 +58,14 @@
         <h6 class="mb-2">Items</h6>
         <v-simple-table v-if="itemsToAdd.length" dense>
           <thead>
-            <tr><th>Name</th><th>Type</th><th></th></tr>
+            <tr><th>Name</th><th>Type</th><th>Enum</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="(it,i) in itemsToAdd" :key="i">
               <td>{{ it.name }}</td>
               <td>{{ it.data_type }}</td>
+              <td class="text-truncate" style="max-width:120px">
+                {{ it.enum ? it.enum.join(', ') : '' }}</td>
               <td>
                 <v-btn icon small @click="itemsToAdd.splice(i,1)">
                   <v-icon small>mdi-delete</v-icon>
@@ -90,6 +92,15 @@
               :rules="itemTypeRules"
               dense
             />
+          </v-col>
+          <v-col cols="10" v-if="newItem.data_type === 'enum'">
+            <v-text-field
+              v-model="newItem.enumValues"
+              label="Enum values (comma separated)"
+              dense
+            />
+            <v-btn small class="mt-1" v-if="newItem.name.toLowerCase() 
+            === 'country'" @click="loadCountries">Load Countries</v-btn>
           </v-col>
           <v-col cols="2">
             <v-btn
@@ -128,8 +139,8 @@
         nameRules: [(v: string) => !!v || 'Name is required'],
 
         types: ['string','number','boolean','enum'],
-        newItem: { name: '', data_type: '' },
-        itemsToAdd: [] as Array<{name:string,data_type:string}>,
+        newItem: { name: '', data_type: '', enumValues: '' },
+        itemsToAdd: [] as Array<{name:string,data_type:string,enum?:string[]}>,
         itemNameRules: [(v: string) => !!v || 'Item name required'],
         itemTypeRules: [(v: string) => !!v || 'Type required'],
         adminPerspectives: [] as any[],
@@ -138,7 +149,8 @@
         booleanOptions: [
           { text: 'Yes', value: true },
           { text: 'No',  value: false }
-        ]
+        ],
+        countries: [] as string[]
       }
     },
     computed: {
@@ -190,11 +202,25 @@
         }
       },
 
+      async loadCountries() {
+        try {
+          this.countries = await this.$repositories.country.list()
+          this.newItem.enumValues = this.countries.join(', ')
+        } catch (e) {
+          console.error('Failed to load countries', e)
+        }
+      },
+
       addItem() {
         if (!this.newItem.name || !this.newItem.data_type) return
-        this.itemsToAdd.push({ ...this.newItem })
+        const item: any = { name: this.newItem.name, data_type: this.newItem.data_type }
+        if (this.newItem.data_type === 'enum') {
+          item.enum = this.newItem.enumValues.split(',').map(v => v.trim()).filter(Boolean)
+        }
+        this.itemsToAdd.push(item)
         this.newItem.name = ''
         this.newItem.data_type = ''
+        this.newItem.enumValues = ''
       },
 
       async submit() {
@@ -214,7 +240,7 @@
           await Promise.all(this.itemsToAdd.map(it =>
             axios.post(
               `/v1/projects/${this.projectId}/perspective-items/`,
-              { name: it.name, data_type: it.data_type, admin_perspective: pid }
+              { name: it.name, data_type: it.data_type, admin_perspective: pid, enum: it.enum }
             )
           ))
 

@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.exceptions import ValidationError
+from rest_framework.decorators import api_view
 from .models import Perspective, PerspectiveItem, AdminPerspective
 from .serializers import (
     PerspectiveSerializer,
@@ -92,3 +93,17 @@ class AdminPerspectiveView(viewsets.ModelViewSet):
         Perspective.objects.filter(admin_perspective=instance).delete()
         instance.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+@api_view(['GET'])
+def countries(request):
+    """Return list of country names"""
+    try:
+        import pycountry
+    except ImportError:
+        return Response(
+            {"detail": "pycountry package not installed"},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+    country_names = sorted([c.name for c in pycountry.countries])
+    return Response(country_names)

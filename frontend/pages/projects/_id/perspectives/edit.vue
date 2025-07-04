@@ -53,6 +53,13 @@
             item-text="text"
             item-value="value"
           />
+          <v-select
+            v-else-if="it.data_type === 'enum'"
+            v-model="form.extra[it.name]"
+            :items="it.enum || []"
+            :label="`${it.name} (${it.required ? 'required' : 'optional'})`"
+            :rules="it.required ? extraRules(it) : []"
+          />
         </div>
 
         <v-textarea
@@ -212,7 +219,14 @@ export default Vue.extend({
             if (v === null || v === undefined || v === '') {
               return `${it.name} is required`
             }
-            return !isNaN(Number(v)) || `${it.name} must be a number`
+            const num = Number(v)
+            if (isNaN(num)) return `${it.name} must be a number`
+            if (!Number.isInteger(num)) return `${it.name} must be an integer`
+            if (num < 0) return `${it.name} must be non-negative`
+            return true
+          }
+          if (it.data_type === 'enum') {
+            return !!v || `${it.name} is required`
           }
           return !!v || `${it.name} is required`
         }

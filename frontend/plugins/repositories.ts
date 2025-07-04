@@ -27,6 +27,7 @@ import { APIRelationRepository } from '@/repositories/tasks/apiRelationRepositor
 import { APITextLabelRepository } from '@/repositories/tasks/apiTextLabelRepository'
 import { APIBoundingBoxRepository } from '@/repositories/tasks/apiBoundingBoxRepository'
 import { APISegmentationRepository } from '~/repositories/tasks/apiSegmentationRepository'
+import { APICountryRepository } from '@/repositories/country/apiCountryRepository'
 
 export interface Repositories {
   // Auth
@@ -78,6 +79,7 @@ export interface Repositories {
   textLabel: APITextLabelRepository
   boundingBox: APIBoundingBoxRepository
   segmentation: APISegmentationRepository
+  country: APICountryRepository
 }
 
 declare module 'vue/types/vue' {
@@ -134,7 +136,8 @@ const repositories: Repositories = {
   relation: new APIRelationRepository(),
   textLabel: new APITextLabelRepository(),
   boundingBox: new APIBoundingBoxRepository(),
-  segmentation: new APISegmentationRepository()
+  segmentation: new APISegmentationRepository(),
+  country: new APICountryRepository()
 }
 
 const plugin: Plugin = (_, inject) => {
