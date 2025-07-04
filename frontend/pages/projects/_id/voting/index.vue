@@ -622,7 +622,7 @@ export default Vue.extend({
         path: '/message',
         query: {
           message: `Thank you for voting on version ${votedVer}!`,
-          redirect: `/projects/${pid}/annotation-rules`
+          redirect: `/projects/${pid}/voting`
         }
       })
     },
