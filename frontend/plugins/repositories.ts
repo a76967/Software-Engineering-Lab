@@ -8,6 +8,7 @@ import { APIProjectRepository } from '@/repositories/project/apiProjectRepositor
 import { APIMemberRepository } from '@/repositories/member/apiMemberRepository'
 import { APIRoleRepository } from '@/repositories/role/apiRoleRepository'
 import { APITagRepository } from '@/repositories/tag/apiTagRepository'
+import { APIRuleVoteRepository } from '@/repositories/annotation-rule/apiRuleVoteRepository'
 import { APIExampleRepository } from '@/repositories/example/apiDocumentRepository'
 import { APICommentRepository } from '@/repositories/comment/apiCommentRepository'
 import { APITaskStatusRepository } from '@/repositories/celery/apiTaskStatusRepository'
@@ -44,6 +45,7 @@ export interface Repositories {
   member: APIMemberRepository
   role: APIRoleRepository
   tag: APITagRepository
+  ruleVote: APIRuleVoteRepository
 
   // Examples & comments
   example: APIExampleRepository
@@ -102,6 +104,7 @@ const repositories: Repositories = {
   member: new APIMemberRepository(),
   role: new APIRoleRepository(),
   tag: new APITagRepository(),
+  ruleVote: new APIRuleVoteRepository(),
 
   // Examples & comments
   example: new APIExampleRepository(),

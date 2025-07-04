@@ -147,11 +147,11 @@
                 small
                 color="primary"
                 class="mr-2"
-                icon
                 :disabled="!newRule.trim()"
                 @click="addRule"
               >
-                <v-icon>mdi-plus</v-icon>
+                <v-icon left>mdi-plus</v-icon>
+                Add Rule
               </v-btn>
               <v-btn small color="success" :loading="savingRules" :disabled="savingRules" 
               @click="saveRules">
@@ -234,6 +234,7 @@
 <script lang="ts">
 import Vue from 'vue'
 import { APIAnnotationRuleRepository } from '~/repositories/annotation-rule/apiAnnotationRuleRepository'
+import { APIRuleVoteRepository } from '@/repositories/annotation-rule/apiRuleVoteRepository'
 
 interface HistoryItem {
   id: number
@@ -266,6 +267,7 @@ export default Vue.extend({
       newRule: '' as string,
       savingRules: false,
       isAdmin: false,
+      currentGridId: null as number | null,
       meta: null as { start: number; end: number; phase: number } | null,
       showRuleDialog: false,
       selectedRuleText: '',
@@ -394,6 +396,7 @@ export default Vue.extend({
       try {
         const repo = new APIAnnotationRuleRepository()
         const grid = await repo.get(Number(this.$route.params.id), id)
+        this.currentGridId = grid.id
         this.currentRules = grid.rules
         this.currentRulesAuthor = grid.createdBy
         this.currentRulesSubmitted = grid.createdAt
@@ -473,34 +476,29 @@ export default Vue.extend({
       this.meta.end = Date.now()
       this.saveMeta()
     },
-    loadRuleVotes() {
-      if (!this.selectedVersion) return
-      const pid = Number(this.$route.params.id)
-      const key = `rule_votes_${pid}_${this.selectedVersion}`
-      let map: Record<string, Record<number, string>> = {}
-      try { map = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
+    async loadRuleVotes() {
+      if (!this.currentGridId) return
+      const repo = new APIRuleVoteRepository()
+      const votes = await repo.list(Number(this.$route.params.id), this.currentGridId)
       const counts: Record<number, { up: number; down: number }> = {}
-      Object.values(map).forEach(v => {
-        Object.entries(v).forEach(([idx, val]) => {
-          const i = Number(idx)
-          if (!counts[i]) counts[i] = { up: 0, down: 0 }
-          if (val === 'up') counts[i].up++
-          else counts[i].down++
-        })
+      const userMap: Record<number, string> = {}
+      votes.forEach((v: any) => {
+        if (!counts[v.rule_index]) counts[v.rule_index] = { up: 0, down: 0 }
+        if (v.value === 'up') counts[v.rule_index].up++
+        else counts[v.rule_index].down++
+        if (v.user === this.currentUsername) userMap[v.rule_index] = v.value
       })
       this.ruleResults = counts
-      this.userRuleVotes = map[this.currentUsername] || {}
+      this.userRuleVotes = userMap
     },
-    voteRule(idx: number, val: string) {
+    async voteRule(idx: number, val: string) {
       if (this.voteClosed || this.userRuleVotes[idx]) return
-      const pid = Number(this.$route.params.id)
-      const key = `rule_votes_${pid}_${this.selectedVersion}`
-      let map: Record<string, Record<number, string>> = {}
-      try { map = JSON.parse(localStorage.getItem(key) || '{}') } catch {}
-      const me = this.currentUsername
-      if (!map[me]) map[me] = {}
-      map[me][idx] = val
-      localStorage.setItem(key, JSON.stringify(map))
+      const repo = new APIRuleVoteRepository()
+      await repo.create(Number(this.$route.params.id), {
+        grid: this.currentGridId!,
+        rule_index: idx,
+        value: val
+      })
       this.loadRuleVotes()
     },
     submitVote() {
@@ -528,18 +526,21 @@ export default Vue.extend({
         }
       })
     },
-    openResultsDialog() {
-      const pid = Number(this.$route.params.id)
-      const key = `annotation_rule_votes_${pid}`
-      const votesMap = JSON.parse(localStorage.getItem(key) || '{}') as Record<string, number[]>
-      const all = Object.values(votesMap).flat()
-
-      this.results = this.history.map(h => ({
-        version: h.version,
-        author: h.author,
-        votes: all.filter(v => v === h.version).length,
-        accepted: this.voteClosed && all.filter(v => v === h.version).length > 0
-      }))
+    async openResultsDialog() {
+      const repo = new APIRuleVoteRepository()
+      const resPromises = this.history.map(h =>
+        repo.list(Number(this.$route.params.id), h.id)
+      )
+      const lists = await Promise.all(resPromises)
+      this.results = this.history.map((h, idx) => {
+        const votes = lists[idx]
+        return {
+          version: h.version,
+          author: h.author,
+          votes: votes.length,
+          accepted: this.voteClosed && votes.length > 0
+        }
+      })
       this.showResultsDialog = true
     }
   },

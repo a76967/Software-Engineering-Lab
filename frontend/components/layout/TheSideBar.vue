@@ -141,7 +141,7 @@ export default {
           icon: mdiGavel,
           text: 'Annotation Rules',
           link: 'annotation-rules',
-          isVisible: true
+          isVisible: false
         },
         {
           icon: mdiVote,
