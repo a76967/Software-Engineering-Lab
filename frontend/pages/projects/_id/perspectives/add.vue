@@ -212,6 +212,9 @@ export default Vue.extend({
           if (it.data_type === 'enum') {
             return !!v || `${it.name} is required`
           }
+          if (it.data_type === 'enum') {
+            return !!v || `${it.name} is required`
+          }
           return !!v || `${it.name} is required`
         }
       ]
