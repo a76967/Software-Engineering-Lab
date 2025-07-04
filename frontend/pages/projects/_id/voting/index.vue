@@ -31,7 +31,7 @@
                 <v-radio
                   v-for="item in history"
                   :key="item.id"
-                  :label="`v${item.version} by ${item.author}`"
+                  :label="item.rule"
                   :value="item.version"
                   :disabled="userVotedVersions.includes(item.version) || voteClosed"
                 />
@@ -154,29 +154,46 @@
                 </v-card-title>
                 <v-card-actions>
                   <v-spacer />
-                  <div v-if="ruleResults[idx]" class="mr-2">
-                    {{ ruleResults[idx].up }}
-                    <v-icon small color="green">mdi-thumb-up</v-icon>
-                    {{ ruleResults[idx].down }}
-                    <v-icon small color="red">mdi-thumb-down</v-icon>
-                  </div>
-                  <v-chip
-                    :color="
-                      ruleResults[idx] &&
-                      ruleResults[idx].up >= ruleResults[idx].down
-                        ? 'green'
-                        : 'red'
-                    "
-                    text-color="white"
-                    small
-                  >
-                    {{
-                      ruleResults[idx] &&
-                      ruleResults[idx].up >= ruleResults[idx].down
-                        ? 'Approved'
-                        : 'Rejected'
-                    }}
-                  </v-chip>
+                  <template v-if="!voteClosed">
+                    <v-btn
+                      icon
+                      :disabled="!!userRuleVotes[idx]"
+                      @click="voteRule(idx, 'up')"
+                    >
+                      <v-icon color="green">mdi-thumb-up</v-icon>
+                    </v-btn>
+                    <v-btn
+                      icon
+                      :disabled="!!userRuleVotes[idx]"
+                      @click="voteRule(idx, 'down')"
+                    >
+                      <v-icon color="red">mdi-thumb-down</v-icon>
+                    </v-btn>
+                  </template>
+                  <template v-else>
+                    <div v-if="ruleResults[idx]" class="mr-2">
+                      {{ ruleResults[idx].up }}
+                      <v-icon small color="green">mdi-thumb-up</v-icon>
+                      {{ ruleResults[idx].down }}
+                      <v-icon small color="red">mdi-thumb-down</v-icon>
+                    </div>
+                    <v-chip
+                      v-if="ruleResults[idx]"
+                      :color="
+                        ruleResults[idx].up >= ruleResults[idx].down
+                          ? 'green'
+                          : 'red'
+                      "
+                      text-color="white"
+                      small
+                    >
+                      {{
+                        ruleResults[idx].up >= ruleResults[idx].down
+                          ? 'Approved'
+                          : 'Rejected'
+                      }}
+                    </v-chip>
+                  </template>
                 </v-card-actions>
                 <v-card-actions v-if="canEditCurrent">
                   <v-spacer />
@@ -367,6 +384,7 @@ interface HistoryItem {
   id: number
   version: number
   author: string
+  rule: string
 }
 
 export default Vue.extend({
@@ -457,7 +475,8 @@ export default Vue.extend({
       this.history = grids.map(g => ({
         id: g.id,
         version: g.version,
-        author: g.createdBy
+        author: g.createdBy,
+        rule: g.rules[0] || ''
       }))
       await this.loadVersionVotes()
       if (this.history.length) {
