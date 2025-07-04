@@ -564,7 +564,7 @@ export default Vue.extend({
           path: '/message',
           query: {
             message: 'Rules updated!',
-            redirect: `/projects/${this.$route.params.id}/annotation-rules`
+            redirect: `/projects/${this.$route.params.id}/voting`
           }
         })
       } catch (e) {
