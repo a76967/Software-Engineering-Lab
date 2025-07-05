@@ -12,6 +12,7 @@
       <v-divider/>
       <v-card-text>
         <v-form @submit.prevent="generateReport">
+          <!-- first row: Version, Annotation IDs, Annotators -->
           <v-row dense>
             <v-col cols="12" sm="6" md="4">
               <v-select
@@ -20,12 +21,11 @@
                 item-text="text"
                 item-value="id"
                 label="Version"
-                hide-details
                 dense
+                hide-details
                 @change="changeVersion"
               />
             </v-col>
-            <!-- Annotation IDs with text snippet -->
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
                 v-model="filters.annotationIds"
@@ -35,14 +35,14 @@
                 label="Annotation IDs"
                 multiple
                 clearable
+                dense
+                hide-details
                 :menu-props="{
                   'max-height': '200px',
                   contentClass: 'annotation-menu__content'
                 }"
               />
             </v-col>
-
-            <!-- Annotators -->
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
                 v-model="filters.annotators"
@@ -52,12 +52,14 @@
                 label="Annotators"
                 multiple
                 clearable
+                dense
+                hide-details
               />
             </v-col>
-
-            <!-- Labels agora múltiplos -->
+          </v-row>
+          <!-- second row: Labels aligned under first columns -->
+          <v-row dense>
             <v-col cols="12" sm="6" md="4">
-              <!-- permite selecionar várias -->
               <v-select
                 v-model="filters.labels"
                 :items="labelOptions"
@@ -66,6 +68,8 @@
                 label="Labels"
                 multiple
                 clearable
+                dense
+                hide-details
               />
             </v-col>
           </v-row>
