@@ -197,6 +197,13 @@ export default Vue.extend({
             console.error(err)
           }
         }
+
+        // now count by conflict state and persist
+        const greenCount = this.rows.filter(r => this.conflictClass(r) === 'green').length
+        const total = this.rows.length
+        const disagree = total - greenCount
+        localStorage.setItem(`disagreementStats:${pid}`,
+                             JSON.stringify({ total, disagree }))
       } catch (err: any) {
         console.error(err)
         this.error = "Error: Can't access our database!"

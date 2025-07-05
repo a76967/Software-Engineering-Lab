@@ -128,14 +128,20 @@ export default Vue.extend({
       return this.rows.some(r => r.decision !== r.savedDecision)
     },
 
+    /** 
+     * disable Threshold if:
+     *  • no unsaved changes (hasChanged === false), and
+     *  • every row’s savedDecision equals its threshold default
+     */
     thresholdDisabled(): boolean {
+      if (this.hasChanged) return false
       return this.rows.every(r => {
         const t = r.agreement >= this.localThreshold
           ? false
-          : r.agreement < this.localThreshold / 2
+          : r.agreement < this.localThreshold/2
             ? true
             : null
-        return r.decision === t && r.savedDecision === t
+        return r.savedDecision === t
       })
     }
   },

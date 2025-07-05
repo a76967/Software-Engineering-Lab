@@ -1,8 +1,7 @@
 <template>
   <v-container fluid class="pa-0">
     <v-card class="mx-auto my-4 chat-card" max-width="800">
-      <div class="session-bar">
-        <!-- dropdown to pick a session -->
+      <div class="session-bar primary white--text">
         <v-select
           v-model="activeSession"
           :items="sessions"
@@ -10,21 +9,18 @@
           dense
           hide-details
           outlined
-          class="me-2"
-          @change="fetchMessages(activeSession)"
-        />
-        <!-- add-new-session button -->
-        <v-btn
-          color="primary"
           dark
+          color="white"
+          item-color="white"
+          class="me-2 white--text session-select"
+        />
+        <v-btn
           small
+          outlined
+          color="white"
+          class="ms-2"
           @click="addSession"
-          elevation="2"
-          class="white--text"
-          rounded
-          tile
         >
-          <v-icon left small>mdi-plus</v-icon>
           Add Session
         </v-btn>
       </div>
