@@ -20,27 +20,29 @@
               {{ error }}
             </v-alert>
 
+            <!-- No annotations available -->
+            <div v-if="summary.length === 0" class="text-center py-6">
+              <v-icon size="80" :icon="mdiAlertCircle" color="grey lighten-1" class="mb-4"/>
+              <div class="headline font-weight-medium">No annotations yet</div>
+              <div class="subtitle-1 text--secondary">
+                There are currently not enough annotations in this project,
+                so it's not possible to determine disagreements.
+              </div>
+            </div>
+
+            <!-- Summary exists -->
             <div v-else>
+              <!-- Counts & Agreement -->
               <v-row class="my-6" align="center">
-                <v-col
-                  cols="6"
-                  class="text-center d-flex flex-column justify-center"
-                >
-                  <div
-                    class="display-2 font-weight-bold"
-                    :style="{ color: datasetColor }"
-                  >
+                <v-col cols="6" class="text-center d-flex flex-column justify-center">
+                  <div class="display-2 font-weight-bold" :style="{ color: datasetColor }">
                     {{ datasetCount }}
                   </div>
                   <div class="subtitle-1 text--secondary">
                     {{ datasetCount === 1 ? 'Dataset' : 'Datasets' }} with disagreements
                   </div>
                 </v-col>
-                <v-col
-                  cols="6"
-                  class="text-center d-flex flex-column justify-center"
-                  v-if="summary.length"
-                >
+                <v-col cols="6" class="text-center d-flex flex-column justify-center">
                   <div class="d-flex justify-center">
                     <div
                       class="agreement-fill-circle index-agreement"
@@ -54,33 +56,25 @@
                     </div>
                   </div>
                   <div class="subtitle-1 text--secondary">
-                    Average agreement on all datasets
+                    Average agreement % on all datasets
                   </div>
                 </v-col>
               </v-row>
 
-              <v-divider v-if="summary.length" class="my-4" />
+              <v-divider class="my-4"/>
 
-              <div v-if="summary.length === 0" class="text-center py-6">
-                <v-icon
-                  size="80"
-                  :color="statusColor"
-                  class="mb-4"
-                  :icon="mdiCheckCircle"
-                />
+              <!-- Perfect agreement when there are datasets but zero disagreements -->
+              <div v-if="datasetCount === 0" class="text-center py-6">
+                <v-icon size="80" :color="statusColor" :icon="mdiCheckCircle"/>
                 <div class="headline font-weight-medium">Perfect Agreement!</div>
                 <div class="subtitle-1 text--secondary">
                   All annotators are in sync on this project.
                 </div>
               </div>
 
+              <!-- Disagreements summary alert -->
               <div v-else>
-                <v-alert
-                  dense
-                  :type="alertType"
-                  class="my-2"
-                  :style="alertStyle"
-                >
+                <v-alert dense :type="alertType" class="my-2" :style="alertStyle">
                   {{ alertMessage }}
                 </v-alert>
               </div>
@@ -95,13 +89,6 @@
               @click="goToDiffs"
             >
               Check Disagreements
-            </v-btn>
-            <v-btn
-              v-else-if="!isLoading"
-              text
-              @click="goToDiffs"
-            >
-              <v-icon left :icon="mdiEye" /> View Details
             </v-btn>
           </v-card-actions>
         </v-card>
