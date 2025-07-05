@@ -40,7 +40,7 @@
                   >
                     {{ averageAgreement }}%
                   </div>
-                  <div class="subtitle-1 text--secondary">Average agreement on all datasets</div>
+                  <div class="subtitle-1 text--secondary">Average agreement % on all datasets</div>
                 </v-col>
               </v-row>
 
@@ -62,26 +62,19 @@
               <div v-else>
                 <v-alert
                   dense
-                  :color="statusColor"
-                  dark
+                  :type="averageAgreement >= 80
+                    ? 'success'
+                    : averageAgreement >= 40
+                      ? 'warning'
+                      : 'error'"
                   class="my-2"
                 >
-                  <v-icon
-                    left
-                    small
-                    :color="statusColor"
-                    :icon="
-                      averageAgreement >= 80
-                        ? mdiThumbUp
-                        : averageAgreement >= 40
-                          ? mdiAlert
-                          : mdiAlertCircle
-                    "
-                  />
                   {{
-                    averageAgreement >= 80 ? 'Good agreement levels detected!'
-                    : averageAgreement >= 40 ? 'Moderate disagreement levels – review recommended!'
-                    : 'High disagreement levels – immediate review needed!!'
+                    averageAgreement >= 80
+                      ? 'Good agreement levels detected!'
+                      : averageAgreement >= 40
+                        ? 'Moderate disagreement levels – review recommended!'
+                        : 'High disagreement levels – immediate review needed!!'
                   }}
                 </v-alert>
               </div>
@@ -95,7 +88,7 @@
               large
               @click="goToDiffs"
             >
-              <v-icon left :icon="mdiMagnify" /> Check Disagreements
+              Check Disagreements
             </v-btn>
             <v-btn
               v-else-if="!isLoading"
@@ -142,7 +135,26 @@ export default Vue.extend({
   },
   computed: {
     datasetCount(): number {
-      return this.summary.length
+      const pid = this.$route.params.id
+      const raw = localStorage.getItem(`disagreementDecisions:${pid}`)
+      let decisions: Record<string, boolean> = {}
+      if (raw) {
+        try {
+          decisions = JSON.parse(raw)
+        } catch (err) {
+          console.error('failed to parse decisions', err)
+        }
+      }
+
+      const storedThreshold = localStorage.getItem('disagreementThreshold')
+      const threshold = storedThreshold ? parseInt(storedThreshold) : 80
+
+      return this.summary.filter(r => {
+        const decision = decisions[r.id]
+        if (decision === false) return false
+        if (decision === true) return true
+        return r.agreement < threshold
+      }).length
     },
     averageAgreement(): number {
       if (!this.summary.length) return 0
