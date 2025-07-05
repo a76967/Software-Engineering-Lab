@@ -38,14 +38,19 @@ export const actions = {
   async setCurrentProject({ commit }, projectId) {
     try {
       const project = await this.$services.project.findById(projectId)
-      commit('setCurrent', project)
+
       const member = await this.$repositories.member.fetchMyRole(projectId)
       commit('setProjectAdmin', member.isProjectAdmin)
-      let versions = []
-      if (member.isProjectAdmin) {
-        versions = await this.$services.project.listVersions(projectId)
-      }
+
+      const versions = await this.$services.project.listVersions(projectId)
       commit('setVersions', versions)
+
+      const latest = versions[versions.length - 1] || project
+      if (!member.isProjectAdmin) {
+        commit('setCurrent', latest)
+      } else {
+        commit('setCurrent', project)
+      }
     } catch (error) {
       throw new Error(error)
     }

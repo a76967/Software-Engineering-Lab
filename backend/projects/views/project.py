@@ -8,7 +8,7 @@ from rest_framework.response import Response
 
 from projects.models import Project
 from django.db import models
-from projects.permissions import IsProjectAdmin, IsProjectStaffAndReadOnly
+from projects.permissions import IsProjectAdmin, IsProjectMember, IsProjectStaffAndReadOnly
 from projects.serializers import ProjectPolymorphicSerializer
 
 
@@ -69,7 +69,14 @@ class CloneProject(views.APIView):
 
 
 class ProjectVersionListCreate(views.APIView):
-    permission_classes = [IsAuthenticated & IsProjectAdmin]
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.permission_classes = [IsAuthenticated & IsProjectMember]
+        else:
+            self.permission_classes = [IsAuthenticated & IsProjectAdmin]
+        return super().get_permissions()
 
     def get(self, request, *args, **kwargs):
         project = get_object_or_404(Project, pk=self.kwargs["project_id"])
