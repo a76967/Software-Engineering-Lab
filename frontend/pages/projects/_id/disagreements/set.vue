@@ -2,7 +2,17 @@
   <v-container fluid class="pa-4">
     <v-card flat>
       <v-card-title class="d-flex align-center">
-        <span class="text-h5 font-weight-medium">Set Disagreement</span>
+        <span class="text-h5 font-weight-medium">Set Disagreement State</span>
+        <v-spacer />
+        <v-text-field
+          v-model="search"
+          append-icon="mdi-magnify"
+          placeholder="Search snippet"
+          hide-details
+          dense
+          clearable
+          style="max-width:300px;"
+        />
         <v-spacer />
         <v-btn text @click="onCancel">Cancel</v-btn>
         <v-btn text @click="onReset" :disabled="!hasChanged">Reset</v-btn>
@@ -13,7 +23,7 @@
       <v-card-text class="pa-0">
         <v-data-table
           :headers="headers"
-          :items="rows"
+          :items="filteredRows"
           :loading="isLoading"
           dense
           disable-pagination
@@ -119,20 +129,22 @@ export default Vue.extend({
       isLoading: false,
       confirmDialog: false,
       snackbar: false,
-      decisionKey: ''
+      decisionKey: '',
+      search: '' as string
     }
   },
 
   computed: {
+    filteredRows() {
+      if (!this.search) return this.rows
+      return this.rows.filter(r =>
+        r.snippet.toLowerCase().includes(this.search.toLowerCase())
+      )
+    },
     hasChanged(): boolean {
       return this.rows.some(r => r.decision !== r.savedDecision)
     },
 
-    /** 
-     * disable “Threshold” whenever the *current* row states already
-     * exactly match the threshold‐defaults.  Only when at least one
-     * state differs will the button be enabled.
-     */
     thresholdDisabled(): boolean {
       return this.rows.length > 0 && this.rows.every(r => {
         const t = r.agreement >= this.localThreshold

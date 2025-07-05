@@ -1,7 +1,7 @@
 <template>
   <v-container fluid class="pa-4">
     <v-card flat>
-      <v-card-title>
+      <v-card-title class="d-flex align-center">
         <span class="text-h5 font-weight-medium">Annotation Differences</span>
         <span class="subtitle-2 ms-4">Total Labels: {{ labelNames.length }}</span>
         <v-spacer />
@@ -14,7 +14,16 @@
           clearable
           style="max-width:300px"
         />
-        <v-btn text @click="openThreshold" v-if="isAdmin">Set Disagreement</v-btn>
+        <v-spacer />
+        <v-btn text @click="goBack">Go Back</v-btn>
+        <v-btn
+          v-if="isAdmin"
+          color="primary"
+          dark
+          @click="openThreshold"
+        >
+          Set Disagreement
+        </v-btn>
       </v-card-title>
 
       <v-card-text class="pa-0">
@@ -121,6 +130,10 @@ export default Vue.extend({
   },
 
   methods: {
+    goBack() {
+      const pid = this.$route.params.id
+      this.$router.push(`/projects/${pid}/disagreements`)
+    },
     conflictClass(item: any) {
       if (item.decision === true) return 'red'
       if (item.decision === false) return 'green'

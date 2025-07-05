@@ -225,7 +225,7 @@
                 class="mb-2"
                 @keyup.enter="addRule"
               />
-              <div class="d-flex align-center mb-1"> <!-- tighter spacing under field -->
+              <div class="d-flex align-center mb-1">
                 <v-btn
                   small
                   color="primary"
@@ -233,7 +233,6 @@
                   :disabled="!newRule.trim()"
                   @click="addRule"
                 >
-                  <v-icon left small>mdi-plus</v-icon>
                   Add Rule
                 </v-btn>
                 <v-btn

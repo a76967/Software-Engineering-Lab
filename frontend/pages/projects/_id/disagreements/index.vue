@@ -21,11 +21,14 @@
             </v-alert>
 
             <div v-else>
-              <v-row class="my-6">
-                <v-col cols="6" class="text-center">
+              <v-row class="my-6" align="center">
+                <v-col
+                  cols="6"
+                  class="text-center d-flex flex-column justify-center"
+                >
                   <div
                     class="display-2 font-weight-bold"
-                    :style="{ color: datasetCount > 0 ? statusColor : '#4caf50' }"
+                    :style="{ color: datasetColor }"
                   >
                     {{ datasetCount }}
                   </div>
@@ -33,14 +36,26 @@
                     {{ datasetCount === 1 ? 'Dataset' : 'Datasets' }} with disagreements
                   </div>
                 </v-col>
-                <v-col cols="6" class="text-center" v-if="summary.length">
-                  <div
-                    class="display-2 font-weight-bold"
-                    :style="{ color: statusColor }"
-                  >
-                    {{ averageAgreement }}%
+                <v-col
+                  cols="6"
+                  class="text-center d-flex flex-column justify-center"
+                  v-if="summary.length"
+                >
+                  <div class="d-flex justify-center">
+                    <div
+                      class="agreement-fill-circle index-agreement"
+                      :style="{ borderColor: averageColor }"
+                    >
+                      <div
+                        class="agreement-fill"
+                        :style="{ height: averageAgreement + '%', background: averageColor }"
+                      ></div>
+                      <span class="agreement-label">{{ averageAgreement }}%</span>
+                    </div>
                   </div>
-                  <div class="subtitle-1 text--secondary">Average agreement % on all datasets</div>
+                  <div class="subtitle-1 text--secondary">
+                    Average agreement on all datasets
+                  </div>
                 </v-col>
               </v-row>
 
@@ -62,20 +77,11 @@
               <div v-else>
                 <v-alert
                   dense
-                  :type="averageAgreement >= 80
-                    ? 'success'
-                    : averageAgreement >= 40
-                      ? 'warning'
-                      : 'error'"
+                  :type="alertType"
                   class="my-2"
+                  :style="alertStyle"
                 >
-                  {{
-                    averageAgreement >= 80
-                      ? 'Good agreement levels detected!'
-                      : averageAgreement >= 40
-                        ? 'Moderate disagreement levels – review recommended!'
-                        : 'High disagreement levels – immediate review needed!!'
-                  }}
+                  {{ alertMessage }}
                 </v-alert>
               </div>
             </div>
@@ -134,6 +140,11 @@ export default Vue.extend({
     }
   },
   computed: {
+    /** alias averageColor so existing bindings to statusColor continue */
+    statusColor(): string {
+      return this.averageColor
+    },
+
     datasetCount(): number {
       const pid = this.$route.params.id
       const raw = localStorage.getItem(`disagreementDecisions:${pid}`)
@@ -156,15 +167,74 @@ export default Vue.extend({
         return r.agreement < threshold
       }).length
     },
+    datasetPercent(): number {
+      if (!this.summary.length) return 0
+      return Math.round((this.datasetCount / this.summary.length) * 100)
+    },
+    datasetState(): 'green'|'orange'|'red' {
+      if (this.datasetPercent < 40) return 'green'
+      if (this.datasetPercent < 80) return 'orange'
+      return 'red'
+    },
+    datasetColor(): string {
+      return this.datasetState === 'green'
+        ? '#4caf50'
+        : this.datasetState === 'orange'
+          ? '#ff9800'
+          : '#f44336'
+    },
     averageAgreement(): number {
       if (!this.summary.length) return 0
       const total = this.summary.reduce((acc, r) => acc + (r.agreement || 0), 0)
       return Math.round(total / this.summary.length)
     },
-    statusColor(): string {
-      if (this.averageAgreement >= 80) return '#4caf50'
-      if (this.averageAgreement >= 40) return '#ff9800'
-      return '#f44336'
+    averageState(): 'green'|'orange'|'red' {
+      return this.averageAgreement >= 80
+        ? 'green'
+        : this.averageAgreement >= 40
+          ? 'orange'
+          : 'red'
+    },
+    averageColor(): string {
+      return this.averageState === 'green'
+        ? '#4caf50'
+        : this.averageState === 'orange'
+          ? '#ff9800'
+          : '#f44336'
+    },
+    alertType(): 'success' | 'warning' | 'error' {
+      const d = this.datasetState
+      const a = this.averageState
+      if (d === 'green' && a === 'green')      return 'success'
+      if (d === 'green' && a === 'orange')     return 'warning'
+      if (d === 'green' && a === 'red')        return 'error'
+      if (d === 'orange' && a === 'green')     return 'warning'
+      if (d === 'orange' && a === 'orange')    return 'warning'
+      if (d === 'orange' && a === 'red')       return 'error'
+      if (d === 'red' && a === 'green')        return 'warning'
+      if (d === 'red' && a === 'orange')       return 'error'
+      return 'error'
+    },
+    alertStyle(): Record<string, string> {
+      return {
+        background: `linear-gradient(to right,
+          ${this.datasetColor} 0%,
+          ${this.averageColor} 100%)`,
+        color: 'white'
+      }
+    },
+    alertMessage(): string {
+      const d = this.datasetState
+      const a = this.averageState
+      if (d==='green'&&a==='green')   return 'All Good: no disagreements & high agreement %.'
+      if (d==='green'&&a==='orange')  return 'No disagreements but moderate agreement %.'
+      if (d==='green'&&a==='red')     return 'No disagreements but low agreement %: Review data.'
+      if (d==='orange'&&a==='green')  return 'Some disagreements detected, but agreement % is high.'
+      if (d==='orange'&&a==='orange') return 'Some disagreements and moderate agreement %: Review recommended.'
+      if (d==='orange'&&a==='red')    return 'Disagreements present and low agreement %: Immediate review needed.'
+      if (d==='red'&&a==='green')     return 'Mostly disagreements but agreement % high? Inspect inconsistencies.'
+      if (d==='red'&&a==='orange')    return 'Mostly disagreements and moderate agreement %: Urgent review required.'
+      return 'Critical: Mostly disagreements & low agreement %: Immediate attention required.'
     }
   },
   mounted() {
@@ -195,5 +265,34 @@ export default Vue.extend({
 <style scoped>
 .display-2 {
   font-size: 2.75rem;
+}
+
+.agreement-fill-circle {
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border: 2px solid;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: border-color 0.3s ease;
+}
+.agreement-fill {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100%;
+  transition: height 0.3s ease;
+}
+.agreement-label {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 2.75rem;
+  font-weight: 600;
+}
+.index-agreement {
+  width: 120px;
+  height: 120px;
 }
 </style>
