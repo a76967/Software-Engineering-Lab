@@ -128,7 +128,6 @@
           <v-card-title>
             Rules
             <v-spacer/>
-            <span>v{{ selectedVersion || '-' }}</span>
             <v-btn
               v-if="canEditCurrent"
               icon
@@ -209,26 +208,36 @@
             <div v-if="canEditCurrent" class="mt-4">
               <v-text-field
                 v-model="newRule"
-                label="New rule"
                 id="new-rule-input"
-                dense
-                hide-details
+                label="New rule"
+                outlined
+                shaped
+                append-icon="mdi-close-circle"
+                @click:append="newRule = ''"  
+                class="mb-2"
                 @keyup.enter="addRule"
               />
-              <v-btn
-                small
-                color="primary"
-                class="mr-2"
-                :disabled="!newRule.trim()"
-                @click="addRule"
-              >
-                <v-icon left>mdi-plus</v-icon>
-                Add Rule
-              </v-btn>
-              <v-btn small color="success" :loading="savingRules" :disabled="savingRules" 
-              @click="saveRules">
-                Save
-              </v-btn>
+              <div class="d-flex align-center mb-1"> <!-- tighter spacing under field -->
+                <v-btn
+                  small
+                  color="primary"
+                  class="me-3"
+                  :disabled="!newRule.trim()"
+                  @click="addRule"
+                >
+                  <v-icon left small>mdi-plus</v-icon>
+                  Add Rule
+                </v-btn>
+                <v-btn
+                  small
+                  color="success"
+                  :loading="savingRules"
+                  :disabled="savingRules"
+                  @click="saveRules"
+                >
+                  Save
+                </v-btn>
+              </div>
             </div>
           </v-card-text>
         </v-card>

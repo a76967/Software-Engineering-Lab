@@ -10,11 +10,20 @@
       class="d-none d-sm-flex"
       style="text-transform: none"
     >
-      <v-icon small class="mr-1">
-        {{ mdiHexagonMultiple }}
-      </v-icon>
-      <span> {{ currentProject.name }}</span>
+      <v-icon small class="mr-1">{{ mdiHexagonMultiple }}</v-icon>
+      <span>{{ currentProject.name }}</span>
     </v-btn>
+    <v-select
+      v-if="isAuthenticated && isIndividualProject"
+      :items="projectVersions"
+      item-text="version_number"
+      item-value="id"
+      hide-details
+      dense
+      style="max-width: 120px; margin-left: 8px"
+      v-model="selectedVersion"
+      @change="onChangeVersion"
+    ></v-select>
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
     <locale-menu />
@@ -141,13 +150,14 @@ export default {
       mdiDotsVertical,
       mdiMenuDown,
       mdiHexagonMultiple,
-      mdiBell
+      mdiBell,
+      selectedVersion: null
     }
   },
 
   computed: {
     ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
-    ...mapGetters('projects', ['currentProject']),
+    ...mapGetters('projects', ['currentProject', 'projectVersions']),
     ...mapGetters('config', ['isRTL']),
 
     isIndividualProject() {
@@ -159,9 +169,23 @@ export default {
     }
   },
 
+  watch: {
+    currentProject: {
+      handler(p) {
+        this.selectedVersion = p.id
+      },
+      immediate: true
+    }
+  },
+
   methods: {
     ...mapActions('auth', ['logout']),
     ...mapActions('config', ['toggleRTL']),
+    ...mapActions('projects', ['createVersion', 'setCurrentProject']),
+    onChangeVersion(id) {
+      this.setCurrentProject(id)
+      this.$router.push(`/projects/${id}`)
+    },
     signout() {
       this.$router.push({
         path: '/message',

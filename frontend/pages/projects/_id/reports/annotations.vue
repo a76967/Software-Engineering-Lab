@@ -13,6 +13,19 @@
       <v-card-text>
         <v-form @submit.prevent="generateReport">
           <v-row dense>
+            <v-col cols="12" sm="6" md="4">
+              <v-select
+                v-model="selectedVersion"
+                :items="projectVersions"
+                item-text="version_number"
+                item-value="id"
+                label="Version"
+                hide-details
+                dense
+                @change="changeVersion"
+              />
+              <v-btn small class="ms-2" @click="addVersion">Add Version</v-btn>
+            </v-col>
             <!-- Annotation IDs with text snippet -->
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
@@ -117,12 +130,14 @@
 
 <script lang="ts">
 import Vue from 'vue'
+import { mapActions } from 'vuex'
+import { jsPDF as JsPDF } from 'jspdf'
 import {
   VContainer, VCard, VCardTitle, VDivider, VCardText,
   VForm, VRow, VCol, VAutocomplete, VSelect,
   VBtn, VSpacer, VProgressCircular
 } from 'vuetify/lib'
-import { jsPDF as JsPDF } from 'jspdf'
+
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
@@ -132,7 +147,8 @@ export default Vue.extend({
     VForm, VRow, VCol, VAutocomplete, VSelect,
     VBtn, VSpacer, VProgressCircular
   },
-  layout: 'workspace',
+  layout: 'project',
+  middleware: ['check-auth', 'auth', 'setCurrentProject'],
   data() {
     return {
       loading: false,
@@ -143,7 +159,8 @@ export default Vue.extend({
       },
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
-      users: [] as { id: number; name: string }[]
+      users: [] as { id: number; name: string }[],
+      selectedVersion: null as number | null
     }
   },
   computed: {
@@ -185,6 +202,25 @@ export default Vue.extend({
       return uniq
         .filter((t: any) => t.text !== 'Dog' && t.text !== 'Cat')
         .map((t: any) => ({ id: t.id, text: t.text }))
+    },
+    projectVersions(): Array<any> {
+      return this.$store.getters['projects/projectVersions']
+    }
+  },
+  watch: {
+    projectVersions: {
+      handler() {
+        const versions = this.projectVersions as Array<any>
+        if (!this.selectedVersion && versions.length) {
+          this.selectedVersion = versions[0].id
+        }
+      },
+      immediate: true
+    },
+    selectedVersion(val) {
+      if (val) {
+        this.changeVersion(val)
+      }
     }
   },
   async mounted() {
@@ -216,11 +252,20 @@ export default Vue.extend({
     }))
   },
   methods: {
+    ...mapActions('projects', ['createVersion', 'setCurrentProject']),
     formatDate(ts: string): string {
       const d = new Date(ts)
       const pad = (n: number) => n.toString().padStart(2,'0')
       return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
            + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+    },
+    changeVersion(id: number) {
+      this.setCurrentProject(id)
+      this.$router.push(`/projects/${id}/reports/annotations`)
+    },
+    async addVersion() {
+      const newProject = await this.createVersion()
+      this.changeVersion(newProject.id)
     },
     generateReport() {
       this.loading = true
