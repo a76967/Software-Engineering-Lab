@@ -3,13 +3,8 @@
       <v-alert v-if="dbError" type="error" dense>{{ dbError }}</v-alert>
       <v-card-text>
         <v-form ref="form" v-model="isValid" lazy-validation>
-          <!-- show loader until the single adminPerspective is loaded -->
-          <v-skeleton-loader
-            v-if="!adminPerspectives.length"
-            type="text"
-            class="mb-4"
-          />
-          <template v-else>
+  
+          <template v-if="adminPerspectives.length > 0">
             <v-text-field
               :value="adminPerspectives[0].name"
               label="Perspective"
@@ -32,7 +27,6 @@
             auto-grow
           />
 
-          <!-- dynamic fields for the chosen Admin Perspective -->
           <div v-for="field in extraItems" :key="field.id" class="mb-4">
             <v-text-field
               v-if="field.data_type==='string' || field.data_type==='number'"
@@ -52,6 +46,40 @@
               item-value="value"
             />
           </div>
+          
+          <v-alert
+            v-if="autoEnumValues"
+            type="info"
+            dense
+            class="mb-2"
+          >
+            Auto‐filled options: {{ autoEnumValues.join(', ') }}
+          </v-alert>
+          <v-alert
+            v-else-if="newItem.name==='Age'"
+            type="info"
+            dense
+            class="mb-2"
+          >
+            Age must be between 0 and 100.
+          </v-alert>
+          <v-alert
+            v-else-if="newItem.name==='Weight'"
+            type="info"
+            dense
+            class="mb-2"
+          >
+            Weight values are in kg.
+          </v-alert>
+          <v-alert
+            v-else-if="newItem.name==='Height'"
+            type="info"
+            dense
+            class="mb-2"
+          >
+            Height values are in cm.
+          </v-alert>
+
         </v-form>
 
         <v-divider class="my-4" />
@@ -61,7 +89,7 @@
             <tr>
               <th>Name</th>
               <th>Type</th>
-              <th></th>  <!-- delete‐button column -->
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -77,36 +105,34 @@
           </tbody>
         </v-simple-table>
 
-        <v-row align="center" class="mt-2">
-          <v-col cols="5">
-            <v-text-field
-              v-model="newItem.name"
-              label="Item Name"
-              :rules="itemNameRules"
-              dense
-            />
-          </v-col>
-          <v-col cols="5">
-            <v-select
-              v-model="newItem.data_type"
-              :items="types"
-              label="Data Type"
-              :rules="itemTypeRules"
-              dense
-            />
-          </v-col>
-          <v-col cols="2">
-            <v-btn
-              color="primary"
-              @click="addItem"
-              :disabled="
-                !newItem.name ||
-                !newItem.data_type ||
-                (newItem.data_type === 'enum' && !newItem.enumValues)
-              "
-            >Add</v-btn>
-          </v-col>
-        </v-row>
+        <v-form ref="itemForm" v-model="itemValid" lazy-validation>
+          <v-row align="center" class="mt-2">
+            <v-col cols="5">
+              <v-text-field
+                v-model="newItem.name"
+                label="Item Name"
+                :rules="itemNameRules"
+                dense
+              />
+            </v-col>
+            <v-col cols="5">
+              <v-select
+                v-model="newItem.data_type"
+                :items="types"
+                label="Data Type"
+                :rules="itemTypeRules"
+                dense
+              />
+            </v-col>
+            <v-col cols="2">
+              <v-btn
+                color="primary"
+                @click="addItem"
+                :disabled="!itemValid"
+              >Add</v-btn>
+            </v-col>
+          </v-row>
+        </v-form>
       </v-card-text>
       <v-card-actions class="d-flex justify-end">
         <v-btn text @click="goBack">Cancel</v-btn>
@@ -124,6 +150,7 @@
   <script lang="ts">
   import Vue from 'vue'
   import axios from 'axios'
+  import { COUNTRIES } from '@/constants/countries'
   
   export default Vue.extend({
     layout: 'project',
@@ -147,12 +174,49 @@
           { text: 'Yes', value: true },
           { text: 'No',  value: false }
         ],
-        countries: [] as string[]
+        countries: COUNTRIES,
+        itemValid: false
       }
     },
     computed: {
       projectId(): number { return Number(this.$route.params.id) },
-      userId(): number { return this.$store.state.auth.id }
+      userId(): number { return this.$store.state.auth.id },
+      autoEnumValues(): string[]|null {
+        const name = this.newItem.name
+        if (name === 'Gender') {
+          return ['M','F']
+        }
+        if (name === 'Continent') {
+          return ['Africa','Antarctica','Asia','Europe','North America','Oceania','South America']
+        }
+        if (name === 'Country') {
+          return this.countries
+        }
+        return null
+      }
+    },
+    watch: {
+      'newItem.name': {
+        immediate: true,
+        async handler(val: string) {
+          if (val === 'Country') {
+            try {
+              this.countries = await this.$repositories.country.list()
+            } catch { this.countries = [] }
+          }
+          if (this.autoEnumValues) {
+            this.newItem.data_type = 'enum'
+            this.newItem.enumValues = this.autoEnumValues.join(', ')
+          }
+          else if (val === 'Age') {
+            this.newItem.data_type = 'number'
+          } else if (val === 'Weight') {
+            this.newItem.data_type = 'number'
+          } else if (val === 'Height') {
+            this.newItem.data_type = 'number'
+          }
+        }
+      }
     },
     async mounted() {
       await this.checkExisting()
@@ -209,15 +273,26 @@
       },
 
       addItem() {
-        if (!this.newItem.name || !this.newItem.data_type) return
-        const item: any = { name: this.newItem.name, data_type: this.newItem.data_type }
-        if (this.newItem.data_type === 'enum') {
-          item.enum = this.newItem.enumValues.split(',').map(v => v.trim()).filter(Boolean)
+        if (!(this.$refs.itemForm as any).validate()) return
+
+        const item: any = {
+          name: this.newItem.name,
+          data_type: this.newItem.data_type
+        }
+        if (this.newItem.data_type === 'enum' && this.autoEnumValues) {
+          item.enum = this.autoEnumValues
+        } else if (this.newItem.data_type === 'enum') {
+          item.enum = this.newItem.enumValues
+            .split(',')
+            .map(v => v.trim())
+            .filter(Boolean)
         }
         this.itemsToAdd.push(item)
+
         this.newItem.name = ''
         this.newItem.data_type = ''
         this.newItem.enumValues = ''
+        ;(this.$refs.itemForm as any).resetValidation()
       },
 
       async submit() {
