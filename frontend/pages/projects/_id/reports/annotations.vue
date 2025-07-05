@@ -24,7 +24,6 @@
                 dense
                 @change="changeVersion"
               />
-              <v-btn small class="ms-2" @click="addVersion">Add Version</v-btn>
             </v-col>
             <!-- Annotation IDs with text snippet -->
             <v-col cols="12" sm="6" md="4">
@@ -255,7 +254,7 @@ export default Vue.extend({
     }))
   },
   methods: {
-    ...mapActions('projects', ['createVersion', 'setCurrentProject']),
+    ...mapActions('projects', ['setCurrentProject']),
     formatDate(ts: string): string {
       const d = new Date(ts)
       const pad = (n: number) => n.toString().padStart(2,'0')
@@ -271,18 +270,6 @@ export default Vue.extend({
         query: {
           message: `Changing to Version ${number} of the project`,
           redirect: `/projects/${id}/reports/annotations`
-        }
-      })
-    },
-    async addVersion() {
-      const newProject = await this.createVersion()
-      const number = newProject.versionNumber
-      this.setCurrentProject(newProject.id)
-      this.$router.push({
-        path: '/message',
-        query: {
-          message: `Changing to Version ${number} of the project`,
-          redirect: `/projects/${newProject.id}/reports/annotations`
         }
       })
     },
