@@ -25,7 +25,7 @@
       @change="onChangeVersion"
     />
     <v-btn
-      v-if="isAuthenticated && isIndividualProject"
+      v-if="isAuthenticated && isIndividualProject && isProjectAdmin"
       small
       class="ms-2"
       @click="addVersion"
@@ -160,7 +160,7 @@ export default {
 
   computed: {
       ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
-      ...mapGetters('projects', ['currentProject', 'projectVersions']),
+      ...mapGetters('projects', ['currentProject', 'projectVersions', 'isProjectAdmin']),
       ...mapGetters('config', ['isRTL']),
 
       versionItems() {
