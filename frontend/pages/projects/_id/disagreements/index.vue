@@ -20,7 +20,6 @@
               {{ error }}
             </v-alert>
 
-            <!-- No annotations available -->
             <div v-if="summary.length === 0" class="text-center py-6">
               <v-icon size="80" :icon="mdiAlertCircle" color="grey lighten-1" class="mb-4"/>
               <div class="headline font-weight-medium">No annotations yet</div>
@@ -30,9 +29,7 @@
               </div>
             </div>
 
-            <!-- Summary exists -->
             <div v-else>
-              <!-- Counts & Agreement -->
               <v-row class="my-6" align="center">
                 <v-col cols="6" class="text-center d-flex flex-column justify-center">
                   <div class="display-2 font-weight-bold" :style="{ color: datasetColor }">
@@ -63,7 +60,6 @@
 
               <v-divider class="my-4"/>
 
-              <!-- Perfect agreement when there are datasets but zero disagreements -->
               <div v-if="datasetCount === 0" class="text-center py-6">
                 <v-icon size="80" :color="statusColor" :icon="mdiCheckCircle"/>
                 <div class="headline font-weight-medium">Perfect Agreement!</div>
@@ -72,7 +68,6 @@
                 </div>
               </div>
 
-              <!-- Disagreements summary alert -->
               <div v-else>
                 <v-alert dense :type="alertType" class="my-2" :style="alertStyle">
                   {{ alertMessage }}
@@ -127,7 +122,6 @@ export default Vue.extend({
     }
   },
   computed: {
-    /** alias averageColor so existing bindings to statusColor continue */
     statusColor(): string {
       return this.averageColor
     },
