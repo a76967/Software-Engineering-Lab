@@ -165,9 +165,10 @@ export default Vue.extend({
         const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
         const list = res.data.results || res.data
 
-        // fetch child perspective-items for each perspective
+        // fetch child items and creator info
         const withFields = await Promise.all(
           list.map(async (p: any) => {
+            // existing: load perspective-items
             try {
               const r = await axios.get(
                 `/v1/projects/${this.projectId}/perspective-items/`,
@@ -177,6 +178,17 @@ export default Vue.extend({
             } catch {
               p.fields = []
             }
+
+            // fetch the creator’s user record to get their name
+            try {
+              const userRes = await axios.get(`/v1/users/${p.user}/`)
+              // assume response contains { id, username, ... }
+              p.user = userRes.data
+            } catch {
+              // fallback if fetch fails
+              p.user = { username: `User ${p.user}` }
+            }
+
             return p
           })
         )

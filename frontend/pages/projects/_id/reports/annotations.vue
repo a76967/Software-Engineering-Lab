@@ -12,6 +12,7 @@
       <v-divider/>
       <v-card-text>
         <v-form @submit.prevent="generateReport">
+          <!-- first row: Version, Annotation IDs, Annotators -->
           <v-row dense>
             <v-col cols="12" sm="6" md="4">
               <v-select
@@ -20,12 +21,11 @@
                 item-text="text"
                 item-value="id"
                 label="Version"
-                hide-details
                 dense
+                hide-details
                 @change="changeVersion"
               />
             </v-col>
-            <!-- Annotation IDs with text snippet -->
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
                 v-model="filters.annotationIds"
@@ -35,14 +35,14 @@
                 label="Annotation IDs"
                 multiple
                 clearable
+                dense
+                hide-details
                 :menu-props="{
                   'max-height': '200px',
                   contentClass: 'annotation-menu__content'
                 }"
               />
             </v-col>
-
-            <!-- Annotators -->
             <v-col cols="12" sm="6" md="4">
               <v-autocomplete
                 v-model="filters.annotators"
@@ -266,16 +266,10 @@ export default Vue.extend({
            + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
     changeVersion(id: number) {
-      const version = this.projectVersions.find(v => v.id === id)
-      const number = version ? version.versionNumber : ''
+      // update current project version in store
       this.setCurrentProject(id)
-      this.$router.push({
-        path: '/message',
-        query: {
-          message: `Changing to Version ${number} of the project`,
-          redirect: `/projects/${id}/reports/annotations`
-        }
-      })
+      // you can now refresh the report if desired
+      // this.generateReport()
     },
     generateReport() {
       this.loading = true
