@@ -18,6 +18,8 @@
             v-model="form.name"
             label="Name"
             :rules="nameRules"
+            :error="!!fieldErrors.name"
+            :error-messages="fieldErrors.name"
             required
           />
           <v-textarea
@@ -25,6 +27,8 @@
             label="Description"
             rows="4"
             auto-grow
+            :error="!!fieldErrors.description"
+            :error-messages="fieldErrors.description"
           />
 
           <div v-for="field in extraItems" :key="field.id" class="mb-4">
@@ -107,7 +111,7 @@
 
         <v-form ref="itemForm" v-model="itemValid" lazy-validation>
           <v-row align="center" class="mt-2">
-            <v-col cols="5">
+            <v-col cols="4">
               <v-text-field
                 v-model="newItem.name"
                 label="Item Name"
@@ -115,20 +119,34 @@
                 dense
               />
             </v-col>
-            <v-col cols="5">
+            <v-col cols="3">
               <v-select
                 v-model="newItem.data_type"
                 :items="types"
                 label="Data Type"
                 :rules="itemTypeRules"
+                :disabled="isTypeLocked"
                 dense
               />
             </v-col>
+
+            <!-- manual‐only enum input (hide for auto cases) -->
+            <template v-if="newItem.data_type==='enum' && !autoEnumValues">
+              <v-col cols="7">
+                <v-text-field
+                  v-model="newItem.enumValues"
+                  label="Enum Values (comma‐separated)"
+                  dense
+                  :rules="[v => !!v || 'Enum values required']"
+                />
+              </v-col>
+            </template>
+
             <v-col cols="2">
               <v-btn
+                :disabled="!itemValid"
                 color="primary"
                 @click="addItem"
-                :disabled="!itemValid"
               >Add</v-btn>
             </v-col>
           </v-row>
@@ -137,9 +155,9 @@
       <v-card-actions class="d-flex justify-end">
         <v-btn text @click="goBack">Cancel</v-btn>
         <v-btn
-          :disabled="!isValid"
           color="primary"
           @click="submit"
+          :disabled="!isValid"
         >
           Save
         </v-btn>
@@ -150,11 +168,10 @@
   <script lang="ts">
   import Vue from 'vue'
   import axios from 'axios'
-  import { COUNTRIES } from '@/constants/countries'
   
   export default Vue.extend({
     layout: 'project',
-    middleware: ['check-auth', 'auth', 'setCurrentProject', 'isProjectAdmin'],
+    middleware: ['check-auth','auth','setCurrentProject','isProjectAdmin'],
     data() {
       return {
         form: { name: '', description: '', extra: {} as Record<string, any> },
@@ -164,56 +181,301 @@
 
         types: ['string','number','boolean','enum'],
         newItem: { name: '', data_type: '', enumValues: '' },
-        itemsToAdd: [] as Array<{name:string,data_type:string,enum?:string[]}>,
+        // note: use `enum_values` to match backend field name
+        itemsToAdd: [] as Array<{name:string,data_type:string,enum_values?:string[]}>,
         itemNameRules: [(v: string) => !!v || 'Item name required'],
         itemTypeRules: [(v: string) => !!v || 'Type required'],
+        itemValid: false,
+
         adminPerspectives: [] as any[],
         selectedPerspective: null as number|null,
         extraItems: [] as any[],
+
         booleanOptions: [
           { text: 'Yes', value: true },
           { text: 'No',  value: false }
         ],
-        countries: COUNTRIES,
-        itemValid: false
+
+        countries: ["Åland Islands",
+          "Albania",
+          "Algeria",
+          "American Samoa",
+          "Andorra",
+          "Angola",
+          "Anguilla",
+          "Antarctica",
+          "Antigua and Barbuda",
+          "Argentina",
+          "Armenia",
+          "Aruba",
+          "Australia",
+          "Austria",
+          "Azerbaijan",
+          "Bahamas",
+          "Bahrain",
+          "Bangladesh",
+          "Barbados",
+          "Belarus",
+          "Belgium",
+          "Belize",
+          "Benin",
+          "Bermuda",
+          "Bhutan",
+          "Bolivia",
+          "Bonaire, Sint Eustatius and Saba",
+          "Bosnia and Herzegovina",
+          "Botswana",
+          "Bouvet Island",
+          "Brazil",
+          "British Indian Ocean Territory",
+          "Brunei Darussalam",
+          "Bulgaria",
+          "Burkina Faso",
+          "Burundi",
+          "Cabo Verde",
+          "Cambodia",
+          "Cameroon",
+          "Canada",
+          "Cayman Islands",
+          "Central African Republic",
+          "Chad",
+          "Chile",
+          "China",
+          "Christmas Island",
+          "Cocos Islands",
+          "Colombia",
+          "Comoros",
+          "Congo Republic",
+          "DRCongo",
+          "Cook Islands",
+          "Costa Rica",
+          "Croatia",
+          "Cuba",
+          "Curaçao",
+          "Cyprus",
+          "Czechia",
+          "Denmark",
+          "Djibouti",
+          "Dominica",
+          "Dominican Republic",
+          "Ecuador",
+          "Egypt",
+          "El Salvador",
+          "England",
+          "Equatorial Guinea",
+          "Eritrea",
+          "Estonia",
+          "Eswatini",
+          "Ethiopia",
+          "Falkland Islands",
+          "Faroe Islands",
+          "Fiji",
+          "Finland",
+          "France",
+          "French Guiana",
+          "French Polynesia",
+          "French Southern Territories",
+          "Gabon",
+          "Gambia",
+          "Georgia",
+          "Germany",
+          "Ghana",
+          "Gibraltar",
+          "Greece",
+          "Greenland",
+          "Grenada",
+          "Guadeloupe",
+          "Guam",
+          "Guernsey",
+          "Guinea",
+          "Guinea-Bissau",
+          "Guyana",
+          "Haiti",
+          "Heard Island and McDonald Islands",
+          "Holy See",
+          "Honduras",
+          "Hong Kong",
+          "Hungary",
+          "Iceland",
+          "India",
+          "Indonesia",
+          "Iran",
+          "Iraq",
+          "Ireland",
+          "Isle of Man",
+          "Israel",
+          "Italy",
+          "Jamaica",
+          "Japan",
+          "Jersey",
+          "Jordan",
+          "Kazakhstan",
+          "Kenya",
+          "Kiribati",
+          "North Korea",
+          "Kosovo",
+          "Kuwait",
+          "Kyrgyzstan",
+          "Lao People's Democratic Republic",
+          "Latvia",
+          "Lebanon",
+          "Lesotho",
+          "Liberia",
+          "Libya",
+          "Liechtenstein",
+          "Lithuania",
+          "Luxembourg",
+          "Macao",
+          "Madagascar",
+          "Malawi",
+          "Malaysia",
+          "Maldives",
+          "Mali",
+          "Malta",
+          "Marshall Islands",
+          "Martinique",
+          "Mauritania",
+          "Mauritius",
+          "Mayotte",
+          "Mexico",
+          "Micronesia",
+          "Moldova",
+          "Monaco",
+          "Mongolia",
+          "Montenegro",
+          "Montserrat",
+          "Morocco",
+          "Mozambique",
+          "Myanmar",
+          "Namibia",
+          "Nauru",
+          "Nepal",
+          "Netherlands",
+          "New Caledonia",
+          "New Zealand",
+          "Nicaragua",
+          "Niger",
+          "Nigeria",
+          "Niue",
+          "Norfolk Island",
+          "North Korea",
+          "North Macedonia",
+          "Northern Ireland",
+          "Northern Mariana Islands",
+          "Norway",
+          "Oman",
+          "Pakistan",
+          "Palau",
+          "Panama",
+          "Papua New Guinea",
+          "Paraguay",
+          "Peru",
+          "Philippines",
+          "Pitcairn",
+          "Poland",
+          "Portugal",
+          "Puerto Rico",
+          "Qatar",
+          "Réunion",
+          "Romania",
+          "Russian Federation",
+          "Rwanda",
+          "Saint Barthélemy",
+          "Saint Helena, Ascension and Tristan da Cunha",
+          "Saint Kitts and Nevis",
+          "Saint Lucia",
+          "Saint Martin",
+          "Saint Pierre and Miquelon",
+          "Saint Vincent and the Grenadines",
+          "Samoa",
+          "San Marino",
+          "Sao Tome and Principe",
+          "Saudi Arabia",
+          "Scotland",
+          "Senegal",
+          "Serbia",
+          "Seychelles",
+          "Sierra Leone",
+          "Singapore",
+          "Sint Maarten",
+          "Slovakia",
+          "Slovenia",
+          "Solomon Islands",
+          "Somalia",
+          "South Africa",
+          "South Korea",
+          "South Georgia and the South Sandwich Islands",
+          "South Sudan",
+          "Spain",
+          "Sri Lanka",
+          "Sudan",
+          "Suriname",
+          "Svalbard and Jan Mayen",
+          "Sweden",
+          "Switzerland",
+          "Syrian Arab Republic",
+          "Taiwan, Province of China",
+          "Tajikistan",
+          "Tanzania, United Republic of",
+          "Thailand",
+          "Timor-Leste",
+          "Togo",
+          "Tokelau",
+          "Tonga",
+          "Trinidad and Tobago",
+          "Tunisia",
+          "Turkey",
+          "Turkmenistan",
+          "Tuvalu",
+          "Uganda",
+          "Ukraine",
+          "United Arab Emirates",
+          "United States of America",
+          "Uruguay",
+          "Uzbekistan",
+          "Vanuatu",
+          "Venezuela",
+          "Vietnam",
+          "Wales",
+          "Western Sahara",
+          "Yemen",
+          "Zambia",
+          "Zimbabwe"
+      ],
+      fieldErrors: {} as Record<string,string[]>
       }
     },
     computed: {
       projectId(): number { return Number(this.$route.params.id) },
-      userId(): number { return this.$store.state.auth.id },
+      userId(): number     { return this.$store.state.auth.id },
       autoEnumValues(): string[]|null {
         const name = this.newItem.name
-        if (name === 'Gender') {
-          return ['M','F']
-        }
-        if (name === 'Continent') {
-          return ['Africa','Antarctica','Asia','Europe','North America','Oceania','South America']
-        }
-        if (name === 'Country') {
-          return this.countries
-        }
+        if (name === 'Gender')       return ['M','F']
+        if (name === 'Continent')    return ['Africa','Antarctica','Asia','Europe','North America','Oceania','South America']
+        if (name === 'Country')     return this.countries
         return null
+      },
+      isTypeLocked(): boolean {
+        const n = this.newItem.name
+        if (['Gender','Continent','Country','Age','Weight','Height'].includes(n)) return true
+        return false
       }
     },
     watch: {
       'newItem.name': {
         immediate: true,
-        async handler(val: string) {
-          if (val === 'Country') {
-            try {
-              this.countries = await this.$repositories.country.list()
-            } catch { this.countries = [] }
-          }
-          if (this.autoEnumValues) {
+        handler(val: string) {
+          const auto = this.autoEnumValues
+          if (auto) {
             this.newItem.data_type = 'enum'
-            this.newItem.enumValues = this.autoEnumValues.join(', ')
+            this.newItem.enumValues = auto.join(', ')
           }
-          else if (val === 'Age') {
+          else if (['Age','Weight','Height'].includes(val)) {
             this.newItem.data_type = 'number'
-          } else if (val === 'Weight') {
-            this.newItem.data_type = 'number'
-          } else if (val === 'Height') {
-            this.newItem.data_type = 'number'
+            this.newItem.enumValues = ''
+          }
+          else if (this.newItem.data_type === 'enum') {
+            this.newItem.enumValues = ''
           }
         }
       }
@@ -263,15 +525,6 @@
         }
       },
 
-      async loadCountries() {
-        try {
-          this.countries = await this.$repositories.country.list()
-          this.newItem.enumValues = this.countries.join(', ')
-        } catch (e) {
-          console.error('Failed to load countries', e)
-        }
-      },
-
       addItem() {
         if (!(this.$refs.itemForm as any).validate()) return
 
@@ -279,16 +532,18 @@
           name: this.newItem.name,
           data_type: this.newItem.data_type
         }
-        if (this.newItem.data_type === 'enum' && this.autoEnumValues) {
-          item.enum = this.autoEnumValues
-        } else if (this.newItem.data_type === 'enum') {
-          item.enum = this.newItem.enumValues
-            .split(',')
-            .map(v => v.trim())
-            .filter(Boolean)
+        if (this.newItem.data_type === 'enum') {
+          // build enum_values array instead of `enum`
+          item.enum_values = this.autoEnumValues
+            ? this.autoEnumValues
+            : this.newItem.enumValues
+                .split(',')
+                .map(s => s.trim())
+                .filter(Boolean)
         }
         this.itemsToAdd.push(item)
 
+        // reset form
         this.newItem.name = ''
         this.newItem.data_type = ''
         this.newItem.enumValues = ''
@@ -296,10 +551,13 @@
       },
 
       async submit() {
+        // clear previous field errors
+        this.fieldErrors = {}
         if (!(this.$refs.form as any).validate()) return
+        // 1) Create the AdminPerspective
+        let createdId: number
         try {
-          // create perspective
-          const { data: created } = await axios.post(
+          const { data } = await axios.post(
             `/v1/projects/${this.projectId}/admin-perspectives/`,
             {
               name: this.form.name,
@@ -307,31 +565,53 @@
               user: this.userId
             }
           )
-          // create items
-          const pid = created.id
-          await Promise.all(this.itemsToAdd.map(it =>
-            axios.post(
-              `/v1/projects/${this.projectId}/perspective-items/`,
-              {
-                name: it.name,
-                data_type: it.data_type,
-                admin_perspective: pid  // no enum property
-              }
-            )
-          ))
-
-          this.$router.push({
-            path: this.localePath('/message'),
-            query: {
-              message: 'Admin perspective created successfully!',
-              redirect: this.localePath(
-                `/projects/${this.projectId}/admin-perspectives`
-              )
-            }
-          })
+          createdId = data.id
         } catch (err: any) {
-          this.dbError = err.response?.data?.detail || 'Failed to create.'
+          console.error('AdminPerspective create error:', err.response?.data)
+          const errs = err.response?.data || {}
+          // assign field errors if present
+          const keys = ['name','description']
+          keys.forEach(k => {
+            if (Array.isArray(errs[k])) this.fieldErrors[k] = errs[k]
+          })
+          // generic error message
+          this.dbError = errs.detail 
+            ? String(errs.detail)
+            : 'Failed to create perspective.'
+          return
         }
+
+        // 2) Create each PerspectiveItem
+        for (const it of this.itemsToAdd) {
+          const payload: any = {
+            name: it.name,
+            data_type: it.data_type,
+            admin_perspective: createdId
+          }
+          // if enum, backend expects `enum_values`
+          if (it.data_type === 'enum' && it.enum_values) {
+            payload.enum_values = it.enum_values
+          }
+          try {
+            await axios.post(
+              `/v1/projects/${this.projectId}/perspective-items/`,
+              payload
+            )
+          } catch (err: any) {
+            console.error('PerspectiveItem create error:', err.response?.data)
+            this.dbError = JSON.stringify(err.response?.data || { detail: 'Item creation failed' })
+            return
+          }
+        }
+
+        // 3) Navigate on success
+        this.$router.push({
+          path: this.localePath('/message'),
+          query: {
+            message: 'Admin perspective created successfully!',
+            redirect: this.localePath(`/projects/${this.projectId}/admin-perspectives`)
+          }
+        })
       },
       goBack() {
         this.$router.push(this.localePath(`/projects/${this.projectId}/admin-perspectives`))
