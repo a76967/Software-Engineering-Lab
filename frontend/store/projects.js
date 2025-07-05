@@ -1,6 +1,7 @@
 export const state = () => ({
   current: {},
-  versions: []
+  versions: [],
+  isProjectAdmin: false
 })
 
 export const getters = {
@@ -14,6 +15,10 @@ export const getters = {
 
   projectVersions(state) {
     return state.versions
+  },
+
+  isProjectAdmin(state) {
+    return state.isProjectAdmin
   }
 }
 
@@ -23,6 +28,9 @@ export const mutations = {
   },
   setVersions(state, versions) {
     state.versions = versions
+  },
+  setProjectAdmin(state, isAdmin) {
+    state.isProjectAdmin = isAdmin
   }
 }
 
@@ -31,7 +39,12 @@ export const actions = {
     try {
       const project = await this.$services.project.findById(projectId)
       commit('setCurrent', project)
-      const versions = await this.$services.project.listVersions(projectId)
+      const member = await this.$repositories.member.fetchMyRole(projectId)
+      commit('setProjectAdmin', member.isProjectAdmin)
+      let versions = []
+      if (member.isProjectAdmin) {
+        versions = await this.$services.project.listVersions(projectId)
+      }
       commit('setVersions', versions)
     } catch (error) {
       throw new Error(error)
