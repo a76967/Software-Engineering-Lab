@@ -39,14 +39,15 @@ export const actions = {
     try {
       const project = await this.$services.project.findById(projectId)
 
-      const member = await this.$repositories.member.fetchMyRole(projectId)
+      const rootId = project.rootProject || project.id
+      const member = await this.$repositories.member.fetchMyRole(rootId)
       commit('setProjectAdmin', member.isProjectAdmin)
 
-      const versions = await this.$services.project.listVersions(projectId)
+      const versions = await this.$services.project.listVersions(rootId)
       commit('setVersions', versions)
 
-      const latest = versions[versions.length - 1] || project
-      if (!member.isProjectAdmin) {
+      if (!member.isProjectAdmin && projectId === rootId) {
+        const latest = versions[versions.length - 1] || project
         commit('setCurrent', latest)
       } else {
         commit('setCurrent', project)
