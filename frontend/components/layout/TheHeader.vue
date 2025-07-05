@@ -34,14 +34,11 @@
     </v-btn>
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
-    <locale-menu />
 
-    <!-- Bell notifications button -->
     <v-btn icon @click="dialogNotifications = true">
       <v-icon>{{ mdiBell }}</v-icon>
     </v-btn>
 
-    <!-- Notifications dialog -->
     <v-dialog v-model="dialogNotifications" max-width="300">
       <v-card>
         <v-card-title>No notifications</v-card-title>
@@ -128,12 +125,10 @@
 import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple, mdiBell } from '@mdi/js'
 import { mapGetters, mapActions } from 'vuex'
 import TheColorModeSwitcher from './TheColorModeSwitcher'
-import LocaleMenu from './LocaleMenu'
 
 export default {
   components: {
-    TheColorModeSwitcher,
-    LocaleMenu
+    TheColorModeSwitcher
   },
 
   data() {

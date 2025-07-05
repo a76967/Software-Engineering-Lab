@@ -129,19 +129,18 @@ export default Vue.extend({
     },
 
     /** 
-     * disable Threshold if:
-     *  • no unsaved changes (hasChanged === false), and
-     *  • every row’s savedDecision equals its threshold default
+     * disable “Threshold” whenever the *current* row states already
+     * exactly match the threshold‐defaults.  Only when at least one
+     * state differs will the button be enabled.
      */
     thresholdDisabled(): boolean {
-      if (this.hasChanged) return false
-      return this.rows.every(r => {
+      return this.rows.length > 0 && this.rows.every(r => {
         const t = r.agreement >= this.localThreshold
           ? false
-          : r.agreement < this.localThreshold/2
+          : r.agreement < this.localThreshold / 2
             ? true
             : null
-        return r.savedDecision === t
+        return r.decision === t
       })
     }
   },
