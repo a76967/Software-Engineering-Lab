@@ -23,7 +23,7 @@
       style="max-width: 120px; margin-left: 8px"
       v-model="selectedVersion"
       @change="onChangeVersion"
-      />
+    />
     <v-btn
       v-if="isAuthenticated && isIndividualProject"
       small

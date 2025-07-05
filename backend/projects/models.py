@@ -113,10 +113,7 @@ class Project(PolymorphicModel):
         # clone examples
         bulk_clone(self.examples.all(), field_initializers={"uuid": uuid.uuid4})
 
-        # clone label types
-        bulk_clone(self.categorytype_set.all())
-        bulk_clone(self.spantype_set.all())
-        bulk_clone(self.relationtype_set.all())
+        # do not clone label types to start with an empty set of labels
 
         return project
 

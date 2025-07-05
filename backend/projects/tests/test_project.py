@@ -159,9 +159,8 @@ class TestCloneProject(CRUDMixin):
         self.assertNotEqual(project.id, self.project.id)
         self.assertEqual(project.name, self.project.name)
 
-        # assert category type
-        category_type = project.categorytype_set.first()
-        self.assertEqual(category_type.text, self.category_type.text)
+        # version cloning should not copy label types
+        self.assertEqual(project.categorytype_set.count(), 0)
 
         # assert example
         example = self.project.examples.first()
