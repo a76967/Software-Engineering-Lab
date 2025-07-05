@@ -4,7 +4,9 @@
       <v-card-title class="d-flex align-center">
         <span class="text-h5 font-weight-medium">Set Disagreement</span>
         <v-spacer />
-        <v-btn text @click="onReset" :disabled="!hasManual">Reset</v-btn>
+        <v-btn text @click="onCancel">Cancel</v-btn>
+        <v-btn text @click="onReset" :disabled="!hasChanged">Reset</v-btn>
+        <v-btn text @click="applyThreshold" :disabled="thresholdDisabled">Threshold</v-btn>
         <v-btn color="primary" @click="onSave" :disabled="!hasChanged">Save</v-btn>
       </v-card-title>
 
@@ -76,8 +78,18 @@
           <v-card-actions>
             <v-btn text @click="dialog = false">Cancel</v-btn>
             <v-spacer/>
-            <v-btn color="red" text @click="applyDecision(true)">Yes</v-btn>
-            <v-btn color="green" text @click="applyDecision(false)">No</v-btn>
+            <v-btn
+              color="red"
+              text
+              @click="applyDecision(true)"
+              :disabled="conflictClass(dialogItem)==='red'"
+            >Yes</v-btn>
+            <v-btn
+              color="green"
+              text
+              @click="applyDecision(false)"
+              :disabled="conflictClass(dialogItem)==='green'"
+            >No</v-btn>
           </v-card-actions>
         </v-card>
       </v-dialog>
@@ -115,8 +127,16 @@ export default Vue.extend({
     hasChanged(): boolean {
       return this.rows.some(r => r.decision !== r.savedDecision)
     },
-    hasManual(): boolean {
-      return this.rows.some(r => r.decision !== null)
+
+    thresholdDisabled(): boolean {
+      return this.rows.every(r => {
+        const t = r.agreement >= this.localThreshold
+          ? false
+          : r.agreement < this.localThreshold / 2
+            ? true
+            : null
+        return r.decision === t && r.savedDecision === t
+      })
     }
   },
 
@@ -145,7 +165,44 @@ export default Vue.extend({
       this.dialog = false
     },
 
+    /** restore each r.decision ← r.savedDecision */
+    onReset() {
+      this.rows.forEach(r => { r.decision = r.savedDecision })
+    },
+
+    /** Cancel → diffs */
+    onCancel() {
+      const pid = this.$route.params.id
+      this.$router.push({
+        path: this.localePath(`/projects/${pid}/disagreements/diffs`)
+      })
+    },
+
+    onSave() {
+      if (!this.hasChanged) return
+      const pid = this.$route.params.id
+      try {
+        const decisions: Record<number, boolean> = {}
+        this.rows.forEach(r => { decisions[r.id] = r.decision })
+
+        localStorage.setItem(this.decisionKey, JSON.stringify(decisions))
+
+        this.rows.forEach(r => { r.savedDecision = r.decision })
+
+        this.$router.push({
+          path: this.localePath('/message'),
+          query: {
+            message: 'Disagreements states set!',
+            redirect: this.localePath(`/projects/${pid}/disagreements/diffs`)
+          }
+        })
+      } catch (err) {
+        console.error('Save failed:', err)
+      }
+    },
+
     conflictClass(item: any) {
+      if (!item) return ''
       if (item.decision === true) return 'red'
       if (item.decision === false) return 'green'
       const v = item.agreement
@@ -153,6 +210,7 @@ export default Vue.extend({
         ? 'green' : v < this.localThreshold/2 ? 'red' : 'orange'
     },
     conflictSymbol(item: any) {
+      if (!item) return ''
       if (item.decision === true) return '✗'
       if (item.decision === false) return '✓'
       const v = item.agreement
@@ -192,7 +250,8 @@ export default Vue.extend({
           { text: 'Abstention',  value: 'abstention', sortable: false },
           { text: 'X',           value: 'x',           sortable: false },
           { text: 'Agreement %', value: 'agreement',   sortable: false },
-          { text: 'State',       value: 'conflict',    sortable: false }
+          { text: 'State',       value: 'conflict',    sortable: false },
+          { text: 'Actions',     value: 'actions',     sortable: false }
         ]
 
         this.rows = data.map((r: any) => {
@@ -209,11 +268,27 @@ export default Vue.extend({
           })
           return row
         })
+        const stored = localStorage.getItem(this.decisionKey) || '{}'
+        const savedDecisions: Record<number, boolean> = JSON.parse(stored)
+        this.rows.forEach(r => {
+          if (savedDecisions[r.id] != null) {
+            r.decision = savedDecisions[r.id]
+          }
+          r.savedDecision = r.decision
+        })
       } catch (err) {
         console.error(err)
       } finally {
         this.isLoading = false
       }
+    },
+
+    applyThreshold() {
+      this.rows.forEach(r => {
+        if (r.agreement >= this.localThreshold)      r.decision = false
+        else if (r.agreement < this.localThreshold/2) r.decision = true
+        else                                         r.decision = null
+      })
     }
   }
 })
