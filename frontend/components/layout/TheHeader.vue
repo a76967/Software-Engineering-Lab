@@ -15,15 +15,23 @@
     </v-btn>
     <v-select
       v-if="isAuthenticated && isIndividualProject"
-      :items="projectVersions"
-      item-text="version_number"
+      :items="versionItems"
+      item-text="text"
       item-value="id"
       hide-details
       dense
       style="max-width: 120px; margin-left: 8px"
       v-model="selectedVersion"
       @change="onChangeVersion"
-    ></v-select>
+      />
+    <v-btn
+      v-if="isAuthenticated && isIndividualProject"
+      small
+      class="ms-2"
+      @click="addVersion"
+    >
+      Add Version
+    </v-btn>
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
     <locale-menu />
@@ -156,9 +164,13 @@ export default {
   },
 
   computed: {
-    ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
-    ...mapGetters('projects', ['currentProject', 'projectVersions']),
-    ...mapGetters('config', ['isRTL']),
+      ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
+      ...mapGetters('projects', ['currentProject', 'projectVersions']),
+      ...mapGetters('config', ['isRTL']),
+
+      versionItems() {
+        return this.projectVersions.map(v => ({ id: v.id, text: `Version ${v.versionNumber}` }))
+      },
 
     isIndividualProject() {
       return this.$route.name && this.$route.name.startsWith('projects-id')
@@ -185,6 +197,10 @@ export default {
     onChangeVersion(id) {
       this.setCurrentProject(id)
       this.$router.push(`/projects/${id}`)
+    },
+    async addVersion() {
+      const newProject = await this.createVersion()
+      this.onChangeVersion(newProject.id)
     },
     signout() {
       this.$router.push({

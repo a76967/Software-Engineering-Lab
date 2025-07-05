@@ -16,8 +16,8 @@
             <v-col cols="12" sm="6" md="4">
               <v-select
                 v-model="selectedVersion"
-                :items="projectVersions"
-                item-text="version_number"
+                :items="versionItems"
+                item-text="text"
                 item-value="id"
                 label="Version"
                 hide-details
@@ -205,6 +205,9 @@ export default Vue.extend({
     },
     projectVersions(): Array<any> {
       return this.$store.getters['projects/projectVersions']
+    },
+    versionItems(): Array<{ id: number; text: string }> {
+      return this.projectVersions.map(v => ({ id: v.id, text: `Version ${v.versionNumber}` }))
     }
   },
   watch: {
