@@ -70,7 +70,6 @@ export default Vue.extend({
   data () {
     return {
       // master lists for lookups
-      countries: [] as string[],
       allowedGenders: [
         'M','F','Male','Female',
         'Masculine','Feminine','Masculino','Feminino'
@@ -105,12 +104,6 @@ export default Vue.extend({
     if (this.adminPerspectives.length) {
       this.form.adminPerspective = this.adminPerspectives[0].id
       await this.fetchExtraItems()
-    }
-    // now also fetch the master list of countries
-    try {
-      this.countries = await this.$axios.$get('/v1/perspectives/countries/')
-    } catch (_) {
-      this.countries = []
     }
   },
 
@@ -243,15 +236,7 @@ export default Vue.extend({
         rules.push(v => !!v || `${it.name} is required`)
 
         const nm = it.name.toLowerCase()
-        if (['country','nationality'].includes(nm)) {
-          // must match real country
-          rules.push(v =>
-            this.countries.includes(v)
-              ? true
-              : 'This country does not exist'
-          )
-        }
-        else if (nm === 'gender') {
+        if (nm === 'gender') {
           // must be one of allowed genders
           rules.push(v =>
             this.allowedGenders.includes(v)

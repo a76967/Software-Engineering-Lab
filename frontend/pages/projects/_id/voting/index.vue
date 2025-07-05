@@ -46,6 +46,12 @@
                     outlined
                   >
                     <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                    <v-card-actions>
+                      <v-spacer/>
+                      <v-btn small icon @click="viewRule(rule, idx)">
+                        <v-icon small>mdi-thumb-up</v-icon>
+                      </v-btn>
+                    </v-card-actions>
                     <v-card-actions v-if="!voteClosed">
                       <v-spacer />
                       <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
@@ -149,7 +155,9 @@
               >
                 <v-card-title class="d-flex justify-space-between">
                   <div>#{{ idx + 1 }} - {{ rule }}</div>
-                  <v-btn small text @click="viewRule(rule, idx)">View</v-btn>
+                  <v-btn small icon @click="viewRule(rule, idx)">
+                    <v-icon small>mdi-thumb-up</v-icon>
+                  </v-btn>
                 </v-card-title>
                 <v-card-actions>
                   <v-spacer />
