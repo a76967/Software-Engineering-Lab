@@ -130,7 +130,8 @@ export default Vue.extend({
       confirmDialog: false,
       snackbar: false,
       decisionKey: '',
-      search: '' as string
+      search: '' as string,
+      initialDefaults: {} as Record<number, boolean|null>
     }
   },
 
@@ -146,14 +147,10 @@ export default Vue.extend({
     },
 
     thresholdDisabled(): boolean {
-      return this.rows.length > 0 && this.rows.every(r => {
-        const t = r.agreement >= this.localThreshold
-          ? false
-          : r.agreement < this.localThreshold / 2
-            ? true
-            : null
-        return r.decision === t
-      })
+      if (this.hasChanged) return false
+      return this.rows.length > 0 && this.rows.every(r =>
+        r.decision === this.initialDefaults[r.id]
+      )
     }
   },
 
@@ -182,12 +179,10 @@ export default Vue.extend({
       this.dialog = false
     },
 
-    /** restore each r.decision ← r.savedDecision */
     onReset() {
       this.rows.forEach(r => { r.decision = r.savedDecision })
     },
 
-    /** Cancel → diffs */
     onCancel() {
       const pid = this.$route.params.id
       this.$router.push({
@@ -285,12 +280,29 @@ export default Vue.extend({
           })
           return row
         })
+
+        // capture the initial threshold‐default values (from diffs.vue)
+        const initDefs: Record<number, boolean|null> = {}
+        this.rows.forEach(r => {
+          const t = r.agreement >= this.localThreshold
+            ? false
+            : r.agreement < this.localThreshold/2
+              ? true
+              : null
+          initDefs[r.id] = t
+        })
+        this.initialDefaults = initDefs
+
         const stored = localStorage.getItem(this.decisionKey) || '{}'
         const savedDecisions: Record<number, boolean> = JSON.parse(stored)
         this.rows.forEach(r => {
+          // load user‐saved or initial default
           if (savedDecisions[r.id] != null) {
             r.decision = savedDecisions[r.id]
+          } else {
+            r.decision = this.initialDefaults[r.id]
           }
+          // baseline for Reset/Save
           r.savedDecision = r.decision
         })
       } catch (err) {
@@ -306,6 +318,16 @@ export default Vue.extend({
         else if (r.agreement < this.localThreshold/2) r.decision = true
         else                                         r.decision = null
       })
+
+      this.rows.forEach(r => {
+        r.savedDecision = r.decision
+      })
+
+      const newDefs: Record<number, boolean|null> = {}
+      this.rows.forEach(r => {
+        newDefs[r.id] = r.decision
+      })
+      this.initialDefaults = newDefs
     }
   }
 })
