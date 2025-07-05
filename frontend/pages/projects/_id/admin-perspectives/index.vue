@@ -10,7 +10,7 @@
           :disabled="!canEdit"
           class="ms-2"
           outlined
-          @click="editItem"
+          @click.stop="editItem(selected[0].id)"
         >
           Edit
         </v-btn>
@@ -66,12 +66,7 @@
           <template #item.created_at="{ item }">
             <span>{{ timeAgo(item.created_at) }}</span>
           </template>
-          <!-- Actions column slot -->
-          <!-- eslint-disable-next-line vue/valid-v-slot -->
           <template #item.actions="{ item }">
-            <v-btn text small color="primary" @click="openViewDialog(item)">
-              VIEW
-            </v-btn>
           </template>
         </v-data-table>
       </v-card-text>
@@ -136,7 +131,9 @@ export default Vue.extend({
       dbError: '',
       // view dialog state
       viewDialog: false,
-      currentView: {} as any
+      currentView: {} as any,
+      errorMessage: '',
+      item: {} as any
     }
   },
 
@@ -152,11 +149,19 @@ export default Vue.extend({
     },
     canAdd(): boolean {
       return this.items.length === 0
+    },
+    itemId(): number {
+      return Number(this.$route.query.itemId)
     }
   },
 
   mounted() {
     this.fetchItems()
+    if (!this.itemId) {
+      this.errorMessage = 'Invalid item ID'
+      return
+    }
+    this.fetchItem()
   },
 
   methods: {
@@ -165,10 +170,9 @@ export default Vue.extend({
         const res = await axios.get(`/v1/projects/${this.projectId}/admin-perspectives/`)
         const list = res.data.results || res.data
 
-        // fetch child items and creator info
+        // fetch child perspective-items for each perspective
         const withFields = await Promise.all(
           list.map(async (p: any) => {
-            // existing: load perspective-items
             try {
               const r = await axios.get(
                 `/v1/projects/${this.projectId}/perspective-items/`,
@@ -178,17 +182,6 @@ export default Vue.extend({
             } catch {
               p.fields = []
             }
-
-            // fetch the creator’s user record to get their name
-            try {
-              const userRes = await axios.get(`/v1/users/${p.user}/`)
-              // assume response contains { id, username, ... }
-              p.user = userRes.data
-            } catch {
-              // fallback if fetch fails
-              p.user = { username: `User ${p.user}` }
-            }
-
             return p
           })
         )
@@ -199,6 +192,18 @@ export default Vue.extend({
       }
     },
 
+    async fetchItem() {
+      try {
+        const { data } = await axios.get(
+          `/v1/projects/${this.projectId}/perspective-items/${this.itemId}/`
+        )
+        this.item = data
+        // …
+      } catch {
+        this.errorMessage = 'Failed to load item.'
+      }
+    },
+
     goToAdd() {
       if (!this.canAdd) return
       this.$router.push(this.localePath(
@@ -206,10 +211,9 @@ export default Vue.extend({
       ))
     },
 
-    editItem(id?: number) {
-      const pid = this.projectId
-      const perspectiveId = id ?? (this.selected[0] && this.selected[0].id)
+    editItem(perspectiveId?: number) {
       if (!perspectiveId) return
+      const pid = this.projectId
       this.$router.push(
         this.localePath(`/projects/${pid}/admin-perspectives/edit?perspectiveId=${perspectiveId}`)
       )
@@ -275,6 +279,17 @@ export default Vue.extend({
     openViewDialog(item: any) {
       this.currentView = item
       this.viewDialog = true
+    },
+
+    goToEdit(itemId: number) {
+      if (!itemId) return
+      const projectId = Number(this.$route.params.id)
+      this.$router.push({
+        path: this.localePath(
+          `/projects/${projectId}/perspective-items/edit`
+        ),
+        query: { itemId }
+      })
     }
   }
 })
