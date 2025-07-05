@@ -316,7 +316,7 @@
           "Kosovo",
           "Kuwait",
           "Kyrgyzstan",
-          "Lao People's Democratic Republic",
+          "Laos",
           "Latvia",
           "Lebanon",
           "Lesotho",
@@ -397,7 +397,6 @@
           "Seychelles",
           "Sierra Leone",
           "Singapore",
-          "Sint Maarten",
           "Slovakia",
           "Slovenia",
           "Solomon Islands",
@@ -414,9 +413,9 @@
           "Sweden",
           "Switzerland",
           "Syrian Arab Republic",
-          "Taiwan, Province of China",
+          "Taiwan",
           "Tajikistan",
-          "Tanzania, United Republic of",
+          "Tanzania",
           "Thailand",
           "Timor-Leste",
           "Togo",
@@ -528,17 +527,18 @@
       addItem() {
         if (!(this.$refs.itemForm as any).validate()) return
 
-        const item: any = {
+        // build entry with internal `enum_values`
+        const item: { name:string, data_type:string, enum_values?:string[] } = {
           name: this.newItem.name,
           data_type: this.newItem.data_type
         }
         if (this.newItem.data_type === 'enum') {
-          // build enum_values array instead of `enum`
+          // ALWAYS store under `enum_values` internally
           item.enum_values = this.autoEnumValues
             ? this.autoEnumValues
             : this.newItem.enumValues
                 .split(',')
-                .map(s => s.trim())
+                .map(v => v.trim())
                 .filter(Boolean)
         }
         this.itemsToAdd.push(item)
@@ -586,12 +586,13 @@
           const payload: any = {
             name: it.name,
             data_type: it.data_type,
-            admin_perspective: createdId,
-                ...(it.enum ? { enum: it.enum } : {})
+            admin_perspective: createdId
           }
           if (it.data_type === 'enum' && it.enum_values) {
-            payload.enum_values = it.enum_values
+            // serialize out as `enum` to match DRF
+            payload.enum = it.enum_values
           }
+
           try {
             await axios.post(
               `/v1/projects/${this.projectId}/perspective-items/`,
