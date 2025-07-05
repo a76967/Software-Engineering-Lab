@@ -581,14 +581,14 @@
           return
         }
 
-        // 2) Create each PerspectiveItem
+        // 2) Create each PerspectiveItem using the returned perspective ID
         for (const it of this.itemsToAdd) {
           const payload: any = {
             name: it.name,
             data_type: it.data_type,
-            admin_perspective: createdId
+            admin_perspective: createdId,
+                ...(it.enum ? { enum: it.enum } : {})
           }
-          // if enum, backend expects `enum_values`
           if (it.data_type === 'enum' && it.enum_values) {
             payload.enum_values = it.enum_values
           }

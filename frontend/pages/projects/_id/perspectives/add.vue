@@ -226,6 +226,8 @@ export default Vue.extend({
           if (isNaN(n))         return `${it.name} must be a number`
           if (!Number.isInteger(n)) return `${it.name} must be an integer`
           if (n < 0)            return `${it.name} must be non-negative`
+          if (it.name === 'Age' && n > 100)
+            return 'Age must be between 0 and 100'
           return true
         })
       }
