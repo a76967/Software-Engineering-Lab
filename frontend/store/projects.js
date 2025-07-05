@@ -41,5 +41,6 @@ export const actions = {
   async createVersion({ dispatch, state }) {
     const newProject = await this.$services.project.createVersion(state.current.id)
     await dispatch('setCurrentProject', newProject.id)
+    return newProject
   }
 }

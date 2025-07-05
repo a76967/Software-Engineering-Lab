@@ -195,12 +195,28 @@ export default {
     ...mapActions('config', ['toggleRTL']),
     ...mapActions('projects', ['createVersion', 'setCurrentProject']),
     onChangeVersion(id) {
+      const version = this.projectVersions.find(v => v.id === id)
+      const number = version ? version.versionNumber : ''
       this.setCurrentProject(id)
-      this.$router.push(`/projects/${id}`)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${id}`
+        }
+      })
     },
     async addVersion() {
       const newProject = await this.createVersion()
-      this.onChangeVersion(newProject.id)
+      const number = newProject.versionNumber
+      this.setCurrentProject(newProject.id)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${newProject.id}`
+        }
+      })
     },
     signout() {
       this.$router.push({

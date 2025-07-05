@@ -263,12 +263,28 @@ export default Vue.extend({
            + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
     changeVersion(id: number) {
+      const version = this.projectVersions.find(v => v.id === id)
+      const number = version ? version.versionNumber : ''
       this.setCurrentProject(id)
-      this.$router.push(`/projects/${id}/reports/annotations`)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${id}/reports/annotations`
+        }
+      })
     },
     async addVersion() {
       const newProject = await this.createVersion()
-      this.changeVersion(newProject.id)
+      const number = newProject.versionNumber
+      this.setCurrentProject(newProject.id)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${newProject.id}/reports/annotations`
+        }
+      })
     },
     generateReport() {
       this.loading = true
