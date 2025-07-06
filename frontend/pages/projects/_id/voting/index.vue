@@ -483,14 +483,14 @@ export default Vue.extend({
     loadMeta() {
       const pid = Number(this.$route.params.id)
       const key = `annotation_rule_vote_meta_${pid}`
-      const now = Date.now()
       try {
         const m = JSON.parse(localStorage.getItem(key) || 'null')
-        if (m && m.end && now < m.end) {
+        if (m && m.end) {
           this.meta = m
           return
         }
       } catch {}
+      const now = Date.now()
       this.meta = { start: now, end: now + 24 * 60 * 60 * 1000, phase: 1 }
       localStorage.setItem(key, JSON.stringify(this.meta))
     },
