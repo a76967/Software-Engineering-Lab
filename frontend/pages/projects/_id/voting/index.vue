@@ -95,7 +95,7 @@
             <v-spacer/>
             <v-btn
               color="primary"
-              :disabled="!selectedVersion || 
+              :disabled="!selectedVersion ||
               saving || voteClosed || userVotedVersions.includes(selectedVersion)"
               @click="submitVote"
             >
@@ -148,7 +148,7 @@
             <div v-if="rulesLoading" class="text--secondary">Loading…</div>
             <div v-else>
               <v-card
-                v-for="(rule, idx) in currentRules"
+                v-for="(rule, idx) in editRules"
                 :key="idx"
                 class="mb-2"
                 outlined
@@ -221,7 +221,7 @@
                 outlined
                 shaped
                 append-icon="mdi-close-circle"
-                @click:append="newRule = ''"  
+                @click:append="newRule = ''"
                 class="mb-2"
                 @keyup.enter="addRule"
               />
@@ -415,6 +415,7 @@ export default Vue.extend({
       userVotedVersions: [] as number[],
       rulesLoading: false,
       currentRules: [] as string[],
+      editRules: [] as string[],
       currentRulesAuthor: '' as string,
       currentRulesSubmitted: '' as string,
       newRule: '' as string,
@@ -560,6 +561,7 @@ export default Vue.extend({
         const grid = await repo.get(Number(this.$route.params.id), id)
         this.currentGridId = grid.id
         this.currentRules = grid.rules
+        this.editRules = grid.rules.slice()
         this.currentRulesAuthor = grid.createdBy
         this.currentRulesSubmitted = grid.createdAt
         this.loadRuleVotes()
@@ -573,15 +575,15 @@ export default Vue.extend({
     addRule() {
       const t = this.newRule.trim()
       if (!t) return
-      this.currentRules.push(t)
+      this.editRules.push(t)
       this.newRule = ''
     },
     startEdit(idx: number) {
-      this.newRule = this.currentRules[idx]
-      this.currentRules.splice(idx, 1)
+      this.newRule = this.editRules[idx]
+      this.editRules.splice(idx, 1)
     },
     removeRule(idx: number) {
-      this.currentRules.splice(idx, 1)
+      this.editRules.splice(idx, 1)
     },
     scrollToAddInput() {
       this.$nextTick(() => {
@@ -631,11 +633,12 @@ export default Vue.extend({
       this.editDialog = false
     },
     async saveRules() {
-      if (!this.currentRules.length) return
+      if (!this.editRules.length) return
       this.savingRules = true
       try {
         const repo = new APIAnnotationRuleRepository()
-        await repo.create(Number(this.$route.params.id), this.currentRules)
+        await repo.create(Number(this.$route.params.id), this.editRules)
+        this.currentRules = this.editRules.slice()
         this.$router.push({
           path: '/message',
           query: {
