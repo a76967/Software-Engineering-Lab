@@ -47,44 +47,43 @@
                   >
                     <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
                     <v-card-actions>
-                      <v-spacer/>
+                      <v-spacer />
                       <v-btn small icon @click="viewRule(rule, idx)">
-                        <v-icon small>mdi-thumb-up</v-icon>
+                        <v-icon small>mdi-eye</v-icon>
                       </v-btn>
-                    </v-card-actions>
-                    <v-card-actions v-if="!voteClosed">
-                      <v-spacer />
-                      <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
-                        <v-icon color="green">mdi-thumb-up</v-icon>
-                      </v-btn>
-                      <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
-                        <v-icon color="red">mdi-thumb-down</v-icon>
-                      </v-btn>
-                    </v-card-actions>
-                    <v-card-actions v-else>
-                      <v-spacer />
-                      <div v-if="ruleResults[idx]" class="mr-2">
-                        {{ ruleResults[idx].up }} <v-icon small color="green">mdi-thumb-up</v-icon>
-                        {{ ruleResults[idx].down }} <v-icon small color="red">
-                          mdi-thumb-down</v-icon>
-                      </div>
-                      <v-chip
-                        :color="
-                          ruleResults[idx] &&
-                          ruleResults[idx].up >= ruleResults[idx].down
-                            ? 'green'
-                            : 'red'
-                        "
-                        text-color="white"
-                        small
-                      >
-                        {{
-                          ruleResults[idx] &&
-                          ruleResults[idx].up >= ruleResults[idx].down
-                            ? 'Approved'
-                            : 'Rejected'
-                        }}
-                      </v-chip>
+                      <template v-if="!voteClosed">
+                        <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
+                          <v-icon color="green">mdi-thumb-up</v-icon>
+                        </v-btn>
+                        <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
+                          <v-icon color="red">mdi-thumb-down</v-icon>
+                        </v-btn>
+                      </template>
+                      <template v-else>
+                        <div v-if="ruleResults[idx]" class="mr-2">
+                          {{ ruleResults[idx].up }} 
+                          <v-icon small color="green">mdi-thumb-up</v-icon>
+                          {{ ruleResults[idx].down }} 
+                          <v-icon small color="red">mdi-thumb-down</v-icon>
+                        </div>
+                        <v-chip
+                          :color="
+                            ruleResults[idx] &&
+                            ruleResults[idx].up >= ruleResults[idx].down
+                              ? 'green'
+                              : 'red'
+                          "
+                          text-color="white"
+                          small
+                        >
+                          {{
+                            ruleResults[idx] &&
+                            ruleResults[idx].up >= ruleResults[idx].down
+                              ? 'Approved'
+                              : 'Rejected'
+                          }}
+                        </v-chip>
+                      </template>
                     </v-card-actions>
                   </v-card>
                 </template>
@@ -156,7 +155,7 @@
                 <v-card-title class="d-flex justify-space-between">
                   <div>#{{ idx + 1 }} - {{ rule }}</div>
                   <v-btn small icon @click="viewRule(rule, idx)">
-                    <v-icon small>mdi-thumb-up</v-icon>
+                    <v-icon small>mdi-eye</v-icon>
                   </v-btn>
                 </v-card-title>
                 <v-card-actions>
