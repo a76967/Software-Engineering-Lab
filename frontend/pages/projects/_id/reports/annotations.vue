@@ -85,42 +85,38 @@
       <v-card-title>Preview</v-card-title>
       <v-divider/>
       <v-card-text>
+        <v-alert
+          v-if="errorMessage"
+          dense
+          type="error"
+          class="mb-4"
+        >
+          {{ errorMessage }}
+        </v-alert>
         <div v-if="loading" class="text-center my-6">
           <v-progress-circular indeterminate color="primary"/>
         </div>
         <div v-else-if="filteredAnnotations.length">
-          <div class="annotation-preview mb-6 pa-4">
-            <div
-              v-for="(ann, idx) in filteredAnnotations"
-              :key="ann.id"
-              class="annotation-item"
-            >
-              <div class="d-flex align-start">
-                <span class="annotation-num">{{ idx + 1 }}.</span>
-                <div class="flex-grow-1">
-                  <span class="annotation-timestamp">
-                    {{ formatDate(ann.created_at) }}
-                  </span>
-                  <span>
-                    by
-                    <strong>
-                      {{
-                        users.find(u => u.id === ann.annotator)?.name
-                        || 'Unknown'
-                      }}
-                    </strong>
-                  </span>
-                  <div class="annotation-text pa-2">
-                    "{{ ann.extracted_labels.text }}"
-                  </div>
-                  <div class="annotation-spans">
-                    <span class="annotation-span-label">Spans:</span>
-                    {{ getSpansSummary(ann) }}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <v-simple-table dense class="annotation-preview mb-6">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Date</th>
+                <th>Annotator</th>
+                <th>Text</th>
+                <th>Spans</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(ann, idx) in filteredAnnotations" :key="ann.id">
+                <td>{{ idx + 1 }}</td>
+                <td>{{ formatDate(ann.created_at) }}</td>
+                <td>{{ users.find(u => u.id === ann.annotator)?.name || 'Unknown' }}</td>
+                <td>{{ ann.extracted_labels.text }}</td>
+                <td>{{ getSpansSummary(ann) }}</td>
+              </tr>
+            </tbody>
+          </v-simple-table>
           <v-btn color="primary" @click="downloadPdf">Download PDF</v-btn>
         </div>
         <div v-else class="text-center grey--text my-6">
@@ -138,7 +134,7 @@ import { jsPDF as JsPDF } from 'jspdf'
 import {
   VContainer, VCard, VCardTitle, VDivider, VCardText,
   VForm, VRow, VCol, VAutocomplete, VSelect,
-  VBtn, VSpacer, VProgressCircular
+  VBtn, VSpacer, VProgressCircular, VAlert, VSimpleTable
 } from 'vuetify/lib'
 
 import ApiService from '~/services/api.service'
@@ -148,7 +144,7 @@ export default Vue.extend({
   components: {
     VContainer, VCard, VCardTitle, VDivider, VCardText,
     VForm, VRow, VCol, VAutocomplete, VSelect,
-    VBtn, VSpacer, VProgressCircular
+    VBtn, VSpacer, VProgressCircular, VAlert, VSimpleTable
   },
   layout: 'project',
   middleware: ['check-auth', 'auth', 'setCurrentProject'],
@@ -163,7 +159,8 @@ export default Vue.extend({
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
       users: [] as { id: number; name: string }[],
-      selectedVersion: null as number | null
+      selectedVersion: null as number | null,
+      errorMessage: '' as string
     }
   },
   computed: {
@@ -274,6 +271,16 @@ export default Vue.extend({
       // this.generateReport()
     },
     generateReport() {
+      // ensure all filters are selected
+      if (!this.filters.annotationIds.length ||
+          !this.filters.annotators.length ||
+          !this.filters.labels.length) {
+        this.errorMessage = 'Please select all the filters.'
+        this.filteredAnnotations = []
+        this.loading = false
+        return
+      }
+      this.errorMessage = ''
       this.loading = true
       this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
         // 1) filtra por Annotation IDs, se houver
