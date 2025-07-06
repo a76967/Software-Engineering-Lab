@@ -17,15 +17,6 @@
                 </div>
               </template>
               <template v-else>
-                <v-radio-group v-model="selectedVersion" column>
-                  <v-radio
-                    v-for="item in history"
-                    :key="item.id"
-                    :label="item.rule"
-                    :value="item.version"
-                    :disabled="userVotedVersions.includes(item.version) || voteClosed"
-                  />
-                </v-radio-group>
                 <div class="mt-4">
                   <div v-if="rulesLoading" class="text--secondary">Loading…</div>
                   <template v-else>
@@ -81,38 +72,35 @@
         <v-card class="my-6" max-width="800">
           <v-card-title>Voting Results</v-card-title>
           <v-card-text>
-            <div v-if="!voteClosed" class="text--secondary">
-              The Voting is still ongoing, the results will show once 
-              the voting period closes or the project admin closes the Voting Period.
-            </div>
-            <template v-else>
-              <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
-              <div v-else>
-                  <v-card
-                    v-for="(rule, idx) in currentRules"
-                    :key="idx"
-                    class="mb-2"
-                    outlined
+            <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
+            <div v-else>
+              <div v-if="!voteClosed" class="text--secondary mb-2">
+                The Voting is still ongoing, results may change.
+              </div>
+              <v-card
+                v-for="(rule, idx) in currentRules"
+                :key="idx"
+                class="mb-2"
+                outlined
+              >
+                <v-card-title class="d-flex justify-space-between align-center">
+                  <div>#{{ idx + 1 }} - {{ rule }}</div>
+                  <v-chip
+                    :color="ruleResults[idx] &&
+                    ruleResults[idx].up >= ruleResults[idx].down ? 'green' : 'red'"
+                    text-color="white"
+                    small
                   >
-                    <v-card-title class="d-flex justify-space-between align-center">
-                      <div>#{{ idx + 1 }} - {{ rule }}</div>
-                      <v-chip
-                        :color="ruleResults[idx] && 
-                        ruleResults[idx].up >= ruleResults[idx].down ? 'green' : 'red'"
-                        text-color="white"
-                        small
-                      >
-                        {{ ruleResults[idx] && ruleResults[idx].up >= 
-                        ruleResults[idx].down ? 'Approved' : 'Rejected' }}
-                      </v-chip>
-                    </v-card-title>
+                    {{ ruleResults[idx] && ruleResults[idx].up >=
+                    ruleResults[idx].down ? 'Approved' : 'Rejected' }}
+                  </v-chip>
+                </v-card-title>
                     <v-card-text>
                       {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
                       {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
                     </v-card-text>
-                  </v-card>
+                </v-card>
               </div>
-            </template>
           </v-card-text>
         </v-card>
       </v-col>
@@ -233,11 +221,11 @@
       <v-card>
         <v-card-title>Voting Results</v-card-title>
         <v-card-text>
-          <div v-if="!voteClosed" class="text--secondary">
-            The Voting is still ongoing, the results will show once 
-            the voting period closes or the project admin closes the Voting Period.
-          </div>
-          <template v-else>
+          <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
+          <div v-else>
+            <div v-if="!voteClosed" class="text--secondary mb-2">
+              The Voting is still ongoing, results may change.
+            </div>
             <v-card
               v-for="(rule, idx) in currentRules"
               :key="idx"
@@ -247,12 +235,12 @@
               <v-card-title class="d-flex justify-space-between align-center">
                 <div>#{{ idx + 1 }} - {{ rule }}</div>
                 <v-chip
-                  :color="ruleResults[idx] && ruleResults[idx].up 
+                  :color="ruleResults[idx] && ruleResults[idx].up
                   >= ruleResults[idx].down ? 'green' : 'red'"
                   text-color="white"
                   small
                 >
-                  {{ ruleResults[idx] && ruleResults[idx].up 
+                  {{ ruleResults[idx] && ruleResults[idx].up
                   >= ruleResults[idx].down ? 'Approved' : 'Rejected' }}
                 </v-chip>
               </v-card-title>
@@ -261,7 +249,7 @@
                 {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
               </v-card-text>
             </v-card>
-          </template>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer/>
