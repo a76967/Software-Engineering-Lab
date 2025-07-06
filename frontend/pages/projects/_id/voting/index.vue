@@ -648,7 +648,17 @@ export default Vue.extend({
       this.userRuleVotes = userMap
     },
     async voteRule(idx: number, val: string) {
-      if (this.voteClosed || this.userRuleVotes[idx]) return
+      if (this.voteClosed) {
+        this.$router.push({
+          path: '/message',
+          query: {
+            message: 'This version of the project is now closed.',
+            redirect: `/projects/${this.$route.params.id}/voting`
+          }
+        })
+        return
+      }
+      if (this.userRuleVotes[idx]) return
       const repo = new APIRuleVoteRepository()
       await repo.create(Number(this.$route.params.id), {
         grid: this.currentGridId!,
@@ -668,7 +678,17 @@ export default Vue.extend({
       })
     },
     async submitVote() {
-      if (!this.selectedVersion || this.voteClosed) return
+      if (this.voteClosed) {
+        this.$router.push({
+          path: '/message',
+          query: {
+            message: 'This version of the project is now closed.',
+            redirect: `/projects/${this.$route.params.id}/voting`
+          }
+        })
+        return
+      }
+      if (!this.selectedVersion) return
       this.saving = true
       const pid = Number(this.$route.params.id)
       const gridId = this.history.find(h => h.version === this.selectedVersion)?.id

@@ -32,6 +32,15 @@
     >
       Add Version
     </v-btn>
+    <v-chip
+      v-if="isAuthenticated && isIndividualProject"
+      small
+      class="ms-2"
+      :color="voteClosed ? 'red' : 'green'"
+      text-color="white"
+    >
+      {{ voteClosed ? 'READ-ONLY' : 'ON GOING' }}
+    </v-chip>
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
 
@@ -173,6 +182,17 @@ export default {
 
     direction() {
       return this.isRTL ? 'RTL' : 'LTR'
+    },
+
+    voteClosed() {
+      if (!this.isIndividualProject || !this.currentProject.id) return false
+      try {
+        const key = `annotation_rule_vote_meta_${this.currentProject.id}`
+        const m = JSON.parse(localStorage.getItem(key) || 'null')
+        return m && Date.now() > m.end
+      } catch {
+        return false
+      }
     }
   },
 
