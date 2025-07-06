@@ -55,18 +55,6 @@
               </template>
             </div>
           </v-card-text>
-          <v-card-actions v-if="!voteClosed">
-            <v-spacer/>
-            <v-btn
-              color="primary"
-              :disabled="!selectedVersion ||
-              saving || userVotedVersions.includes(selectedVersion)"
-              @click="submitVote"
-            >
-              Vote
-            </v-btn>
-            <v-btn text @click="openResultsDialog">Results</v-btn>
-          </v-card-actions>
         </v-card>
 
         <v-card class="my-6" max-width="800">
