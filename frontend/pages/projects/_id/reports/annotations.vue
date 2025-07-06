@@ -206,19 +206,21 @@ export default Vue.extend({
         .filter((t: any) => t.text !== 'Dog' && t.text !== 'Cat')
         .map((t: any) => ({ id: t.id, text: t.text }))
     },
-    projectVersions(): Array<any> {
-      return this.$store.getters['projects/projectVersions']
+    currentProject(): any {
+      return this.$store.getters['projects/currentProject']
     },
     versionItems(): Array<{ id: number; text: string }> {
-      return this.projectVersions.map(v => ({ id: v.id, text: `Version ${v.versionNumber}` }))
+      const p = this.currentProject as any
+      return p && p.id
+        ? [{ id: p.id, text: `Version ${p.versionNumber}` }]
+        : []
     }
   },
   watch: {
-    projectVersions: {
-      handler() {
-        const versions = this.projectVersions as Array<any>
-        if (!this.selectedVersion && versions.length) {
-          this.selectedVersion = versions[0].id
+    currentProject: {
+      handler(p) {
+        if (p && p.id) {
+          this.selectedVersion = p.id
         }
       },
       immediate: true
