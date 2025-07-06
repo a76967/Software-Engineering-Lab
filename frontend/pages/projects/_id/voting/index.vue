@@ -53,28 +53,26 @@
                       </v-btn>
                       <template v-if="!voteClosed">
                       <v-btn
-                        icon
+                        text
                         color="green"
                         :disabled="!!userRuleVotes[idx]"
                         @click="voteRule(idx, 'up')"
                       >
-                        <v-icon>mdi-thumb-up</v-icon>
+                        Approve
                       </v-btn>
                       <v-btn
-                        icon
+                        text
                         color="red"
                         :disabled="!!userRuleVotes[idx]"
                         @click="voteRule(idx, 'down')"
                       >
-                        <v-icon>mdi-thumb-down</v-icon>
+                        Reject
                       </v-btn>
                       </template>
                       <template v-else>
                         <div v-if="ruleResults[idx]" class="mr-2">
-                          {{ ruleResults[idx].up }} 
-                          <v-icon small color="green">mdi-thumb-up</v-icon>
-                          {{ ruleResults[idx].down }} 
-                          <v-icon small color="red">mdi-thumb-down</v-icon>
+                          {{ ruleResults[idx].up }} <span class="green--text">Approve</span>
+                          {{ ruleResults[idx].down }} <span class="red--text">Reject</span>
                         </div>
                         <v-chip
                           :color="
@@ -127,10 +125,8 @@
                 >
                   <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
                   <v-card-text>
-                    {{ ruleResults[idx]?.up || 0 }}
-                    <v-icon small color="green">mdi-thumb-up</v-icon>
-                    {{ ruleResults[idx]?.down || 0 }}
-                    <v-icon small color="red">mdi-thumb-down</v-icon>
+                    {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
+                    {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
                   </v-card-text>
                 </v-card>
             </div>
@@ -172,28 +168,26 @@
                   <v-spacer />
                   <template v-if="!voteClosed">
                     <v-btn
-                      icon
+                      text
                       color="green"
                       :disabled="!!userRuleVotes[idx]"
                       @click="voteRule(idx, 'up')"
                     >
-                      <v-icon>mdi-thumb-up</v-icon>
+                      Approve
                     </v-btn>
                     <v-btn
-                      icon
+                      text
                       color="red"
                       :disabled="!!userRuleVotes[idx]"
                       @click="voteRule(idx, 'down')"
                     >
-                      <v-icon>mdi-thumb-down</v-icon>
+                      Reject
                     </v-btn>
                   </template>
                   <template v-else>
                     <div v-if="ruleResults[idx]" class="mr-2">
-                      {{ ruleResults[idx].up }}
-                      <v-icon small color="green">mdi-thumb-up</v-icon>
-                      {{ ruleResults[idx].down }}
-                      <v-icon small color="red">mdi-thumb-down</v-icon>
+                      {{ ruleResults[idx].up }} <span class="green--text">Approve</span>
+                      {{ ruleResults[idx].down }} <span class="red--text">Reject</span>
                     </div>
                     <v-chip
                       v-if="ruleResults[idx]"
@@ -303,8 +297,8 @@
           >
             <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
             <v-card-text>
-              {{ ruleResults[idx]?.up || 0 }} <v-icon small color="green">mdi-thumb-up</v-icon>
-              {{ ruleResults[idx]?.down || 0 }} <v-icon small color="red">mdi-thumb-down</v-icon>
+              {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
+              {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
             </v-card-text>
           </v-card>
         </v-card-text>
