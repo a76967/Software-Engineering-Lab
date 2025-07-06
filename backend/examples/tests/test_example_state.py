@@ -63,4 +63,5 @@ class TestExampleStateConfirmCollaborative(CRUDMixin):
         self.assert_create(admin, status.HTTP_201_CREATED)
         for member in self.project.members:
             response = self.assert_fetch(member, status.HTTP_200_OK)
-            self.assertEqual(response.data["count"], 1)
+            expected = 1 if member == admin else 0
+            self.assertEqual(response.data["count"], expected)

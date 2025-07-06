@@ -13,8 +13,7 @@ class ExampleFilter(FilterSet):
         queryset = queryset.annotate(
             num_confirm=Count(
                 expression=field_name,
-                filter=Q(**{f"{field_name}__confirmed_by": self.request.user})
-                | Q(project__collaborative_annotation=True),
+                filter=Q(**{f"{field_name}__confirmed_by": self.request.user}),
             )
         )
         if is_confirmed:
