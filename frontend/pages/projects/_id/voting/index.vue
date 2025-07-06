@@ -198,7 +198,11 @@
           <v-card-title>
             Voting Period
             <v-spacer/>
-            <span v-if="meta" class="period-dates">{{ formattedStart }} - {{ formattedEnd }}</span>
+            <template v-if="voteClosed">
+              <v-chip color="red" text-color="white" small>Voting Ended</v-chip>
+            </template>
+            <span v-else-if="meta" class="period-dates">
+              {{ formattedStart }} - {{ formattedEnd }}</span>
           </v-card-title>
           <v-card-actions>
             <v-spacer/>
@@ -367,6 +371,7 @@ interface HistoryItem {
 
 export default Vue.extend({
   layout: 'project',
+  middleware: ['check-auth', 'auth', 'setCurrentProject'],
   data() {
     return {
       history: [] as HistoryItem[],
@@ -618,7 +623,7 @@ export default Vue.extend({
       if (!this.meta) return
       this.meta.end = Date.now()
       this.saveMeta()
-      const ver = this.selectedVersion
+      const ver = this.$store.getters['projects/currentProject']?.versionNumber || this.selectedVersion
       this.$router.push({
         path: '/message',
         query: {
@@ -651,7 +656,9 @@ export default Vue.extend({
         value: val
       })
       this.loadRuleVotes()
-      const votedVer = this.selectedVersion
+      const votedVer =
+        this.$store.getters['projects/currentProject']?.versionNumber ||
+        this.selectedVersion
       this.$router.push({
         path: '/message',
         query: {
@@ -674,7 +681,9 @@ export default Vue.extend({
       await this.loadVersionVotes()
       this.saving = false
 
-      const votedVer = this.selectedVersion
+      const votedVer =
+        this.$store.getters['projects/currentProject']?.versionNumber ||
+        this.selectedVersion
       this.$router.push({
         path: '/message',
         query: {
