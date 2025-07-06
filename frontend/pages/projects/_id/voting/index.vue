@@ -11,83 +11,65 @@
           <v-card-text>
             <div v-if="loading" class="text--secondary">Loading history…</div>
             <div v-else>
-              <v-radio-group v-model="selectedVersion" column>
-                <v-radio
-                  v-for="item in history"
-                  :key="item.id"
-                  :label="item.rule"
-                  :value="item.version"
-                  :disabled="userVotedVersions.includes(item.version) || voteClosed"
-                />
-              </v-radio-group>
-              <div class="mt-4">
-                <div v-if="rulesLoading" class="text--secondary">Loading…</div>
-                <template v-else>
-                  <v-card
-                    v-for="(rule, idx) in currentRules"
-                    :key="idx"
-                    class="mb-2"
-                    outlined
-                  >
-                    <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
-                    <v-card-actions>
-                      <v-spacer />
-                      <v-btn small icon @click="viewRule(rule, idx)">
-                        <v-icon small>mdi-eye</v-icon>
-                      </v-btn>
-                      <template v-if="!voteClosed">
-                      <v-btn
-                        text
-                        color="green"
-                        :disabled="!!userRuleVotes[idx]"
-                        @click="voteRule(idx, 'up')"
-                      >
-                        Approve
-                      </v-btn>
-                      <v-btn
-                        text
-                        color="red"
-                        :disabled="!!userRuleVotes[idx]"
-                        @click="voteRule(idx, 'down')"
-                      >
-                        Reject
-                      </v-btn>
-                      </template>
-                      <template v-else>
-                        <div v-if="ruleResults[idx]" class="mr-2">
-                          {{ ruleResults[idx].up }} <span class="green--text">Approve</span>
-                          {{ ruleResults[idx].down }} <span class="red--text">Reject</span>
-                        </div>
-                        <v-chip
-                          :color="
-                            ruleResults[idx] &&
-                            ruleResults[idx].up >= ruleResults[idx].down
-                              ? 'green'
-                              : 'red'
-                          "
-                          text-color="white"
-                          small
+              <template v-if="voteClosed">
+                <div class="text--secondary">
+                  The Voting on Annotation rules has been closed, check the results below.
+                </div>
+              </template>
+              <template v-else>
+                <v-radio-group v-model="selectedVersion" column>
+                  <v-radio
+                    v-for="item in history"
+                    :key="item.id"
+                    :label="item.rule"
+                    :value="item.version"
+                    :disabled="userVotedVersions.includes(item.version) || voteClosed"
+                  />
+                </v-radio-group>
+                <div class="mt-4">
+                  <div v-if="rulesLoading" class="text--secondary">Loading…</div>
+                  <template v-else>
+                    <v-card
+                      v-for="(rule, idx) in currentRules"
+                      :key="idx"
+                      class="mb-2"
+                      outlined
+                    >
+                      <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                      <v-card-actions>
+                        <v-spacer />
+                        <v-btn small icon @click="viewRule(rule, idx)">
+                          <v-icon small>mdi-eye</v-icon>
+                        </v-btn>
+                        <v-btn
+                          text
+                          color="green"
+                          :disabled="!!userRuleVotes[idx]"
+                          @click="voteRule(idx, 'up')"
                         >
-                          {{
-                            ruleResults[idx] &&
-                            ruleResults[idx].up >= ruleResults[idx].down
-                              ? 'Approved'
-                              : 'Rejected'
-                          }}
-                        </v-chip>
-                      </template>
-                    </v-card-actions>
-                  </v-card>
-                </template>
-              </div>
+                          Approve
+                        </v-btn>
+                        <v-btn
+                          text
+                          color="red"
+                          :disabled="!!userRuleVotes[idx]"
+                          @click="voteRule(idx, 'down')"
+                        >
+                          Reject
+                        </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </template>
+                </div>
+              </template>
             </div>
           </v-card-text>
-          <v-card-actions>
+          <v-card-actions v-if="!voteClosed">
             <v-spacer/>
             <v-btn
               color="primary"
-              :disabled="!selectedVersion || 
-              saving || voteClosed || userVotedVersions.includes(selectedVersion)"
+              :disabled="!selectedVersion ||
+              saving || userVotedVersions.includes(selectedVersion)"
               @click="submitVote"
             >
               Vote
@@ -112,7 +94,18 @@
                     class="mb-2"
                     outlined
                   >
-                    <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                    <v-card-title class="d-flex justify-space-between align-center">
+                      <div>#{{ idx + 1 }} - {{ rule }}</div>
+                      <v-chip
+                        :color="ruleResults[idx] && 
+                        ruleResults[idx].up >= ruleResults[idx].down ? 'green' : 'red'"
+                        text-color="white"
+                        small
+                      >
+                        {{ ruleResults[idx] && ruleResults[idx].up >= 
+                        ruleResults[idx].down ? 'Approved' : 'Rejected' }}
+                      </v-chip>
+                    </v-card-title>
                     <v-card-text>
                       {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
                       {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
@@ -237,22 +230,34 @@
         <v-card-title>Voting Results</v-card-title>
         <v-card-text>
           <div v-if="!voteClosed" class="text--secondary">
-            The Voting is still ongoing, the results may change until the period ends.
+            The Voting is still ongoing, the results will show once 
+            the voting period closes or the project admin closes the Voting Period.
           </div>
-          <div>
+          <template v-else>
             <v-card
               v-for="(rule, idx) in currentRules"
               :key="idx"
               class="mb-2"
               outlined
             >
-              <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+              <v-card-title class="d-flex justify-space-between align-center">
+                <div>#{{ idx + 1 }} - {{ rule }}</div>
+                <v-chip
+                  :color="ruleResults[idx] && ruleResults[idx].up 
+                  >= ruleResults[idx].down ? 'green' : 'red'"
+                  text-color="white"
+                  small
+                >
+                  {{ ruleResults[idx] && ruleResults[idx].up 
+                  >= ruleResults[idx].down ? 'Approved' : 'Rejected' }}
+                </v-chip>
+              </v-card-title>
               <v-card-text>
                 {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
                 {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
               </v-card-text>
             </v-card>
-          </div>
+          </template>
         </v-card-text>
         <v-card-actions>
           <v-spacer/>
@@ -613,6 +618,14 @@ export default Vue.extend({
       if (!this.meta) return
       this.meta.end = Date.now()
       this.saveMeta()
+      const ver = this.selectedVersion
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `The Voting Period of the version ${ver} of the project has been closed`,
+          redirect: `/projects/${this.$route.params.id}/voting`
+        }
+      })
     },
     async loadRuleVotes() {
       if (!this.currentGridId) return
