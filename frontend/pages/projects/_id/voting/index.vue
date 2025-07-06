@@ -8,22 +8,6 @@
             <v-spacer />
             <span v-if="meta">Ends in {{ timeRemaining }}</span>
           </v-card-title>
-          <v-card-subtitle v-if="meta" class="d-flex align-center">
-            <div>
-              Start: {{ formattedStart }}
-              <br>
-              End: {{ formattedEnd }}
-            </div>
-            <v-spacer />
-            <v-btn
-              v-if="isAdmin && !voteClosed"
-              icon
-              size="small"
-              @click="openEditDialog"
-            >
-              <v-icon>mdi-pencil</v-icon>
-            </v-btn>
-          </v-card-subtitle>
           <v-card-text>
             <div v-if="loading" class="text--secondary">Loading history…</div>
             <div v-else>
@@ -115,21 +99,27 @@
         <v-card class="my-6" max-width="800">
           <v-card-title>Voting Results</v-card-title>
           <v-card-text>
-            <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
-            <div v-else>
-                <v-card
-                  v-for="(rule, idx) in currentRules"
-                  :key="idx"
-                  class="mb-2"
-                  outlined
-                >
-                  <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
-                  <v-card-text>
-                    {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
-                    {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
-                  </v-card-text>
-                </v-card>
+            <div v-if="!voteClosed" class="text--secondary">
+              The Voting is still ongoing, the results will show once 
+              the voting period closes or the project admin closes the Voting Period.
             </div>
+            <template v-else>
+              <div v-if="currentRules.length === 0" class="text--secondary">No rules</div>
+              <div v-else>
+                  <v-card
+                    v-for="(rule, idx) in currentRules"
+                    :key="idx"
+                    class="mb-2"
+                    outlined
+                  >
+                    <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+                    <v-card-text>
+                      {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
+                      {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
+                    </v-card-text>
+                  </v-card>
+              </div>
+            </template>
           </v-card-text>
         </v-card>
       </v-col>
@@ -164,49 +154,6 @@
                     <v-icon small>mdi-eye</v-icon>
                   </v-btn>
                 </v-card-title>
-                <v-card-actions>
-                  <v-spacer />
-                  <template v-if="!voteClosed">
-                    <v-btn
-                      text
-                      color="green"
-                      :disabled="!!userRuleVotes[idx]"
-                      @click="voteRule(idx, 'up')"
-                    >
-                      Approve
-                    </v-btn>
-                    <v-btn
-                      text
-                      color="red"
-                      :disabled="!!userRuleVotes[idx]"
-                      @click="voteRule(idx, 'down')"
-                    >
-                      Reject
-                    </v-btn>
-                  </template>
-                  <template v-else>
-                    <div v-if="ruleResults[idx]" class="mr-2">
-                      {{ ruleResults[idx].up }} <span class="green--text">Approve</span>
-                      {{ ruleResults[idx].down }} <span class="red--text">Reject</span>
-                    </div>
-                    <v-chip
-                      v-if="ruleResults[idx]"
-                      :color="
-                        ruleResults[idx].up >= ruleResults[idx].down
-                          ? 'green'
-                          : 'red'
-                      "
-                      text-color="white"
-                      small
-                    >
-                      {{
-                        ruleResults[idx].up >= ruleResults[idx].down
-                          ? 'Approved'
-                          : 'Rejected'
-                      }}
-                    </v-chip>
-                  </template>
-                </v-card-actions>
                 <v-card-actions v-if="canEditCurrent">
                   <v-spacer />
                   <v-btn icon small @click="startEdit(idx)">
@@ -289,18 +236,23 @@
       <v-card>
         <v-card-title>Voting Results</v-card-title>
         <v-card-text>
-          <v-card
-            v-for="(rule, idx) in currentRules"
-            :key="idx"
-            class="mb-2"
-            outlined
-          >
-            <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
-            <v-card-text>
-              {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
-              {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
-            </v-card-text>
-          </v-card>
+          <div v-if="!voteClosed" class="text--secondary">
+            The Voting is still ongoing, the results may change until the period ends.
+          </div>
+          <div>
+            <v-card
+              v-for="(rule, idx) in currentRules"
+              :key="idx"
+              class="mb-2"
+              outlined
+            >
+              <v-card-title>#{{ idx + 1 }} - {{ rule }}</v-card-title>
+              <v-card-text>
+                {{ ruleResults[idx]?.up || 0 }} <span class="green--text">Approve</span>
+                {{ ruleResults[idx]?.down || 0 }} <span class="red--text">Reject</span>
+              </v-card-text>
+            </v-card>
+          </div>
         </v-card-text>
         <v-card-actions>
           <v-spacer/>
@@ -686,6 +638,14 @@ export default Vue.extend({
         value: val
       })
       this.loadRuleVotes()
+      const votedVer = this.selectedVersion
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Your vote on rule #${idx + 1} for version ${votedVer} has been registered!`,
+          redirect: `/projects/${this.$route.params.id}/voting`
+        }
+      })
     },
     async submitVote() {
       if (!this.selectedVersion || this.voteClosed) return
@@ -711,6 +671,7 @@ export default Vue.extend({
       })
     },
     openResultsDialog() {
+      // always open the in‐page results dialog
       this.showResultsDialog = true
     },
     applyStart() {
