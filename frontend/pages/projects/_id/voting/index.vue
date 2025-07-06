@@ -52,12 +52,22 @@
                         <v-icon small>mdi-eye</v-icon>
                       </v-btn>
                       <template v-if="!voteClosed">
-                        <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'up')">
-                          <v-icon color="green">mdi-thumb-up</v-icon>
-                        </v-btn>
-                        <v-btn icon :disabled="!!userRuleVotes[idx]" @click="voteRule(idx, 'down')">
-                          <v-icon color="red">mdi-thumb-down</v-icon>
-                        </v-btn>
+                      <v-btn
+                        icon
+                        color="green"
+                        :disabled="!!userRuleVotes[idx]"
+                        @click="voteRule(idx, 'up')"
+                      >
+                        <v-icon>mdi-thumb-up</v-icon>
+                      </v-btn>
+                      <v-btn
+                        icon
+                        color="red"
+                        :disabled="!!userRuleVotes[idx]"
+                        @click="voteRule(idx, 'down')"
+                      >
+                        <v-icon>mdi-thumb-down</v-icon>
+                      </v-btn>
                       </template>
                       <template v-else>
                         <div v-if="ruleResults[idx]" class="mr-2">
@@ -94,7 +104,7 @@
             <v-spacer/>
             <v-btn
               color="primary"
-              :disabled="!selectedVersion ||
+              :disabled="!selectedVersion || 
               saving || voteClosed || userVotedVersions.includes(selectedVersion)"
               @click="submitVote"
             >
@@ -163,17 +173,19 @@
                   <template v-if="!voteClosed">
                     <v-btn
                       icon
+                      color="green"
                       :disabled="!!userRuleVotes[idx]"
                       @click="voteRule(idx, 'up')"
                     >
-                      <v-icon color="green">mdi-thumb-up</v-icon>
+                      <v-icon>mdi-thumb-up</v-icon>
                     </v-btn>
                     <v-btn
                       icon
+                      color="red"
                       :disabled="!!userRuleVotes[idx]"
                       @click="voteRule(idx, 'down')"
                     >
-                      <v-icon color="red">mdi-thumb-down</v-icon>
+                      <v-icon>mdi-thumb-down</v-icon>
                     </v-btn>
                   </template>
                   <template v-else>
