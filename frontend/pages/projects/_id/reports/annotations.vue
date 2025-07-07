@@ -239,12 +239,9 @@ export default Vue.extend({
     },
     async downloadPdf() {
       if (!this.$root.__pdfFontLoaded) {
-        // dynamic import of jsPDF, support both named and default export
         const jsPDFModule = await import('jspdf')
         const JsPDF = jsPDFModule.jsPDF ?? jsPDFModule.default
-        // load font file as arrayBuffer and register
-        const fontUrl = require('~/static/NotoSans-Regular.ttf')
-        const res = await fetch(fontUrl)
+        const res = await fetch('/NotoSans-Regular.ttf')
         const buffer = await res.arrayBuffer()
         const b64 = btoa(
           Array.from(new Uint8Array(buffer))
@@ -256,7 +253,6 @@ export default Vue.extend({
         JsPDF.API.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal')
         JsPDF.API.addFont('NotoSans-Regular.ttf', 'NotoSans', 'bold')
       }
-      // retrieve constructor directly
       const JsPDF = this.$root.__pdfFontLoaded!
       const doc = new JsPDF({ unit: 'pt', format: 'letter' })
       const margin = 40
