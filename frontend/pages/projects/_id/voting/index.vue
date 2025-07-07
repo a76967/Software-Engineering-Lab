@@ -182,7 +182,7 @@
             <span v-else-if="meta" class="period-dates">
               {{ formattedStart }} - {{ formattedEnd }}</span>
             <span v-else class="text--secondary">
-              Define a Voting Period in order for the users to vote.
+              Undefined
             </span>
           </v-card-title>
           <v-card-actions>
@@ -195,10 +195,10 @@
               @click="openEditDialog"
             >
               <v-icon left small>mdi-pencil</v-icon>
-              Edit
+              {{ meta ? 'Edit' : 'Set' }}
             </v-btn>
             <v-btn
-              v-if="isAdmin && !voteClosed"
+              v-if="isAdmin && meta && !voteClosed"
               text
               color="error"
               @click="closeVote"
@@ -403,10 +403,8 @@ export default Vue.extend({
     },
     canEditCurrent(): boolean {
       if (!this.isAdmin) return false
-      if (!this.meta || this.meta.closed || this.meta.end <= Date.now()) {
-        return true
-      }
-      return false
+      if (!this.meta) return true
+      return this.meta.closed || this.meta.end <= Date.now()
     },
     voteCountForCurrent(): number {
       return this.selectedVersion ? this.versionVoteCounts[this.selectedVersion] || 0 : 0
