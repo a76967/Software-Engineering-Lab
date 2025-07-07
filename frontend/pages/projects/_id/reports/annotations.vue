@@ -386,7 +386,6 @@ export default Vue.extend({
       // aplica filtro de labels selecionadas (se houver)
       const spans = (ann.extracted_labels.spans || [])
         .filter((s: any) =>
-          // se não há filtro de labels, inclui todas; senão só as escolhidas
           !this.filters.labels.length || this.filters.labels.includes(s.label)
         )
       return spans
