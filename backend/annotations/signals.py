@@ -1,14 +1,22 @@
 from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
+from django.core.exceptions import ObjectDoesNotExist
 from examples.models import Example
 from labels.models import Span, Category
 from annotations.models import Annotation
 from annotations.views import AnnotationView
 
 def update_annotation_for_example(example_id):
+    """Refresh aggregated labels for a dataset item if it still exists."""
     view = AnnotationView()
-    new_labels = view.aggregate_extracted_labels(example_id, None)
-    Annotation.objects.filter(dataset_item_id=example_id).update(extracted_labels=new_labels)
+    try:
+        new_labels = view.aggregate_extracted_labels(example_id, None)
+    except ObjectDoesNotExist:
+        # Example or its project was removed, so skip updating annotations
+        return
+    Annotation.objects.filter(dataset_item_id=example_id).update(
+        extracted_labels=new_labels
+    )
 
 @receiver(post_save, sender=Example)
 def on_example_save(sender, instance, **kwargs):

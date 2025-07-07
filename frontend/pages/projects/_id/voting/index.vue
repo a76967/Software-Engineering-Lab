@@ -367,7 +367,7 @@ export default Vue.extend({
       savingRules: false,
       isAdmin: false,
       currentGridId: null as number | null,
-      meta: null as { start: number; end: number; phase: number } | null,
+      meta: null as { start: number; end: number; phase: number; closed: boolean } | null,
       showRuleDialog: false,
       selectedRuleText: '',
       selectedRuleIndex: -1,
@@ -387,7 +387,7 @@ export default Vue.extend({
   },
   computed: {
     voteClosed(): boolean {
-      return !!(this.meta && Date.now() > this.meta.end)
+      return !!(this.meta && this.meta.closed)
     },
     timeRemaining(): string {
       if (!this.meta) return ''
@@ -468,13 +468,13 @@ export default Vue.extend({
       const key = `annotation_rule_vote_meta_${pid}`
       try {
         const m = JSON.parse(localStorage.getItem(key) || 'null')
-        if (m && m.end) {
+        if (m && typeof m.closed !== 'undefined') {
           this.meta = m
           return
         }
       } catch {}
       const now = Date.now()
-      this.meta = { start: now, end: now + 24 * 60 * 60 * 1000, phase: 1 }
+      this.meta = { start: now, end: now + 24 * 60 * 60 * 1000, phase: 1, closed: false }
       localStorage.setItem(key, JSON.stringify(this.meta))
     },
     saveMeta() {
@@ -599,7 +599,7 @@ export default Vue.extend({
     },
     closeVote() {
       if (!this.meta) return
-      this.meta.end = Date.now()
+      this.meta.closed = true
       this.saveMeta()
       const ver = this.$store.getters['projects/currentProject']?.versionNumber || this.selectedVersion
       this.$router.push({
@@ -624,6 +624,7 @@ export default Vue.extend({
       })
       this.ruleResults = counts
       this.userRuleVotes = userMap
+      this.checkThreshold()
     },
     async voteRule(idx: number, val: string) {
       if (this.voteClosed) {
@@ -701,6 +702,19 @@ export default Vue.extend({
     applyEnd() {
       this.editEnd = `${this.endDate} ${this.endTime}`
       this.endMenu = false
+    },
+    checkThreshold() {
+      if (!this.meta || this.meta.closed) return
+      const entries = Object.entries(this.ruleResults)
+      if (!entries.length) return
+      const passed = entries.every(([_, v]) => {
+        const total = v.up + v.down
+        return total > 0 && v.up / total >= 0.8
+      })
+      if (passed) {
+        this.meta.closed = true
+        this.saveMeta()
+      }
     }
   },
 })
