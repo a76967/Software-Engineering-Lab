@@ -32,7 +32,7 @@
                 :items="annotationOptions"
                 item-text="text"
                 item-value="id"
-                label="Annotations"
+                label="Annotation IDs"
                 multiple
                 clearable
                 dense
@@ -41,19 +41,6 @@
                   'max-height': '200px',
                   contentClass: 'annotation-menu__content'
                 }"
-              />
-            </v-col>
-            <v-col cols="12" sm="6" md="4">
-              <v-autocomplete
-                v-model="filters.annotators"
-                :items="annotatorOptions"
-                item-text="name"
-                item-value="id"
-                label="Annotators"
-                multiple
-                clearable
-                dense
-                hide-details
               />
             </v-col>
           </v-row>
@@ -154,13 +141,11 @@ export default Vue.extend({
       loading: false,
       filters: {
         annotationIds: [] as number[],
-        annotators: [] as number[],
         labels: [] as number[]      // agora array
       },
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
       users: [] as { id: number; name: string }[],
-      labels: [] as { id: number; text: string }[],
       selectedVersion: null as number | null,
       errorMessage: '' as string
     }
@@ -176,11 +161,29 @@ export default Vue.extend({
       // sort by id ascending
       return opts.sort((a, b) => a.id - b.id)
     },
-    annotatorOptions(): Array<{ id: number; name: string }> {
-      return this.users
-    },
     labelOptions(): Array<{ id: number; text: string }> {
-      return this.labels
+      // pick data‐set depending on whether a report has been generated
+      const src = this.filteredAnnotations.length
+        ? this.filteredAnnotations
+        : this.allAnnotationsRaw
+
+      // only include labels that actually occur in spans
+      const usedSpanIds = new Set<number>(
+        src.flatMap(a =>
+          (a.extracted_labels.spans || []).map((s: any) => s.label)
+        )
+      )
+      const types = src
+        .flatMap(a => a.extracted_labels.labelTypes || [])
+        .filter((t: any) => usedSpanIds.has(t.id))
+
+      // dedupe & exclude unwanted
+      const uniq = Array.from(
+        new Map(types.map((t: any) => [t.id, t])).values()
+      )
+      return uniq
+        .filter(({ text }: any) => text !== 'Dog' && text !== 'Cat')
+        .map(({ id, text }: any) => ({ id, text }))
     },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
@@ -197,8 +200,6 @@ export default Vue.extend({
       handler(p) {
         if (p && p.id) {
           this.selectedVersion = p.id
-          // refresh available labels when project changes
-          this.fetchLabels(p.id)
         }
       },
       immediate: true
@@ -206,7 +207,6 @@ export default Vue.extend({
     selectedVersion(val) {
       if (val) {
         this.changeVersion(val)
-        this.fetchLabels(val)
       }
     }
   },
@@ -220,7 +220,7 @@ export default Vue.extend({
           offset: 0
         }
       }),
-      this.$repositories.member.list(String(pid))
+      ApiService.get('/users/')
     ])
 
     const raw = annRes.data.results || annRes.data
@@ -232,12 +232,11 @@ export default Vue.extend({
       updated_at: a.updated_at
     }))
 
-    this.users = usrRes.map((u: any) => ({
+    const list = usrRes.data.results || usrRes.data
+    this.users = list.map((u: any) => ({
       id: u.id,
       name: u.username || u.name || `User ${u.id}`
     }))
-
-    await this.fetchLabels(pid)
   },
   methods: {
     ...mapActions('projects', ['setCurrentProject']),
@@ -253,31 +252,9 @@ export default Vue.extend({
       // you can now refresh the report if desired
       // this.generateReport()
     },
-    async fetchLabels(projectId: number) {
-      const labels: Array<{ id: number; text: string }> = []
-      const project: any = this.currentProject
-      try {
-        if (project && project.canDefineCategory) {
-          const items = await this.$services.categoryType.list(String(projectId))
-          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
-        }
-        if (project && project.canDefineSpan) {
-          const items = await this.$services.spanType.list(String(projectId))
-          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
-        }
-        if (project && project.canDefineRelation) {
-          const items = await this.$services.relationType.list(String(projectId))
-          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
-        }
-      } catch (e) {
-        // ignore fetch errors
-      }
-      this.labels = labels
-    },
     generateReport() {
       // ensure all filters are selected
       if (!this.filters.annotationIds.length ||
-          !this.filters.annotators.length ||
           !this.filters.labels.length) {
         this.errorMessage = 'Please select all the filters.'
         this.filteredAnnotations = []
@@ -292,12 +269,7 @@ export default Vue.extend({
             !this.filters.annotationIds.includes(a.id)) {
           return false
         }
-        // 2) filtra por Annotators, se houver
-        if (this.filters.annotators.length &&
-            !this.filters.annotators.includes(a.annotator)) {
-          return false
-        }
-        // 3) filtra por Labels selecionadas
+        // 2) filtra por Labels selecionadas
         if (this.filters.labels.length) {
           const spans = a.extracted_labels.spans || []
           // mantém se tiver pelo menos 1 das labels escolhidas
@@ -321,14 +293,6 @@ export default Vue.extend({
       if (this.filters.annotationIds.length) {
         doc.setFontSize(12).setTextColor('#000')
         doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, margin, startY)
-        startY += 14
-      }
-      if (this.filters.annotators.length) {
-        const names = this.users
-          .filter(u => this.filters.annotators.includes(u.id))
-          .map(u => u.name)
-          .join(', ')
-        doc.text(`Annotators: ${names}`, margin, startY)
         startY += 14
       }
       if (this.filters.labels.length) {
