@@ -404,7 +404,7 @@ export default Vue.extend({
     canEditCurrent(): boolean {
       if (!this.isAdmin) return false
       if (!this.meta) return true
-      return this.meta.closed || this.meta.end <= Date.now()
+      return !(this.meta.closed || this.meta.end <= Date.now())
     },
     voteCountForCurrent(): number {
       return this.selectedVersion ? this.versionVoteCounts[this.selectedVersion] || 0 : 0
