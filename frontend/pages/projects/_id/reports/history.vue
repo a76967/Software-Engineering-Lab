@@ -2,155 +2,72 @@
   <v-container
     fluid
     class="pa-4 d-flex flex-column"
-    style="min-height: calc(100vh - 64px);"
+    style="min-height:calc(100vh - 64px);"
   >
-    <div class="mt-12"></div>
-    <h2 class="mt-4 mb-6">Annotations History</h2>
+    <div class="mt-12"/>
+    <h2 class="mt-4 mb-6">Annotation History</h2>
 
     <v-card elevation="2" class="mb-6">
-      <v-card-title>History Filters</v-card-title>
+      <v-card-title>Preview</v-card-title>
       <v-divider/>
+
       <v-card-text>
-        <v-form @submit.prevent="generateReport">
-          <v-row dense>
-            <v-col cols="12" sm="6">
-              <v-menu
-                v-model="dateMenu"
-                :close-on-content-click="false"
-                offset-y
-                max-width="290"
-              >
-                <template #activator="{ on, attrs }">
-                  <v-text-field
-                    v-model="filters.dateRangeText"
-                    label="Date Range"
-                    readonly
-                    clearable
-                    v-bind="attrs"
-                    v-on="on"
-                  />
-                </template>
+        <div class="d-flex justify-center mb-4">
+          <v-btn color="primary" @click="generateReport">Generate Report</v-btn>
+        </div>
 
-                <v-card>
-                  <v-date-picker
-                    v-model="filters.dateRange"
-                    range
-                    scrollable
-                    color="primary"
-                    header-color="primary lighten-2"
-                    first-day-of-week="1"
-                    @change="updateDateText"
-                  >
-                    <template #title>
-                      <div class="subtitle-1 font-weight-medium pa-4">
-                        {{ filters.dateRangeText || 'Select date range' }}
-                      </div>
-                    </template>
-                    <template #selection/>
-                  </v-date-picker>
-
-                  <v-card-actions>
-                    <v-spacer/>
-                    <v-btn text @click="dateMenu = false">Cancel</v-btn>
-                    <v-btn text @click="dateMenu = false">OK</v-btn>
-                  </v-card-actions>
-                </v-card>
-              </v-menu>
-            </v-col>
-
-            <v-col cols="12" sm="6">
-              <v-autocomplete
-                v-model="filters.annotators"
-                :items="annotatorOptions"
-                item-text="name"
-                item-value="id"
-                label="Annotators"
-                multiple
-                clearable
-                no-data-text="No annotators available"
-                loading-text="Loading…"
-              />
-            </v-col>
-
-          </v-row>
-
-          <v-row>
-            <v-spacer/>
-            <v-btn
-              color="primary"
-              type="submit"
-              :disabled="!canGenerate"
-            >
-              Generate Report
-            </v-btn>
-          </v-row>
-        </v-form>
-      </v-card-text>
-    </v-card>
-
-    <v-card elevation="2">
-      <v-card-title>Results</v-card-title>
-      <v-divider/>
-      <v-card-text>
-        <v-alert
-          v-if="showNoAnnotationsError"
-          class="mb-4"
-          type="error"
-          dismissible
-          @input="showNoAnnotationsError = false"
-        >
-          <v-icon left>mdi-alert-circle</v-icon>
-          No annotations were found for the selected filters. Form has been reset.
-        </v-alert>
-
+        <v-alert v-if="errorMessage" dense type="error" class="mb-4">{{ errorMessage }}</v-alert>
         <div v-if="loading" class="text-center my-6">
           <v-progress-circular indeterminate color="primary"/>
         </div>
 
-        <div v-else-if="historyData.length">
-          <div class="annotation-preview mb-6 pa-4">
-            <h3 class="font-weight-bold">Doccana - Annotations History</h3>
-            <p class="mb-4">
-              <strong>Annotators:</strong>
-              {{
-                users
-                  .filter((u) => filters.annotators.includes(u.id))
-                  .map((u) => u.name)
-                  .join(', ')
-              }}
-            </p>
+        <div v-else-if="reportData.length">
+          <h3 class="mb-2">Version {{ currentVersionNumber }}</h3>
+          <v-simple-table dense class="annotation-preview mb-4">
+            <thead class="primary">
+              <tr>
+                <th class="white--text">Snippet</th>
+                <th v-for="lbl in labelKeys" :key="lbl" class="text-center white--text">
+                  {{ lbl }}
+                </th>
+                <th class="text-center white--text">Abst.</th>
+                <th class="text-center white--text">X</th>
+                <th class="text-center white--text">Agree %</th>
+                <th class="text-center white--text">Auto</th>
+                <th class="text-center white--text">Manual</th>
+                <th class="text-center white--text">Top Label(s)</th>
+              </tr>
+            </thead>
 
-            <div
-              v-for="(ann, idx) in filteredAnnotations"
-              :key="ann.id"
-              class="annotation-item"
-            >
-              <div class="d-flex align-start">
-                <span class="annotation-num">{{ idx + 1 }}.</span>
-                <div class="flex-grow-1">
-                  <span class="annotation-timestamp">{{ formatDate(ann.created_at) }}</span>
-                  <span>
-                    by
-                    <span class="font-weight-medium">
-                      {{ users.find(u=>u.id===ann.annotator)?.name||'Unknown' }}
-                    </span>
-                  </span>
-                  <div class="annotation-text">"{{ ann.extracted_labels.text }}"</div>
-                  <div class="annotation-spans">
-                    <span class="annotation-span-label">Spans:</span>
-                    {{ getSpansSummary(ann) }}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <tbody>
+              <tr v-for="row in reportData" :key="row.id">
+                <td>{{ row.snippet }}</td>
+                <td v-for="lbl in labelKeys" :key="lbl" class="text-center">
+                  {{ row.labels[lbl] || 0 }}
+                </td>
+                <td class="text-center">{{ row.abstention || 0 }}</td>
+                <td class="text-center">{{ row.x || 0 }}</td>
+                <td class="text-center">{{ row.agreement }}%</td>
+                <td class="text-center">{{ row.autoState }}</td>
+                <td class="text-center">{{ row.manualState }}</td>
+                <td class="text-center">{{ row.winner }}</td>
+              </tr>
+            </tbody>
+          </v-simple-table>
+
+          <div class="mb-6" style="color:#555">
+            <strong>Description:</strong>
+            This report lists your annotations for the current project version.
+            The agreement percentage indicates the level of consistency among annotators.
           </div>
 
-          <v-btn color="primary" class="mb-4" @click="downloadPdf">
-            Download PDF
-          </v-btn>
-        </div>
-        <div v-else class="text-center grey--text my-6">
-          No entries. Adjust filters and click “Generate Report.”
+          <div class="text-caption grey--text mb-6">
+            Generated by {{ generatedBy }} on {{ generatedAt }}
+          </div>
+          <div class="text-caption grey--text mb-6">© Doccana - Software Engineering Lab</div>
+
+          <v-btn class="mr-2" color="#B80000" dark @click="downloadPdf">Export to PDF</v-btn>
+          <v-btn color="#1D6F42" dark @click="exportCsv">Export to CSV</v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -158,297 +75,179 @@
 </template>
 
 <script lang="ts">
+// @ts-nocheck
 import Vue from 'vue'
+import autoTable from 'jspdf-autotable'
 import {
-  VContainer,
-  VCard,
-  VCardTitle,
-  VDivider,
-  VCardText,
-  VForm,
-  VRow,
-  VCol,
-  VMenu,
-  VDatePicker,
-  VTextField,
-  VAutocomplete,
-  VBtn,
-  VSpacer,
-  VCardActions,
-  VAlert,
-  VIcon
+  VContainer, VCard, VCardTitle, VDivider, VCardText,
+  VBtn, VProgressCircular, VAlert, VSimpleTable
 } from 'vuetify/lib'
-
-import { jsPDF as JsPDF } from 'jspdf'
 import ApiService from '~/services/api.service'
 
 export default Vue.extend({
-  name: 'ReportsHistory',
+  name: 'ReportsHistorySimple',
   components: {
-    VContainer,
-    VCard,
-    VCardTitle,
-    VDivider,
-    VCardText,
-    VForm,
-    VRow,
-    VCol,
-    VMenu,
-    VDatePicker,
-    VTextField,
-    VAutocomplete,
-    VBtn,
-    VSpacer,
-    VCardActions,
-    VAlert,
-    VIcon
+    VContainer, VCard, VCardTitle, VDivider, VCardText,
+    VBtn, VProgressCircular, VAlert, VSimpleTable
   },
-  layout: 'workspace',
+  layout: 'project',
+  middleware: ['check-auth', 'auth', 'setCurrentProject'],
   data() {
     return {
-      loading: false,
-      dateMenu: false as boolean,
-      filters: {
-        dateRange: [] as string[],
-        dateRangeText: '',
-        annotators: [] as number[]
-      },
-      users: [] as Array<{ id: number; name: string }>,
-      allAnnotationsRaw: [] as any[],
-      filteredAnnotations: [] as Array<any>,
-      historyData: [] as any[],
-      headers: [
-        { text: 'Timestamp', value: 'timestamp' },
-        { text: 'Annotator', value: 'user' },
-        { text: 'Action', value: 'action' },
-        { text: 'Details', value: 'details' }
-      ],
-      showNoAnnotationsError: false as boolean
+      loading:false, reportData:[], errorMessage:'',
+      labelKeys:[], generatedBy:'', generatedAt:''
     }
   },
   computed: {
-    annotatorOptions(): Array<{ id: number; name: string }> {
-      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
-      return this.users.filter(u => used.has(u.id))
-    },
-    canGenerate(): boolean {
-      return (
-        this.filters.dateRange.length === 2 &&
-        this.filters.annotators.length > 0
-      )
+    currentVersionNumber(): number {
+      return this.$store.getters['projects/currentProject']?.versionNumber || 0
     }
   },
-  async mounted() {
-    const pid = Number(this.$route.params.id)
-
-    try {
-      const annRes = await ApiService.get('/annotations/', { params: { project: pid } })
-      const raw = annRes.data.results || annRes.data
-      this.allAnnotationsRaw = raw.map((a: any) => ({
-        ...a,
-        annotator: Number(
-          typeof a.annotator === 'object' ? a.annotator.id : a.annotator
-        )
-      }))
-    } catch (e) {
-      console.error('Failed to load annotations:', e)
-      this.allAnnotationsRaw = []
-    }
-
-    try {
-      const usrRes = await ApiService.get('/users/')
-      const list = usrRes.data.results || usrRes.data
-      this.users = list.map((u: any) => ({
-        id:   u.id,
-        name: u.username || u.name || `${u.first_name||''} ${u.last_name||''}`.trim()
-      }))
-    } catch (e) {
-      console.error('Failed to load users:', e)
-      this.users = []
-    }
-  },
-  methods: {
-    updateDateText(newRange: string[]) {
-      let [start, end] = newRange
-      if (end < start) [start, end] = [end, start]
-      this.filters.dateRange = [start, end]
-      const fmt = (d: string) =>
-        new Date(d).toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric',
-          year: 'numeric'
+  methods:{
+    async generateReport(){
+      this.loading=true
+      const id=this.$route.params.id
+      const thr=parseInt(localStorage.getItem('disagreementThreshold')||'80',10)
+      const all=new Set<string>()
+      try{
+        const {data}=await ApiService.get(`/projects/${id}/metrics/span-disagreements`)
+        const decisions=JSON.parse(localStorage.getItem(`disagreementDecisions:${id}`)||'{}')
+        const rows=(data||[]).map((r:any)=>{
+          Object.keys(r.labels||{}).forEach(l=>all.add(l))
+          const max=Math.max(...Object.values(r.labels||{}),0)
+          const top=Object.entries(r.labels||{}).filter(([,c])=>c===max).map(([l])=>l).sort()
+          const auto=r.agreement>=thr?'✓':r.agreement<thr/2?'✗':'⚠'
+          let manual='—'
+          if(decisions[r.id]!==undefined){
+            const s=decisions[r.id]===true?'✗':decisions[r.id]===false?'✓':'⚠'
+            if(s!==auto) manual=s
+          }
+          return{
+            id:r.id,snippet:r.snippet,labels:r.labels||{},
+            abstention:r.abstention||0,x:r.x||0,agreement:r.agreement,
+            autoState:auto,manualState:manual,
+            winner:top.length>1?`${top.join(', ')} (tied)`:top[0]||''
+          }
         })
-      this.filters.dateRangeText = `${fmt(start)} → ${fmt(end)}`
+        this.labelKeys=Array.from(all).sort()
+        this.reportData=rows
+        this.generatedBy=this.$store.getters['auth/getUsername']||'Unknown User'
+        this.generatedAt=new Date().toLocaleString('pt-PT')
+      }catch(e){
+        console.error(e)
+        this.errorMessage='Failed to load report'
+      }
+      this.loading=false
     },
-    generateReport() {
-      if (!this.canGenerate) return
-      this.loading = true
-      const [start, end] = this.filters.dateRange
-      const filtered = this.allAnnotationsRaw.filter(a => {
-        const d = a.created_at.slice(0,10)
-        if (start && d < start) return false
-        if (end && d > end) return false
-        if (this.filters.annotators.length &&
-            !this.filters.annotators.includes(a.annotator)
-        ) return false
-        return true
+
+    arrBufToB64(buf: ArrayBuffer) {
+      const binary = Array.from(new Uint8Array(buf))
+        .map(byte => String.fromCharCode(byte))
+        .join('')
+      return btoa(binary)
+    },
+
+    async downloadPdf () {
+      const { jsPDF } = await import('jspdf')
+      const JsPDFCtor = jsPDF || (await import('jspdf')).default
+      const doc = new JsPDFCtor({ unit: 'pt', format: 'letter' })
+
+      const fontUrl = require('~/static/DejaVuSans.ttf')
+      if (!doc.getFontList().DejaVuSans) {
+        const buf  = await (await fetch(fontUrl)).arrayBuffer()
+        const u8   = new Uint8Array(buf)
+        let binStr = ''
+        const CHUNK = 0x8000
+        for (let i = 0; i < u8.length; i += CHUNK) {
+          binStr += String.fromCharCode(
+            ...u8.subarray(i, i + CHUNK) as unknown as number[]
+          )
+        }
+        doc.addFileToVFS('DejaVuSans.ttf', btoa(binStr))
+        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal')
+        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'bold')
+      }
+      doc.setFont('DejaVuSans', 'normal')
+
+      const margin = 40
+      let y = margin
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const logoW = 110
+      doc.addImage(require('~/static/doccana-logo.png'), 'PNG', (pageWidth - logoW) / 2, y, logoW, 40)
+      y += 50
+
+      doc.setFontSize(20).text('Annotation History', margin, y)
+      y += 30
+
+      doc.setFontSize(14).setFont('DejaVuSans', 'bold')
+        .text(`Version ${this.currentVersionNumber}`, margin, y)
+      y += 20
+
+      const head = [
+        'Snippet', ...this.labelKeys, 'Abst.', 'X', 'Agree %',
+        'Auto', 'Manual', 'Top Label'
+      ]
+
+      const body = this.reportData.map((r:any, i:number) => [
+        `${i + 1}. ${r.snippet}`,
+        ...this.labelKeys.map(k => r.labels[k] || 0),
+        r.abstention, r.x, `${r.agreement}%`,
+        r.autoState, r.manualState, r.winner
+      ])
+
+      autoTable(doc, {
+        head:[head],
+        body,
+        startY:y,
+        styles:{ font:'DejaVuSans', fontSize:9, halign:'center' },
+        columnStyles:{ 0:{ halign:'left' } },
+        headStyles:{ fillColor:[99,118,171], textColor:255 },
+        margin:{ left:margin, right:margin },
+        theme:'striped'
       })
+      // @ts-ignore
+      y = doc.lastAutoTable.finalY + 20
 
-      if (filtered.length === 0) {
-        this.showNoAnnotationsError = true
-        this.clearForm()
-        this.loading = false
-        return
-      }
-
-      this.filteredAnnotations = filtered
-
-      this.historyData = filtered.map(a => ({
-        timestamp: a.created_at,
-        user: this.users.find(u=>u.id===a.annotator)?.name||String(a.annotator),
-        action: 'Created',
-        details: JSON.stringify(a.extracted_labels||a.additional_info||{})
-      }))
-
-      this.loading = false
-    },
-    clearForm() {
-      this.filters.dateRange = []
-      this.filters.dateRangeText = ''
-      this.filters.annotators = []
-      this.filteredAnnotations = []
-      this.historyData = []
-    },
-    formatDate(ts: string): string {
-      const d = new Date(ts)
-      const pad = (n: number) => n.toString().padStart(2,'0')
-      return [
-        pad(d.getDate()),
-        pad(d.getMonth()+1),
-        d.getFullYear()
-      ].join('/') + ' ' + [
-        pad(d.getHours()),
-        pad(d.getMinutes()),
-        pad(d.getSeconds())
-      ].join(':')
-    },
-    getSpansSummary(ann: any): string {
-      const text = ann.extracted_labels.text || ''
-      return (ann.extracted_labels.spans || [])
-        .map((s: any) => {
-          const label = ann.extracted_labels.labelTypes
-            .find((lt: any) => lt.id === s.label)
-          const snippet = text.slice(s.start_offset, s.end_offset).trim()
-          return `${label?.text || s.label}: ${snippet}`
-        })
-        .join(', ')
-    },
-    downloadPdf() {
-    const doc = new JsPDF({ unit: 'pt', format: 'letter' })
-    const margin = 40
-    const maxLineWidth = doc.internal.pageSize.getWidth() - margin * 2
-    const lineHeight = 14
-    const pageHeight = doc.internal.pageSize.getHeight()
-
-    let cursorY = margin
-
-    doc.setFontSize(18)
-    doc.setTextColor('#6376AB')
-    doc.text('Annotations History', margin, cursorY)
-    cursorY += lineHeight * 1.5
-
-    doc.setFontSize(12)
-    doc.setTextColor('#333')
-
-    const annotators = this.users
-      .filter(u => this.filters.annotators.includes(u.id))
-      .map(u => u.name)
-      .join(', ')
-    doc.setFontSize(12)
-    doc.text(`Annotators: ${annotators}`, margin, cursorY)
-    cursorY += lineHeight * 2
-
-    this.filteredAnnotations.forEach((ann, idx) => {
-      if (cursorY + 4 * lineHeight > pageHeight - margin) {
-        doc.addPage()
-        cursorY = margin
-      }
-
-      doc.setFontSize(11)
-      doc.setTextColor('#6376AB')
+      doc.setFont('DejaVuSans', 'normal').setFontSize(11).setTextColor('#555')
       doc.text(
-        `${idx + 1}. ${this.formatDate(ann.created_at)}`,
-        margin,
-        cursorY
+        'Description: This report lists all annotations for the current project version. The agreement percentage indicates the level of consistency among annotators.',
+        margin, y, { maxWidth: doc.internal.pageSize.getWidth() - margin * 2 }
       )
-      doc.setTextColor('#000')
-      cursorY += lineHeight
+      y += 36
 
-      const author = this.users.find(u => u.id === ann.annotator)?.name || 'Unknown'
-      doc.setFontSize(10)
-      doc.text(`by ${author}`, margin + 10, cursorY)
-      cursorY += lineHeight * 1.2
+      doc.setFontSize(10).setTextColor('#333')
+      doc.text(`Generated by ${this.generatedBy} on ${this.generatedAt}`, margin, y)
+      y += 28
+      doc.text('© Doccana - Software Engineering Lab', margin, y)
 
-      doc.setFontSize(10)
-      const textLines = doc.splitTextToSize(
-        `"${ann.extracted_labels.text}"`,
-        maxLineWidth
-      )
-      doc.text(textLines, margin, cursorY)
-      cursorY += textLines.length * lineHeight + lineHeight * 0.5
+      doc.save('History-Report.pdf')
+    },
 
-      const spansLine = this.getSpansSummary(ann)
-      if (spansLine) {
-        doc.setFontSize(10)
-        doc.setTextColor('#6376AB')
-        doc.text('Spans:', margin, cursorY)
-        cursorY += lineHeight
-
-        doc.setFontSize(10)
-        doc.setTextColor('#000')
-        const spanLines = doc.splitTextToSize(spansLine, maxLineWidth)
-        doc.text(spanLines, margin + 10, cursorY)
-        cursorY += spanLines.length * lineHeight + lineHeight
-      }
-    })
-
-    doc.save('Doccana-Annotations-History.pdf')
-  },
-  },
+    exportCsv(){
+      let csv=`Generated by,${this.generatedBy}\nGenerated at,${this.generatedAt}\n© Doccana - Software Engineering Lab\n\n`
+      csv+=[
+        'Snippet',...this.labelKeys,'Abstention','X','Agreement %',
+        'Auto','Manual','Top Label'
+      ].join(',')+'\n'
+      this.reportData.forEach((r:any,i:number)=>{
+        const cells=[`"${i+1}. ${r.snippet.replace(/"/g,'""')}"`,
+          ...this.labelKeys.map(k=>r.labels[k]||0),
+          r.abstention,r.x,`${r.agreement}%`,r.autoState,r.manualState,r.winner]
+        csv+=cells.join(',')+'\n'
+      })
+      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'})
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob)
+      a.download='history-report.csv'; document.body.appendChild(a); a.click(); a.remove()
+    }
+  }
 })
 </script>
 
 <style scoped>
-.annotation-preview {
-  background-color: #f5f5f5;
-  border-radius: 4px;
-}
-.annotation-item {
-  margin-bottom: 16px;
-}
-.annotation-num {
-  color: #6376AB;
-  font-weight: 500;
-  margin-right: 8px;
-}
-.annotation-timestamp {
-  color: #6376AB;
-  font-weight: 500;
-  margin-right: 4px;
-}
-.annotation-text {
-  margin-top: 4px;
-  padding-left: 24px;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-}
-.annotation-spans {
-  margin-top: 4px;
-  padding-left: 24px;
-}
-.annotation-span-label {
-  color: #6376AB;
-  font-weight: 500;
-  margin-right: 4px;
-}
+.annotation-preview{border-radius:4px}
+.annotation-preview thead.primary{background:#6376ab!important}
+.annotation-preview th.white--text{color:#fff!important}
+
+.annotation-preview tbody tr:nth-child(odd){background:#f5f5f5}
+.annotation-preview tbody tr:nth-child(even){background:#ffffff}
 </style>

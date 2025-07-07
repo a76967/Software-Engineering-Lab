@@ -19,7 +19,11 @@
                 :items="versionItems"
                 item-text="text"
                 item-value="id"
-                label="Versions"/>
+                label="Versions"
+                multiple
+                clearable
+                dense
+              />
             </v-col>
           </v-row>
           <v-row>
@@ -195,10 +199,10 @@ export default Vue.extend({
           )
         }
         doc.addFileToVFS('DejaVuSans.ttf', btoa(binStr))
-        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal')
-        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'bold')
+        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'normal', 'Identity-H')
+        doc.addFont('DejaVuSans.ttf', 'DejaVuSans', 'bold', 'Identity-H')
       }
-      doc.setFont('DejaVuSans', 'normal')
+      doc.setFont('DejaVuSans', 'normal', 'Identity-H')
 
       const margin = 40
       let y = margin
