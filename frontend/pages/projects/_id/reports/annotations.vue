@@ -63,7 +63,7 @@
                   <th class="text-center white--text">Abstention</th>
                   <th class="text-center white--text">X</th>
                   <th class="text-center white--text">Agreement %</th>
-                  <th class="text-center white--text">Top Label</th>
+                  <th class="text-center white--text">Top Label(s)</th>
                 </tr>
               </thead>
               <tbody>
@@ -175,8 +175,20 @@ export default Vue.extend({
             const abst = r.abstention || 0
             const x = r.x || 0
             const entries = Object.entries(labels)
-            const winner = entries.length
-              ? entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
+            let winners: string[] = []
+            let maxCount = 0
+            for (const [lbl, cnt] of entries) {
+              if (cnt > maxCount) {
+                maxCount = cnt
+                winners = [lbl]
+              } else if (cnt === maxCount) {
+                winners.push(lbl)
+              }
+            }
+            // sort tied winners alphabetically
+            winners.sort((a, b) => a.localeCompare(b))
+            const winner = winners.length
+              ? winners.join(', ') + (winners.length > 1 ? ' (tied)' : '')
               : ''
             const agreement = r.agreement
             return {
