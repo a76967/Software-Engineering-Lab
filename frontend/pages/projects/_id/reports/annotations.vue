@@ -32,7 +32,7 @@
                 :items="annotationOptions"
                 item-text="text"
                 item-value="id"
-                label="Annotation IDs"
+                label="Annotations"
                 multiple
                 clearable
                 dense
@@ -179,30 +179,36 @@ export default Vue.extend({
       const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
       return this.users.filter(u => used.has(u.id))
     },
-    // dynamic labels dropdown
+    // restore dynamic Labels entirely from annotation payload:
     labelOptions(): Array<{ id: number; text: string }> {
       // pick data‐set depending on whether a report has been generated
       const src = this.filteredAnnotations.length
         ? this.filteredAnnotations
         : this.allAnnotationsRaw
 
-      // only include labels that actually occur in spans
-      const usedSpanIds = new Set<number>(
+      // collect all label IDs used in spans
+      const usedIds = new Set<number>(
         src.flatMap(a =>
           (a.extracted_labels.spans || []).map((s: any) => s.label)
         )
       )
-      const types = src
-        .flatMap(a => a.extracted_labels.labelTypes || [])
-        .filter((t: any) => usedSpanIds.has(t.id))
 
-      // dedupe & exclude unwanted
+      // gather all labelType objects from annotations
+      const allTypes = src.flatMap(a =>
+        a.extracted_labels.labelTypes || []
+      ) as Array<{ id: number; text: string }>
+
+      // unique by ID
       const uniq = Array.from(
-        new Map(types.map((t: any) => [t.id, t])).values()
+        new Map(allTypes.map(t => [t.id, t])).values()
       )
+
+      // filter to only those used and exclude unwanted texts
       return uniq
-        .filter(({ text }: any) => text !== 'Dog' && text !== 'Cat')
-        .map(({ id, text }: any) => ({ id, text }))
+        .filter(t => usedIds.has(t.id))
+        .filter(({ text }) => text !== 'Dog' && text !== 'Cat')
+        .map(({ id, text }) => ({ id, text }))
+        .sort((a, b) => a.id - b.id)
     },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
