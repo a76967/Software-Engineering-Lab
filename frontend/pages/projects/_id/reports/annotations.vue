@@ -237,59 +237,63 @@ export default Vue.extend({
   },
   async mounted() {
     const pid = Number(this.$route.params.id)
-    const [annRes, usrRes, perRes] = await Promise.all([
-      ApiService.get('/annotations/', {
-        params: {
-          project: pid,
-          limit: 1000,    // aumenta o número de resultados retornados
-          offset: 0
-        }
-      }),
-      ApiService.get('/users/'),
-      ApiService.get(`/projects/${pid}/perspectives/`)
-    ])
-
-    const raw = annRes.data.results || annRes.data
-    this.allAnnotationsRaw = raw.map((a: any) => ({
-      id: a.id,
-      dataset_item_id: a.dataset_item_id,
-      annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
-      extracted_labels: a.extracted_labels,
-      created_at: a.created_at,
-      updated_at: a.updated_at
-    }))
-
-    const list = usrRes.data.results || usrRes.data
-    this.users = list.map((u: any) => ({
-      id: u.id,
-      name: u.username || u.name || `User ${u.id}`
-    }))
-
-    const pers = perRes.data.results || perRes.data || []
-    this.perspectives = pers
-    const map: Record<number, any[]> = {}
-    pers.forEach((p: any) => {
-      (p.linkedAnnotations || []).forEach((la: any) => {
-        const id = la.id
-        if (!map[id]) map[id] = []
-        map[id].push(p)
-      })
-    })
-    this.perspectiveMap = map
+    await this.loadData(pid)
   },
   methods: {
     ...mapActions('projects', ['setCurrentProject']),
+    async loadData(pid: number) {
+      const [annRes, usrRes, perRes] = await Promise.all([
+        ApiService.get('/annotations/', {
+          params: {
+            project: pid,
+            limit: 1000,    // aumenta o número de resultados retornados
+            offset: 0
+          }
+        }),
+        ApiService.get('/users/'),
+        ApiService.get(`/projects/${pid}/perspectives/`, { params: { limit: 1000 } })
+      ])
+
+      const raw = annRes.data.results || annRes.data
+      this.allAnnotationsRaw = raw.map((a: any) => ({
+        id: a.id,
+        dataset_item_id: a.dataset_item_id,
+        annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
+        extracted_labels: a.extracted_labels,
+        created_at: a.created_at,
+        updated_at: a.updated_at
+      }))
+
+      const list = usrRes.data.results || usrRes.data
+      this.users = list.map((u: any) => ({
+        id: u.id,
+        name: u.username || u.name || `User ${u.id}`
+      }))
+
+      const pers = perRes.data.results || perRes.data || []
+      this.perspectives = pers
+      const map: Record<number, any[]> = {}
+      pers.forEach((p: any) => {
+        (p.linkedAnnotations || []).forEach((la: any) => {
+          const id = typeof la === 'object' ? la.id : la
+          if (id === undefined || id === null) return
+          if (!map[id]) map[id] = []
+          map[id].push(p)
+        })
+      })
+    this.perspectiveMap = map
+  },
     formatDate(ts: string): string {
       const d = new Date(ts)
       const pad = (n: number) => n.toString().padStart(2,'0')
       return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
            + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
-    changeVersion(id: number) {
+    async changeVersion(id: number) {
       // update current project version in store
       this.setCurrentProject(id)
-      // you can now refresh the report if desired
-      // this.generateReport()
+      // reload annotations and perspectives for selected version
+      await this.loadData(id)
     },
     generateReport() {
       // ensure all filters are selected
