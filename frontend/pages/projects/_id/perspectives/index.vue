@@ -17,7 +17,7 @@
           class="text-capitalize ms-2"
           :disabled="!canDelete"
           outlined
-          @click.stop="dialogDelete = true"
+          @click.stop="requestDelete"
         >
           {{ $t('generic.delete') }}
         </v-btn>
@@ -205,6 +205,7 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+    <info-dialog v-model="showInfoDialog" :message="infoDialogMessage" />
   </div>
 </template>
 
@@ -217,12 +218,14 @@ import { mapGetters } from 'vuex'
 import { mdiMagnify, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 import DeleteDialog from '~/pages/projects/_id/perspectives/delete.vue'
+import InfoDialog from '~/components/utils/InfoDialog.vue'
 
 export default Vue.extend({
   name: 'PerspectivesTable',
   layout: 'project',
   components: {
-    DeleteDialog
+    DeleteDialog,
+    InfoDialog
   },
   data() {
     return {
@@ -249,6 +252,8 @@ export default Vue.extend({
       categoryTypes: [] as Array<{ text: string; value: string }>,
       dbError: '',
       showDuplicateDialog: false,
+      showInfoDialog: false,
+      infoDialogMessage: '',
       isDeleting: false,
       icons: {
         mdiMagnify,
@@ -324,6 +329,12 @@ export default Vue.extend({
     'filters.category'() {
       this.options.page = 1
       this.updateQuery()
+    },
+    // Reload perspectives when returning to this page
+    '$route'(to, from) {
+      if (to.fullPath !== from.fullPath) {
+        this.fetchPerspectives()
+      }
     }
   },
   mounted() {
@@ -342,37 +353,43 @@ export default Vue.extend({
       )
     },
     editPerspective() {
-      if (!this.canEdit) {
-        console.error("Select exactly one perspective to edit!")
-        return
-      }
-      const projectId = this.$route.params.id
-      const perspective = this.selected[0]
-      this.$router.push(
-        this.localePath(
-          `/projects/${projectId}/perspectives/edit?perspectiveId=${perspective.id}`
-        )
+    if (!this.canEdit) {
+      console.error("Select exactly one perspective to edit!")
+      return
+    }
+    const projectId = this.$route.params.id
+    const perspective = this.selected[0]
+    if (perspective.linkedAnnotations && perspective.linkedAnnotations.length) {
+      this.infoDialogMessage = 'You already have annotations associated with the perspective'
+      this.showInfoDialog = true
+      return
+    }
+    this.$router.push(
+      this.localePath(
+        `/projects/${projectId}/perspectives/edit?perspectiveId=${perspective.id}`
       )
-    },
-    closeDeleteDialog() {
-      this.dialogDelete = false
-    },
-    canDeletePerspective(item: any): boolean {
-      const role   = this.user.role.toLowerCase()
-      const author = item.user.username
-      const authorRole = (item.user.role || 'annotator').toLowerCase()
-      if (role === 'annotator') {
-        return author === this.user.username
-      }
-      if (role === 'project_admin') {
-        return author === this.user.username || authorRole === 'annotator'
-      }
-      return false
-    },
-    removePerspective() {
-      if (!this.canDelete) {
-        console.error("No permission to delete selected perspectives.")
-        return
+    )
+  },
+  closeDeleteDialog() {
+    this.dialogDelete = false
+  },
+  canDeletePerspective(item: any): boolean {
+    return item.user.username === this.user.username
+  },
+  requestDelete() {
+    if (!this.canDelete) return
+    const hasAnn = this.selected.some(it => it.linkedAnnotations && it.linkedAnnotations.length)
+    if (hasAnn) {
+      this.infoDialogMessage = 'You already have annotations associated with the perspective'
+      this.showInfoDialog = true
+      return
+    }
+    this.dialogDelete = true
+  },
+  removePerspective() {
+    if (!this.canDelete) {
+      console.error("No permission to delete selected perspectives.")
+      return
       }
       const projectId = this.$route.params.id
       this.isDeleting = true
