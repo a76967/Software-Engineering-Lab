@@ -32,7 +32,7 @@
                 :items="annotationOptions"
                 item-text="text"
                 item-value="id"
-                label="Annotations"
+                label="Annotation IDs"
                 multiple
                 clearable
                 dense
@@ -105,19 +105,15 @@
                 <th>Annotator</th>
                 <th>Text</th>
                 <th>Spans</th>
-                <th>Labels</th>
-                <th>Perspective</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(ann, idx) in filteredAnnotations" :key="ann.id">
                 <td>{{ idx + 1 }}</td>
                 <td>{{ formatDate(ann.created_at) }}</td>
-                <td>{{ getAnnotatorNames(ann) }}</td>
+                <td>{{ users.find(u => u.id === ann.annotator)?.name || 'Unknown' }}</td>
                 <td>{{ ann.extracted_labels.text }}</td>
                 <td>{{ getSpansSummary(ann) }}</td>
-                <td>{{ getLabelNames(ann) }}</td>
-                <td>{{ getPerspectiveLabel(ann) }}</td>
               </tr>
             </tbody>
           </v-simple-table>
@@ -162,46 +158,52 @@ export default Vue.extend({
         labels: [] as number[]      // agora array
       },
       allAnnotationsRaw: [] as any[],
-      allSpans: [] as { id: number; snippet: string; user: number }[],
       filteredAnnotations: [] as any[],
       users: [] as { id: number; name: string }[],
-      allLabels: [] as { id: number; text: string }[],
-      perspectives: [] as any[],
-      perspectiveMap: {} as Record<number, any[]>,
       selectedVersion: null as number | null,
       errorMessage: '' as string
     }
   },
   computed: {
     annotationOptions(): Array<{ id: number; text: string }> {
-      const opts = this.allSpans.map(s => {
-        const snippet = s.snippet.slice(0, 50) + (s.snippet.length > 50 ? '…' : '')
-        return { id: s.id, text: `#${s.id} – ${snippet}` }
+      // build list with snippet
+      const opts = this.allAnnotationsRaw.map(a => {
+        const txt = a.extracted_labels.text || ''
+        const snippet = txt.slice(0, 50) + (txt.length > 50 ? '…' : '')
+        return { id: a.id, text: `#${a.id} – ${snippet}` }
       })
+      // sort by id ascending
       return opts.sort((a, b) => a.id - b.id)
     },
     annotatorOptions(): Array<{ id: number; name: string }> {
-      const used = new Set<number>()
-
-      this.allAnnotationsRaw.forEach(a => {
-        if (a.annotator) used.add(a.annotator)
-        ;(a.extracted_labels.spans || []).forEach((s: any) => {
-          if (s.user) used.add(s.user)
-        })
-      })
-
-      const opts = this.users.filter(u => used.has(u.id))
-      used.forEach(id => {
-        if (!opts.some(o => o.id === id)) {
-          opts.push({ id, name: `User ${id}` })
-        }
-      })
-      return opts.sort((a, b) => a.id - b.id)
+      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
+      return this.users.filter(u => used.has(u.id))
     },
     // dynamic labels dropdown
-      labelOptions(): Array<{ id: number; text: string }> {
-      return (this.allLabels || []).map(l => ({ id: l.id, text: l.text }))
-      },
+    labelOptions(): Array<{ id: number; text: string }> {
+      // pick data‐set depending on whether a report has been generated
+      const src = this.filteredAnnotations.length
+        ? this.filteredAnnotations
+        : this.allAnnotationsRaw
+
+      // only include labels that actually occur in spans
+      const usedSpanIds = new Set<number>(
+        src.flatMap(a =>
+          (a.extracted_labels.spans || []).map((s: any) => s.label)
+        )
+      )
+      const types = src
+        .flatMap(a => a.extracted_labels.labelTypes || [])
+        .filter((t: any) => usedSpanIds.has(t.id))
+
+      // dedupe & exclude unwanted
+      const uniq = Array.from(
+        new Map(types.map((t: any) => [t.id, t])).values()
+      )
+      return uniq
+        .filter(({ text }: any) => text !== 'Dog' && text !== 'Cat')
+        .map(({ id, text }: any) => ({ id, text }))
+    },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
     },
@@ -229,92 +231,45 @@ export default Vue.extend({
   },
   async mounted() {
     const pid = Number(this.$route.params.id)
-    await this.loadData(pid)
+    const [annRes, usrRes] = await Promise.all([
+      ApiService.get('/annotations/', {
+        params: {
+          project: pid,
+          limit: 1000,    // aumenta o número de resultados retornados
+          offset: 0
+        }
+      }),
+      ApiService.get('/users/')
+    ])
+
+    const raw = annRes.data.results || annRes.data
+    this.allAnnotationsRaw = raw.map((a: any) => ({
+      id: a.id,
+      annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
+      extracted_labels: a.extracted_labels,
+      created_at: a.created_at,
+      updated_at: a.updated_at
+    }))
+
+    const list = usrRes.data.results || usrRes.data
+    this.users = list.map((u: any) => ({
+      id: u.id,
+      name: u.username || u.name || `User ${u.id}`
+    }))
   },
   methods: {
     ...mapActions('projects', ['setCurrentProject']),
-    async loadData(pid: number) {
-      const [annRes, usrRes, lblRes, perRes, exRes] = await Promise.all([
-        ApiService.get('/annotations/', {
-          params: {
-            project: pid,
-            limit: 1000,    // aumenta o número de resultados retornados
-            offset: 0
-          }
-        }),
-        ApiService.get('/users/', { params: { limit: 1000, offset: 0 } }),
-        ApiService.get(`/projects/${pid}/span-types`),
-        ApiService.get(`/projects/${pid}/perspectives/`, { params: { limit: 1000 } }),
-        this.$services.example.list(String(pid), { limit: '1000', offset: '0', q: '', isChecked: '', ordering: '' })
-      ])
-
-      const raw = annRes.data.results || annRes.data
-
-      const examples = exRes.items || []
-      const spanPromises = examples.map((ex: any) =>
-        this.$services.sequenceLabeling
-          .list(String(pid), ex.id)
-          .then(spans => spans.map((s: any) => ({
-            id: s.id,
-            snippet: (ex.text || '').slice(s.startOffset, s.endOffset),
-            user: typeof s.user === 'object' ? s.user.id : s.user
-          })))
-      )
-      const spanResults = await Promise.all(spanPromises)
-      const flatSpans = spanResults.flat()
-      this.allSpans = flatSpans
-
-      const spanUserMap: Record<number, number | undefined> = {}
-      flatSpans.forEach(sp => { spanUserMap[sp.id] = sp.user })
-
-      this.allAnnotationsRaw = raw.map((a: any) => {
-        const spans = (a.extracted_labels.spans || []).map((sp: any) => ({
-          ...sp,
-          user: spanUserMap[sp.id] ?? (typeof sp.user === 'object' ? sp.user.id : sp.user)
-        }))
-
-        return {
-          id: a.id,
-          dataset_item_id: a.dataset_item_id,
-          annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
-          extracted_labels: { ...a.extracted_labels, spans },
-          created_at: a.created_at,
-          updated_at: a.updated_at
-        }
-      })
-      const list = usrRes.data.results || usrRes.data
-      this.users = list.map((u: any) => ({
-        id: u.id,
-        name: u.username || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()
-      }))
-
-      const labelsList = lblRes.data.results || lblRes.data || []
-      this.allLabels = labelsList.map((l: any) => ({ id: l.id, text: l.text }))
-
-      const pers = perRes.data.results || perRes.data || []
-      this.perspectives = pers
-      const map: Record<number, any[]> = {}
-      pers.forEach((p: any) => {
-        (p.linkedAnnotations || []).forEach((la: any) => {
-          const id = typeof la === 'object' ? la.id : la
-          if (id === undefined || id === null) return
-          if (!map[id]) map[id] = []
-          map[id].push(p)
-        })
-      })
-    this.perspectiveMap = map
-  },
     formatDate(ts: string): string {
       const d = new Date(ts)
       const pad = (n: number) => n.toString().padStart(2,'0')
       return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
            + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
     },
-    async changeVersion(id: number) {
+    changeVersion(id: number) {
       // update current project version in store
       this.setCurrentProject(id)
-      // reload annotations and perspectives for selected version
-      await this.loadData(id)
+      // you can now refresh the report if desired
+      // this.generateReport()
     },
     generateReport() {
       // ensure all filters are selected
@@ -329,24 +284,15 @@ export default Vue.extend({
       this.errorMessage = ''
       this.loading = true
       this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
-        // 1) filter by selected span IDs
-        if (this.filters.annotationIds.length) {
-          const spanIds = (a.extracted_labels.spans || []).map((s: any) => s.id)
-          if (!spanIds.some((id: number) => this.filters.annotationIds.includes(id))) {
-            return false
-          }
+        // 1) filtra por Annotation IDs, se houver
+        if (this.filters.annotationIds.length &&
+            !this.filters.annotationIds.includes(a.id)) {
+          return false
         }
-        // 2) filter by annotators if provided
-        if (this.filters.annotators.length) {
-          const spanUsers = (a.extracted_labels.spans || [])
-            .map((s: any) => s.user)
-          const users = new Set<number>([
-            ...(a.annotator ? [a.annotator] : []),
-            ...spanUsers
-          ])
-          if (![...users].some(u => this.filters.annotators.includes(u))) {
-            return false
-          }
+        // 2) filtra por Annotators, se houver
+        if (this.filters.annotators.length &&
+            !this.filters.annotators.includes(a.annotator)) {
+          return false
         }
         // 3) filtra por Labels selecionadas
         if (this.filters.labels.length) {
@@ -375,8 +321,9 @@ export default Vue.extend({
         startY += 14
       }
       if (this.filters.annotators.length) {
-        const names = this.filters.annotators
-          .map(id => this.users.find(u => u.id === id)?.name || `User ${id}`)
+        const names = this.users
+          .filter(u => this.filters.annotators.includes(u.id))
+          .map(u => u.name)
           .join(', ')
         doc.text(`Annotators: ${names}`, margin, startY)
         startY += 14
@@ -393,15 +340,13 @@ export default Vue.extend({
       const rows = this.filteredAnnotations.map((ann, idx) => [
         idx + 1,
         this.formatDate(ann.created_at),
-        this.getAnnotatorNames(ann),
+        this.users.find(u => u.id === ann.annotator)?.name || 'Unknown',
         ann.extracted_labels.text,
-        this.getSpansSummary(ann),
-        this.getLabelNames(ann),
-        this.getPerspectiveLabel(ann)
+        this.getSpansSummary(ann)
       ])
 
       autoTable(doc, {
-        head: [['#', 'Date', 'Annotator', 'Text', 'Spans', 'Labels', 'Perspective']],
+        head: [['#', 'Date', 'Annotator', 'Text', 'Spans']],
         body: rows,
         startY,
         styles: { fontSize: 10 },
@@ -415,6 +360,7 @@ export default Vue.extend({
       // aplica filtro de labels selecionadas (se houver)
       const spans = (ann.extracted_labels.spans || [])
         .filter((s: any) =>
+          // se não há filtro de labels, inclui todas; senão só as escolhidas
           !this.filters.labels.length || this.filters.labels.includes(s.label)
         )
       return spans
@@ -425,30 +371,6 @@ export default Vue.extend({
           return `${lbl?.text || s.label}: ${snippet}`
         })
         .join(', ')
-      },
-    getLabelNames(ann: any): string {
-      const spans = ann.extracted_labels.spans || []
-      const types = ann.extracted_labels.labelTypes || []
-      const names = spans.map((s: any) => {
-        const t = types.find((lt: any) => lt.id === s.label)
-        return t ? t.text : s.label
-      })
-      return Array.from(new Set(names)).join(', ')
-    },
-    getAnnotatorNames(ann: any): string {
-      const ids = new Set<number>()
-      if (ann.annotator) ids.add(ann.annotator)
-      ;(ann.extracted_labels.spans || []).forEach((s: any) => {
-        if (s.user) ids.add(s.user)
-      })
-      return [...ids]
-        .map(id => this.users.find(u => u.id === id)?.name || `User ${id}`)
-        .join(', ')
-    },
-    getPerspectiveLabel(ann: any): string {
-      const arr = this.perspectiveMap[ann.dataset_item_id] || []
-      if (!arr.length) return '—'
-      return arr.map((p: any) => p.subject || p.text || `#${p.id}`).join(', ')
     }
   }
 })
