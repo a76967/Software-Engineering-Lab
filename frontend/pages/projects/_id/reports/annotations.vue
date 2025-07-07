@@ -12,60 +12,14 @@
       <v-divider/>
       <v-card-text>
         <v-form @submit.prevent="generateReport">
-          <!-- first row: Version, Annotation IDs, Annotators -->
           <v-row dense>
             <v-col cols="12" sm="6" md="4">
               <v-select
-                v-model="selectedVersion"
+                v-model="selectedVersions"
                 :items="versionItems"
                 item-text="text"
                 item-value="id"
-                label="Version"
-                dense
-                hide-details
-                @change="changeVersion"
-              />
-            </v-col>
-            <v-col cols="12" sm="6" md="4">
-              <v-autocomplete
-                v-model="filters.annotationIds"
-                :items="annotationOptions"
-                item-text="text"
-                item-value="id"
-                label="Annotation IDs"
-                multiple
-                clearable
-                dense
-                hide-details
-                :menu-props="{
-                  'max-height': '200px',
-                  contentClass: 'annotation-menu__content'
-                }"
-              />
-            </v-col>
-            <v-col cols="12" sm="6" md="4">
-              <v-autocomplete
-                v-model="filters.annotators"
-                :items="annotatorOptions"
-                item-text="name"
-                item-value="id"
-                label="Annotators"
-                multiple
-                clearable
-                dense
-                hide-details
-              />
-            </v-col>
-          </v-row>
-          <!-- second row: Labels aligned under first columns -->
-          <v-row dense>
-            <v-col cols="12" sm="6" md="4">
-              <v-select
-                v-model="filters.labels"
-                :items="labelOptions"
-                item-text="text"
-                item-value="id"
-                label="Labels"
+                label="Versions"
                 multiple
                 clearable
                 dense
@@ -96,28 +50,62 @@
         <div v-if="loading" class="text-center my-6">
           <v-progress-circular indeterminate color="primary"/>
         </div>
-        <div v-else-if="filteredAnnotations.length">
-          <v-simple-table dense class="annotation-preview mb-6">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Date</th>
-                <th>Annotator</th>
-                <th>Text</th>
-                <th>Spans</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(ann, idx) in filteredAnnotations" :key="ann.id">
-                <td>{{ idx + 1 }}</td>
-                <td>{{ formatDate(ann.created_at) }}</td>
-                <td>{{ users.find(u => u.id === ann.annotator)?.name || 'Unknown' }}</td>
-                <td>{{ ann.extracted_labels.text }}</td>
-                <td>{{ getSpansSummary(ann) }}</td>
-              </tr>
-            </tbody>
-          </v-simple-table>
-          <v-btn color="primary" @click="downloadPdf">Download PDF</v-btn>
+        <div v-else-if="reportData.length">
+          <div v-for="section in reportData" :key="section.version" class="mb-4">
+            <h3 class="mb-2">Version {{ section.versionNumber }}</h3>
+            <v-simple-table dense class="annotation-preview mb-4">
+              <thead class="primary">
+                <tr>
+                  <th class="white--text">Snippet</th>
+                  <th v-for="lbl in labelKeys" :key="lbl" class="text-center white--text">
+                    {{ lbl }}
+                  </th>
+                  <th class="text-center white--text">Abstention</th>
+                  <th class="text-center white--text">X</th>
+                  <th class="text-center white--text">Agreement %</th>
+                  <th class="text-center white--text">Top Label</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(row, idx) in section.rows"
+                  :key="row.id"
+                  :class="idx % 2 === 0 ? 'grey lighten-4' : ''"
+                >
+                  <td>{{ row.snippet }}</td>
+                  <td
+                    v-for="lbl in labelKeys"
+                    :key="lbl"
+                    class="text-center"
+                  >
+                    {{ row.labels[lbl] || 0 }}
+                  </td>
+                  <td class="text-center">{{ row.abstention || 0 }}</td>
+                  <td class="text-center">{{ row.x || 0 }}</td>
+                  <td class="text-center">{{ row.agreement }}%</td>
+                  <td class="text-center">{{ row.winner }}</td>
+                </tr>
+              </tbody>
+            </v-simple-table>
+          </div>
+          <div class="mb-6" style="color: #555">
+            <strong>Description:</strong> This automatic report shows the label distribution
+            across different dataset
+            versions. The agreement percentage indicates the level of consistency among annotators.
+          </div>
+          <div class="text-caption grey--text mb-6">
+            Generated by {{ $store.getters['auth/getUsername'] || 'Unknown User' }}
+            on {{ new Date().toLocaleString('pt-PT') }}
+          </div>
+          <div class="text-caption grey--text mb-6">
+            © Doccana - Software Engineering Lab
+          </div>
+          <v-btn class="mr-2" color="#B80000" dark @click="downloadPdf">
+            Export to PDF
+          </v-btn>
+          <v-btn color="#1D6F42" dark @click="exportCsv">
+            Export to CSV
+          </v-btn>
         </div>
         <div v-else class="text-center grey--text my-6">
           No annotations. Adjust filters and click “Generate Report.”
@@ -129,12 +117,11 @@
 
 <script lang="ts">
 import Vue from 'vue'
-import { mapActions } from 'vuex'
 import { jsPDF as JsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import {
   VContainer, VCard, VCardTitle, VDivider, VCardText,
-  VForm, VRow, VCol, VAutocomplete, VSelect,
+  VForm, VRow, VCol, VSelect,
   VBtn, VSpacer, VProgressCircular, VAlert, VSimpleTable
 } from 'vuetify/lib'
 
@@ -144,7 +131,7 @@ export default Vue.extend({
   name: 'ReportsAnnotationsGeneral',
   components: {
     VContainer, VCard, VCardTitle, VDivider, VCardText,
-    VForm, VRow, VCol, VAutocomplete, VSelect,
+    VForm, VRow, VCol, VSelect,
     VBtn, VSpacer, VProgressCircular, VAlert, VSimpleTable
   },
   layout: 'project',
@@ -152,225 +139,168 @@ export default Vue.extend({
   data() {
     return {
       loading: false,
-      filters: {
-        annotationIds: [] as number[],
-        annotators: [] as number[],
-        labels: [] as number[]      // agora array
-      },
-      allAnnotationsRaw: [] as any[],
-      filteredAnnotations: [] as any[],
-      users: [] as { id: number; name: string }[],
-      selectedVersion: null as number | null,
-      errorMessage: '' as string
+      reportData: [] as any[],
+      selectedVersions: [] as number[],
+      errorMessage: '' as string,
+      loadingVersions: false,
+      labelKeys: [] as string[]
     }
   },
   computed: {
-    annotationOptions(): Array<{ id: number; text: string }> {
-      // build list with snippet
-      const opts = this.allAnnotationsRaw.map(a => {
-        const txt = a.extracted_labels.text || ''
-        const snippet = txt.slice(0, 50) + (txt.length > 50 ? '…' : '')
-        return { id: a.id, text: `#${a.id} – ${snippet}` }
-      })
-      // sort by id ascending
-      return opts.sort((a, b) => a.id - b.id)
-    },
-    annotatorOptions(): Array<{ id: number; name: string }> {
-      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
-      return this.users.filter(u => used.has(u.id))
-    },
-    // dynamic labels dropdown
-    labelOptions(): Array<{ id: number; text: string }> {
-      // pick data‐set depending on whether a report has been generated
-      const src = this.filteredAnnotations.length
-        ? this.filteredAnnotations
-        : this.allAnnotationsRaw
-
-      // only include labels that actually occur in spans
-      const usedSpanIds = new Set<number>(
-        src.flatMap(a =>
-          (a.extracted_labels.spans || []).map((s: any) => s.label)
-        )
-      )
-      const types = src
-        .flatMap(a => a.extracted_labels.labelTypes || [])
-        .filter((t: any) => usedSpanIds.has(t.id))
-
-      // dedupe & exclude unwanted
-      const uniq = Array.from(
-        new Map(types.map((t: any) => [t.id, t])).values()
-      )
-      return uniq
-        .filter(({ text }: any) => text !== 'Dog' && text !== 'Cat')
-        .map(({ id, text }: any) => ({ id, text }))
-    },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
     },
     versionItems(): Array<{ id: number; text: string }> {
-      const p = this.currentProject as any
-      return p && p.id
-        ? [{ id: p.id, text: `Version ${p.versionNumber}` }]
-        : []
+      const versions = this.$store.getters['projects/projectVersions'] || []
+      return versions.map((v: any) => ({ id: v.id, text: `Version ${v.versionNumber}` }))
     }
-  },
-  watch: {
-    currentProject: {
-      handler(p) {
-        if (p && p.id) {
-          this.selectedVersion = p.id
-        }
-      },
-      immediate: true
-    },
-    selectedVersion(val) {
-      if (val) {
-        this.changeVersion(val)
-      }
-    }
-  },
-  async mounted() {
-    const pid = Number(this.$route.params.id)
-    const [annRes, usrRes] = await Promise.all([
-      ApiService.get('/annotations/', {
-        params: {
-          project: pid,
-          limit: 1000,    // aumenta o número de resultados retornados
-          offset: 0
-        }
-      }),
-      ApiService.get('/users/')
-    ])
-
-    const raw = annRes.data.results || annRes.data
-    this.allAnnotationsRaw = raw.map((a: any) => ({
-      id: a.id,
-      annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
-      extracted_labels: a.extracted_labels,
-      created_at: a.created_at,
-      updated_at: a.updated_at
-    }))
-
-    const list = usrRes.data.results || usrRes.data
-    this.users = list.map((u: any) => ({
-      id: u.id,
-      name: u.username || u.name || `User ${u.id}`
-    }))
   },
   methods: {
-    ...mapActions('projects', ['setCurrentProject']),
-    formatDate(ts: string): string {
-      const d = new Date(ts)
-      const pad = (n: number) => n.toString().padStart(2,'0')
-      return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} `
-           + `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-    },
-    changeVersion(id: number) {
-      // update current project version in store
-      this.setCurrentProject(id)
-      // you can now refresh the report if desired
-      // this.generateReport()
-    },
-    generateReport() {
-      // ensure all filters are selected
-      if (!this.filters.annotationIds.length ||
-          !this.filters.annotators.length ||
-          !this.filters.labels.length) {
-        this.errorMessage = 'Please select all the filters.'
-        this.filteredAnnotations = []
-        this.loading = false
-        return
-      }
+    async generateReport() {
       this.errorMessage = ''
       this.loading = true
-      this.filteredAnnotations = this.allAnnotationsRaw.filter(a => {
-        // 1) filtra por Annotation IDs, se houver
-        if (this.filters.annotationIds.length &&
-            !this.filters.annotationIds.includes(a.id)) {
-          return false
+      const versions = this.selectedVersions.length
+        ? this.selectedVersions
+        : this.versionItems.map(v => v.id)
+      const results: any[] = []
+      const allLabelSet = new Set<string>()
+
+      for (const vid of versions) {
+        try {
+          const { data } = await ApiService.get(`/projects/${vid}/metrics/span-disagreements`)
+          const rows = (data || []).map((r: any) => {
+            const labels: Record<string, number> = { ...(r.labels || {}) }
+            Object.keys(labels).forEach(k => allLabelSet.add(k))
+            const abst = r.abstention || 0
+            const x = r.x || 0
+            const entries = Object.entries(labels)
+            const winner = entries.length
+              ? entries.reduce((a, b) => (b[1] > a[1] ? b : a))[0]
+              : ''
+            const agreement = r.agreement
+            return {
+              id: r.id,
+              snippet: r.snippet,
+              labels,
+              abstention: abst,
+              x,
+              agreement,
+              winner
+            }
+          })
+          const vInfo = this.versionItems.find(v => v.id === vid) || { id: vid, text: `Version ${vid}` }
+          results.push({ version: vid, versionNumber: vInfo.text.replace('Version ', ''), rows })
+        } catch (e) {
+          console.error(e)
         }
-        // 2) filtra por Annotators, se houver
-        if (this.filters.annotators.length &&
-            !this.filters.annotators.includes(a.annotator)) {
-          return false
-        }
-        // 3) filtra por Labels selecionadas
-        if (this.filters.labels.length) {
-          const spans = a.extracted_labels.spans || []
-          // mantém se tiver pelo menos 1 das labels escolhidas
-          if (!spans.some((s: any) => this.filters.labels.includes(s.label))) {
-            return false
-          }
-        }
-        return true
-      })
+      }
+      this.labelKeys = Array.from(allLabelSet).sort()
+      this.reportData = results
       this.loading = false
     },
     downloadPdf() {
       const doc = new JsPDF({ unit: 'pt', format: 'letter' })
       const margin = 40
-      let startY = margin
+      let y = margin
 
-      doc.setFontSize(18).setTextColor('#333')
-      doc.text('Annotations Report', margin, startY)
-      startY += 20
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const logoWidth = 110
+      const logoX = (pageWidth - logoWidth) / 2
+      doc.addImage(require('~/static/doccana-logo.png'), 'PNG', logoX, y, logoWidth, 40)
+      y += 50
 
-      if (this.filters.annotationIds.length) {
-        doc.setFontSize(12).setTextColor('#000')
-        doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, margin, startY)
-        startY += 14
-      }
-      if (this.filters.annotators.length) {
-        const names = this.users
-          .filter(u => this.filters.annotators.includes(u.id))
-          .map(u => u.name)
-          .join(', ')
-        doc.text(`Annotators: ${names}`, margin, startY)
-        startY += 14
-      }
-      if (this.filters.labels.length) {
-        const lbls = this.filters.labels
-          .map(id => this.labelOptions.find(l => l.id === id)?.text || id)
-          .join(', ')
-        doc.text(`Labels: ${lbls}`, margin, startY)
-        startY += 14
-      }
-      startY += 10
+      doc.setFontSize(20)
+      doc.setTextColor('#000')
+      doc.text('Annotations Report', margin, y)
+      y += 30
 
-      const rows = this.filteredAnnotations.map((ann, idx) => [
-        idx + 1,
-        this.formatDate(ann.created_at),
-        this.users.find(u => u.id === ann.annotator)?.name || 'Unknown',
-        ann.extracted_labels.text,
-        this.getSpansSummary(ann)
-      ])
-
-      autoTable(doc, {
-        head: [['#', 'Date', 'Annotator', 'Text', 'Spans']],
-        body: rows,
-        startY,
-        styles: { fontSize: 10 },
-        headStyles: { fillColor: [99, 118, 171] }
+      this.reportData.forEach(section => {
+        doc.setFontSize(14)
+        doc.setTextColor('#000')
+        doc.text(`Version ${section.versionNumber}`, margin, y)
+        y += 12
+        const head = [
+          'Snippet',
+          ...this.labelKeys,
+          'Abstention',
+          'X',
+          'Agreement %',
+          'Top Label'
+        ]
+        const body = section.rows.map((r: any, i: number) => [
+          `${i + 1}. ${r.snippet}`,
+          ...this.labelKeys.map(k => r.labels[k] || 0),
+          r.abstention,
+          r.x,
+          r.agreement + '%',
+          r.winner
+        ])
+        autoTable(doc, {
+          head: [head],
+          body,
+          startY: y,
+          styles: { fontSize: 9, overflow: 'linebreak', halign: 'center' },
+          columnStyles: { 0: { halign: 'left' } },
+          headStyles: { fillColor: [99, 118, 171], textColor: 255 },
+          margin: { left: margin, right: margin },
+          tableWidth: 'auto',
+          theme: 'striped'
+        })
+        y = (doc as any).lastAutoTable.finalY + 20
       })
 
+      // description
+      doc.setFontSize(11)
+      doc.setTextColor('#555')
+      doc.text(
+        'Description: This automatic report shows the label distribution across different dataset versions. The agreement percentage indicates the level of consistency among annotators.',
+        margin,
+        y,
+        { maxWidth: doc.internal.pageSize.getWidth() - margin * 2 }
+      )
+      y += 36
+
+      // Generated by + extra newline before copyright
+      doc.setFontSize(10)
+      doc.setTextColor('#333')
+      doc.text(
+        `Generated by ${this.$store.getters['auth/getUsername'] || 'Unknown User'} on ${new Date().toLocaleString('pt-PT')}`,
+        margin,
+        y
+      )
+      y += 14
+      y += 14
+      doc.text('© Doccana - Software Engineering Lab', margin, y)
       doc.save('Annotations-Report.pdf')
     },
-    getSpansSummary(ann: any): string {
-      const txt = ann.extracted_labels.text || ''
-      // aplica filtro de labels selecionadas (se houver)
-      const spans = (ann.extracted_labels.spans || [])
-        .filter((s: any) =>
-          // se não há filtro de labels, inclui todas; senão só as escolhidas
-          !this.filters.labels.length || this.filters.labels.includes(s.label)
-        )
-      return spans
-        .map((s: any) => {
-          const lbl = ann.extracted_labels.labelTypes
-            .find((lt: any) => lt.id === s.label)
-          const snippet = txt.slice(s.start_offset, s.end_offset).trim()
-          return `${lbl?.text || s.label}: ${snippet}`
+    exportCsv() {
+      let csv = ''
+      csv += `Generated by,${this.$store.getters['auth/getUsername'] || 'Unknown User'}\n`
+      csv += `Generated at,${new Date().toLocaleString('pt-PT')}\n`
+      csv += `© Doccana - Software Engineering Lab\n\n`
+      this.reportData.forEach(section => {
+        csv += `Version ${section.versionNumber}\n`
+        csv += ['Snippet', ...this.labelKeys, 'Abstention', 'X', 'Agreement %', 'Top Label'].join(',') + '\n'
+        section.rows.forEach((r: any, i: number) => {
+          const cells = [
+            `"${i + 1}. ${r.snippet.replace(/"/g, '""')}"`,
+            ...this.labelKeys.map(k => r.labels[k] || 0),
+            r.abstention,
+            r.x,
+            r.agreement + '%',
+            r.winner
+          ]
+          csv += cells.join(',') + '\n'
         })
-        .join(', ')
+        csv += '\n'
+      })
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      link.href = URL.createObjectURL(blob)
+      link.setAttribute('download', 'annotations-report.csv')
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
     }
   }
 })
@@ -388,5 +318,11 @@ export default Vue.extend({
 .annotation-menu__content {
   max-height: 200px !important;
   overflow-y: auto !important;
+}
+.annotation-preview thead.primary {
+  background-color: #6376AB !important;
+}
+.annotation-preview th.white--text {
+  color: #FFF !important;
 }
 </style>
