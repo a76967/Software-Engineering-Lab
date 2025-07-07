@@ -105,6 +105,8 @@
                 <th>Annotator</th>
                 <th>Text</th>
                 <th>Spans</th>
+                <th>Labels</th>
+                <th>Perspective</th>
               </tr>
             </thead>
             <tbody>
@@ -114,6 +116,8 @@
                 <td>{{ users.find(u => u.id === ann.annotator)?.name || 'Unknown' }}</td>
                 <td>{{ ann.extracted_labels.text }}</td>
                 <td>{{ getSpansSummary(ann) }}</td>
+                <td>{{ getLabelNames(ann) }}</td>
+                <td>{{ getPerspectiveLabel(ann) }}</td>
               </tr>
             </tbody>
           </v-simple-table>
@@ -160,6 +164,8 @@ export default Vue.extend({
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
       users: [] as { id: number; name: string }[],
+      perspectives: [] as any[],
+      perspectiveMap: {} as Record<number, any[]>,
       selectedVersion: null as number | null,
       errorMessage: '' as string
     }
@@ -231,7 +237,7 @@ export default Vue.extend({
   },
   async mounted() {
     const pid = Number(this.$route.params.id)
-    const [annRes, usrRes] = await Promise.all([
+    const [annRes, usrRes, perRes] = await Promise.all([
       ApiService.get('/annotations/', {
         params: {
           project: pid,
@@ -239,12 +245,14 @@ export default Vue.extend({
           offset: 0
         }
       }),
-      ApiService.get('/users/')
+      ApiService.get('/users/'),
+      ApiService.get(`/projects/${pid}/perspectives/`)
     ])
 
     const raw = annRes.data.results || annRes.data
     this.allAnnotationsRaw = raw.map((a: any) => ({
       id: a.id,
+      dataset_item_id: a.dataset_item_id,
       annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
       extracted_labels: a.extracted_labels,
       created_at: a.created_at,
@@ -256,6 +264,18 @@ export default Vue.extend({
       id: u.id,
       name: u.username || u.name || `User ${u.id}`
     }))
+
+    const pers = perRes.data.results || perRes.data || []
+    this.perspectives = pers
+    const map: Record<number, any[]> = {}
+    pers.forEach((p: any) => {
+      (p.linkedAnnotations || []).forEach((la: any) => {
+        const id = la.id
+        if (!map[id]) map[id] = []
+        map[id].push(p)
+      })
+    })
+    this.perspectiveMap = map
   },
   methods: {
     ...mapActions('projects', ['setCurrentProject']),
@@ -342,11 +362,13 @@ export default Vue.extend({
         this.formatDate(ann.created_at),
         this.users.find(u => u.id === ann.annotator)?.name || 'Unknown',
         ann.extracted_labels.text,
-        this.getSpansSummary(ann)
+        this.getSpansSummary(ann),
+        this.getLabelNames(ann),
+        this.getPerspectiveLabel(ann)
       ])
 
       autoTable(doc, {
-        head: [['#', 'Date', 'Annotator', 'Text', 'Spans']],
+        head: [['#', 'Date', 'Annotator', 'Text', 'Spans', 'Labels', 'Perspective']],
         body: rows,
         startY,
         styles: { fontSize: 10 },
@@ -371,6 +393,20 @@ export default Vue.extend({
           return `${lbl?.text || s.label}: ${snippet}`
         })
         .join(', ')
+      },
+    getLabelNames(ann: any): string {
+      const spans = ann.extracted_labels.spans || []
+      const types = ann.extracted_labels.labelTypes || []
+      const names = spans.map((s: any) => {
+        const t = types.find((lt: any) => lt.id === s.label)
+        return t ? t.text : s.label
+      })
+      return Array.from(new Set(names)).join(', ')
+    },
+    getPerspectiveLabel(ann: any): string {
+      const arr = this.perspectiveMap[ann.dataset_item_id] || []
+      if (!arr.length) return '—'
+      return arr.map((p: any) => p.subject || p.text || `#${p.id}`).join(', ')
     }
   }
 })
