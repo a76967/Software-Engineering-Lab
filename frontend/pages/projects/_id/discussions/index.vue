@@ -61,11 +61,12 @@
           <div
             v-for="msg in messages"
             :key="msg.id"
-            :class="{
-              'chat-message': true,
-              'sent':    msg.senderId === userId,
-              'received': msg.senderId !== userId
-            }"
+          :class="{
+            'chat-message': true,
+            'sent':    msg.senderId === userId,
+            'received': msg.senderId !== userId,
+            'pending':  msg.pending
+          }"
           >
             <div class="message-bubble">
               <div v-if="msg.senderId !== userId" class="message-sender">
@@ -121,6 +122,7 @@ interface ChatMessage {
   senderName: string
   timestamp: string
   session: number
+  pending?: boolean
 }
 
 export default Vue.extend({
@@ -133,7 +135,8 @@ export default Vue.extend({
       sessions: [] as Array<{ value: number; text: string }>,
       activeSession: 1,
       userId: 0,
-      error: ''
+      error: '',
+      pendingMessages: [] as ChatMessage[]
     }
   },
   computed: {
@@ -147,10 +150,29 @@ export default Vue.extend({
   },
   async mounted() {
     this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
-    console.log('🟢 current userId =', this.userId)
+    const projectId = Number(this.$route.params.id)
+    // load any pending msgs from localStorage
+    try {
+      const stored = localStorage.getItem(`discussion_pending_${projectId}`)
+      this.pendingMessages = stored ? JSON.parse(stored) : []
+    } catch { this.pendingMessages = [] }
     // ensure at least one session exists, then select it
     await this.fetchSessions()
-    await this.fetchMessages(this.activeSession)
+    // always switch to highest ("On Going") session on load
+    this.activeSession = this.latestSession
+    if (!this.error) {
+      await this.fetchMessages(this.activeSession)
+    }
+  },
+  watch: {
+    // persist pending messages across reloads
+    pendingMessages: {
+      deep: true,
+      handler(v) {
+        const key = `discussion_pending_${Number(this.$route.params.id)}`
+        localStorage.setItem(key, JSON.stringify(v))
+      }
+    }
   },
   methods: {
     async fetchSessions() {
@@ -173,12 +195,13 @@ export default Vue.extend({
           : this.sessions[this.sessions.length - 1].value
       } catch (err) {
         console.error('❌ fetchSessions failed:', err)
+        this.error = "Can't connect to database!"
         this.sessions = [{ value: 1, text: '#1' }]
         this.activeSession = 1
       }
     },
 
-    async fetchMessages(session: number) {
+    async fetchMessages(session: number, skipPending = false) {
       this.error = ''
       try {
         const projectId = Number(this.$route.params.id)
@@ -191,10 +214,14 @@ export default Vue.extend({
           timestamp:  m.timestamp,
           session:    m.session
         }))
+        // if reconnected, flush pending
+        if (!skipPending && this.pendingMessages.length) {
+          await this.sendPendingMessages()
+        }
       } catch (err) {
         console.error('❌ fetchMessages failed:', err)
-        this.messages = []
-        this.error = "Error: Can't access our database!"
+        this.error = "Can't connect to database!"
+        // still show stored pending
       }
       this.$nextTick(this.scrollToBottom)
     },
@@ -205,14 +232,49 @@ export default Vue.extend({
       const text = this.newMessage.trim()
       if (!text) return
       this.newMessage = ''
+      const tempMsg: ChatMessage & { pending?: boolean } = {
+        id: Date.now(),
+        text,
+        senderId: this.userId,
+        senderName: this.$store.getters['auth/getUsername'] || 'Me',
+        timestamp: new Date().toISOString(),
+        session: this.activeSession,
+        pending: false
+      }
       try {
         axios.defaults.withCredentials = true
         const projectId = Number(this.$route.params.id)
         await discussionRepository.create(projectId, text, this.activeSession)
         await this.fetchMessages(this.activeSession)
+        await this.sendPendingMessages()
       } catch (err) {
         console.error('❌ sendMessage failed:', err)
-        this.error = "Error: Can't access our database!"
+        this.error = "Can't connect to database!"
+        tempMsg.pending = true
+        this.pendingMessages.push(tempMsg)
+        this.messages.push(tempMsg)
+        // pendingMessages watcher will store to localStorage
+        this.$nextTick(this.scrollToBottom)
+      }
+    },
+    async sendPendingMessages() {
+      if (!this.pendingMessages.length) return
+      try {
+        axios.defaults.withCredentials = true
+        const projectId = Number(this.$route.params.id)
+        for (const msg of this.pendingMessages) {
+          await discussionRepository.create(projectId, msg.text, msg.session)
+          // remove from queue & messages list
+          this.pendingMessages = this.pendingMessages.filter(x => x.id !== msg.id)
+          this.messages = this.messages.filter(x => x.id !== msg.id)
+        }
+        // clear stored key
+        localStorage.removeItem(`discussion_pending_${projectId}`)
+        // reload from server
+        await this.fetchMessages(this.activeSession, true)
+      } catch (err) {
+        console.error('❌ sendPendingMessages failed:', err)
+        this.error = "Can't connect to database!"
       }
     },
     async addSession () {
@@ -225,6 +287,7 @@ export default Vue.extend({
         this.switchSession(newSession.number)
       } catch (err) {
         console.error('❌ addSession failed:', err)
+        this.error = "Can't connect to database!"
       }
     },
     switchSession(s: number) {
@@ -292,6 +355,9 @@ export default Vue.extend({
 .chat-message.received {
   justify-content: flex-start;
 }
+.chat-message.pending .message-bubble {
+  background-color: #f44336 !important;
+}
 .message-bubble {
   max-width: 75%;
   padding: 10px 14px;
@@ -345,6 +411,9 @@ export default Vue.extend({
 }
 .theme--dark .chat-message.sent .message-bubble {
   background-color: #57578c !important;
+}
+.theme--dark .chat-message.pending .message-bubble {
+  background-color: #f44336 !important;
 }
 .theme--dark .message-sender {
   color: rgba(255, 255, 255, 0.7) !important;
