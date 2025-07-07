@@ -66,23 +66,6 @@
     >
       {{ $t('header.projects') }}
     </v-btn>
-    <v-menu v-if="!isAuthenticated" open-on-hover offset-y>
-      <template #activator="{ on }">
-        <v-btn text v-on="on">
-          {{ $t('home.demoDropDown') }}
-          <v-icon>{{ mdiMenuDown }}</v-icon>
-        </v-btn>
-      </template>
-      <v-list>
-        <v-list-item
-          v-for="(item, index) in items"
-          :key="index"
-          @click="$router.push('/demo/' + item.link)"
-        >
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-menu>
     <v-btn v-if="!isAuthenticated" outlined @click="$router.push(localePath('/auth'))">
       {{ $t('user.login') }}
     </v-btn>
@@ -142,21 +125,6 @@ export default {
 
   data() {
     return {
-      items: [
-        { title: this.$t('home.demoNER'), link: 'named-entity-recognition' },
-        { title: this.$t('home.demoSent'), link: 'sentiment-analysis' },
-        { title: this.$t('home.demoTranslation'), link: 'translation' },
-        {
-          title: this.$t('home.demoIntenDetectSlotFil'),
-          link: 'intent-detection-and-slot-filling'
-        },
-        { title: this.$t('home.demoTextToSQL'), link: 'text-to-sql' },
-        { title: this.$t('home.demoImageClas'), link: 'image-classification' },
-        { title: this.$t('home.demoImageCapt'), link: 'image-caption' },
-        { title: this.$t('home.demoObjDetect'), link: 'object-detection' },
-        { title: this.$t('home.demoPolygSegm'), link: 'segmentation' },
-        { title: this.$t('home.demoSTT'), link: 'speech-to-text' }
-      ],
       dialogNotifications: false,
       mdiLogout,
       mdiDotsVertical,
