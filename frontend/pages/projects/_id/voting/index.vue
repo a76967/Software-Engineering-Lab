@@ -181,6 +181,9 @@
             </template>
             <span v-else-if="meta" class="period-dates">
               {{ formattedStart }} - {{ formattedEnd }}</span>
+            <span v-else class="text--secondary">
+              Define a Voting Period in order for the users to vote.
+            </span>
           </v-card-title>
           <v-card-actions>
             <v-spacer/>
@@ -387,7 +390,7 @@ export default Vue.extend({
   },
   computed: {
     voteClosed(): boolean {
-      return !!(this.meta && this.meta.closed)
+      return !!(this.meta && (this.meta.closed || this.meta.end <= Date.now()))
     },
     timeRemaining(): string {
       if (!this.meta) return ''
@@ -399,7 +402,11 @@ export default Vue.extend({
       return `${hrs}h ${m}m`
     },
     canEditCurrent(): boolean {
-      return this.isAdmin && !this.voteClosed && this.voteCountForCurrent === 0
+      if (!this.isAdmin) return false
+      if (!this.meta || this.meta.closed || this.meta.end <= Date.now()) {
+        return true
+      }
+      return false
     },
     voteCountForCurrent(): number {
       return this.selectedVersion ? this.versionVoteCounts[this.selectedVersion] || 0 : 0
@@ -473,9 +480,7 @@ export default Vue.extend({
           return
         }
       } catch {}
-      const now = Date.now()
-      this.meta = { start: now, end: now + 24 * 60 * 60 * 1000, phase: 1, closed: false }
-      localStorage.setItem(key, JSON.stringify(this.meta))
+      this.meta = null
     },
     saveMeta() {
       const pid = Number(this.$route.params.id)
@@ -551,22 +556,34 @@ export default Vue.extend({
       return `${day}/${mon}/${year} ${hours}:${mins}`
     },
     openEditDialog() {
-      if (!this.meta) return
-      // init pickers from meta timestamps
-      const s = new Date(this.meta.start)
-      this.startDate = s.toISOString().slice(0,10)
-      this.startTime = s.toTimeString().slice(0,5)
-      this.editStart = `${this.startDate} ${this.startTime}`
+      if (!this.meta) {
+        const now = new Date()
+        this.startDate = now.toISOString().slice(0, 10)
+        this.startTime = now.toTimeString().slice(0, 5)
+        const end = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+        this.endDate = end.toISOString().slice(0, 10)
+        this.endTime = end.toTimeString().slice(0, 5)
+        this.editStart = `${this.startDate} ${this.startTime}`
+        this.editEnd = `${this.endDate} ${this.endTime}`
+      } else {
+        // init pickers from meta timestamps
+        const s = new Date(this.meta.start)
+        this.startDate = s.toISOString().slice(0,10)
+        this.startTime = s.toTimeString().slice(0,5)
+        this.editStart = `${this.startDate} ${this.startTime}`
 
-      const e = new Date(this.meta.end)
-      this.endDate = e.toISOString().slice(0,10)
-      this.endTime = e.toTimeString().slice(0,5)
-      this.editEnd = `${this.endDate} ${this.endTime}`
+        const e = new Date(this.meta.end)
+        this.endDate = e.toISOString().slice(0,10)
+        this.endTime = e.toTimeString().slice(0,5)
+        this.editEnd = `${this.endDate} ${this.endTime}`
+      }
 
       this.editDialog = true
     },
     saveEditPeriod() {
-      if (!this.meta) return
+      if (!this.meta) {
+        this.meta = { start: 0, end: 0, phase: 1, closed: false }
+      }
       // parse back into timestamps
       const startTs = new Date(`${this.startDate}T${this.startTime}`).getTime()
       const endTs   = new Date(`${this.endDate}T${this.endTime}`).getTime()

@@ -189,7 +189,10 @@ export default {
       try {
         const key = `annotation_rule_vote_meta_${this.currentProject.id}`
         const m = JSON.parse(localStorage.getItem(key) || 'null')
-        return m && m.closed === true
+        return (
+          m &&
+          (m.closed === true || (m.end && m.end <= Date.now()))
+        )
       } catch {
         return false
       }
