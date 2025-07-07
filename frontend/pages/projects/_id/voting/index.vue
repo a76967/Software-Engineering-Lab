@@ -644,7 +644,6 @@ export default Vue.extend({
       })
       this.ruleResults = counts
       this.userRuleVotes = userMap
-      this.checkThreshold()
     },
     async voteRule(idx: number, val: string) {
       if (this.voteClosed) {
@@ -723,19 +722,6 @@ export default Vue.extend({
       this.editEnd = `${this.endDate} ${this.endTime}`
       this.endMenu = false
     },
-    checkThreshold() {
-      if (!this.meta || this.meta.closed) return
-      const entries = Object.entries(this.ruleResults)
-      if (!entries.length) return
-      const passed = entries.every(([_, v]) => {
-        const total = v.up + v.down
-        return total > 0 && v.up / total >= 0.8
-      })
-      if (passed) {
-        this.meta.closed = true
-        this.saveMeta()
-      }
-    }
   },
 })
 </script>

@@ -10,7 +10,9 @@ export class APIGridVoteRepository {
   }
 
   async list(projectId: number, grid?: number): Promise<any[]> {
-    const params = grid ? { params: { grid } } : {}
+    const params = grid
+      ? { params: { grid, limit: 1000 } }
+      : { params: { limit: 1000 } }
     const res = await ApiService.get(this.baseUrl(projectId), params)
     return res.data.results || res.data
   }
