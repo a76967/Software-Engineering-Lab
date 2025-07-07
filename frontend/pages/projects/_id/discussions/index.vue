@@ -5,6 +5,8 @@
         <v-select
           v-model="activeSession"
           :items="sessions"
+          item-text="text"
+          item-value="value"
           label="Session"
           dense
           hide-details
@@ -13,8 +15,11 @@
           color="white"
           item-color="white"
           class="me-2 white--text session-select"
+          @change="onSessionChange"
         />
+        <!-- only admins see Add Session -->
         <v-btn
+          v-if="isProjectAdmin"
           small
           outlined
           color="white"
@@ -23,6 +28,13 @@
         >
           Add Session
         </v-btn>
+        <v-chip
+          small
+          class="ms-2 white--text"
+          :color="isLatestSession ? 'green' : 'red'"
+        >
+          {{ isLatestSession ? 'ON GOING' : 'READ ONLY' }}
+        </v-chip>
       </div>
 
       <v-card-title class="chat-header">
@@ -66,7 +78,10 @@
         </template>
       </v-card-text>
 
-      <v-card-actions class="chat-input-area">
+      <v-card-actions
+        v-if="isLatestSession"
+        class="chat-input-area"
+      >
         <v-text-field
           v-model="newMessage"
           placeholder="Type a message.."
@@ -76,17 +91,25 @@
           hide-details
           class="chat-input"
           @keyup.enter="newMessage.trim() && sendMessage()"
-        ></v-text-field>
-        <v-btn fab small color="primary" dark @click="newMessage.trim() && sendMessage()">
+        />
+        <v-btn
+          fab
+          small
+          color="primary"
+          dark
+          class="ms-2"
+          @click="newMessage.trim() && sendMessage()"
+        >
           SEND
         </v-btn>
-    </v-card-actions>
+      </v-card-actions>
     </v-card>
   </v-container>
 </template>
 
 <script lang="ts">
 import Vue from 'vue'
+import { mapGetters } from 'vuex'
 import axios from 'axios'
 import { discussionRepository } from '~/repositories/apiDiscussionRepository'
 import { DiscussionSession } from '~/domain/models/discussion/DiscussionSession'
@@ -107,57 +130,77 @@ export default Vue.extend({
     return {
       messages: [] as ChatMessage[],
       newMessage: '',
-      sessions: [] as number[],
+      sessions: [] as Array<{ value: number; text: string }>,
       activeSession: 1,
       userId: 0,
       error: ''
     }
   },
+  computed: {
+    ...mapGetters('projects', ['isProjectAdmin']),
+    latestSession(): number {
+      return this.sessions.length ? Math.max(...this.sessions.map(x => x.value)) : 1
+    },
+    isLatestSession(): boolean {
+      return this.activeSession === this.latestSession
+    }
+  },
   async mounted() {
     this.userId = Number(this.$store.getters['auth/getUserId'] || 0)
     console.log('🟢 current userId =', this.userId)
+    // ensure at least one session exists, then select it
     await this.fetchSessions()
     await this.fetchMessages(this.activeSession)
-  },
-  computed: {
-    validMessages(): ChatMessage[] {
-      return this.messages
-    }
   },
   methods: {
     async fetchSessions() {
       try {
         const projectId = Number(this.$route.params.id)
-        const list = await discussionRepository.listSessions(projectId)
-        this.sessions = list.map((s: DiscussionSession) => s.number)
-        if (!this.sessions.includes(this.activeSession)) {
-          this.activeSession = this.sessions[0] || 1
+        // load existing sessions
+        let list = await discussionRepository.listSessions(projectId)
+        // if none exist, auto-create session #1
+        if (!list.length) {
+          await discussionRepository.createSession(projectId)
+          list = await discussionRepository.listSessions(projectId)
         }
+        this.sessions = list.map((s: DiscussionSession) => ({
+          value: s.number,
+          text: `#${s.number}`
+        }))
+        this.activeSession = this.sessions
+          .some(x => x.value === this.activeSession)
+          ? this.activeSession
+          : this.sessions[this.sessions.length - 1].value
       } catch (err) {
         console.error('❌ fetchSessions failed:', err)
-        this.sessions = [1]
+        this.sessions = [{ value: 1, text: '#1' }]
+        this.activeSession = 1
       }
     },
+
     async fetchMessages(session: number) {
       this.error = ''
-      console.log('🔄 fetching discussions…')
       try {
         const projectId = Number(this.$route.params.id)
         const raw = await discussionRepository.list(projectId, session)
         this.messages = raw.map(m => ({
-          ...m,
-          senderId: Number(m.senderId)
+          id:         m.id,
+          text:       m.text,
+          senderId:   Number(m.senderId),
+          senderName: m.senderName,
+          timestamp:  m.timestamp,
+          session:    m.session
         }))
-        console.log('💬 loaded messages:', this.messages.map(m => m.senderId))
       } catch (err) {
         console.error('❌ fetchMessages failed:', err)
         this.messages = []
         this.error = "Error: Can't access our database!"
       }
       this.$nextTick(this.scrollToBottom)
-      console.log('✅ got', this.messages.length, 'messages')
     },
+
     async sendMessage() {
+      if (!this.isLatestSession) return
       this.error = ''
       const text = this.newMessage.trim()
       if (!text) return
@@ -175,18 +218,11 @@ export default Vue.extend({
     async addSession () {
       try {
         const projectId = Number(this.$route.params.id)
-
-        // if there are **no** sessions yet, quietly create #1
-        if (!this.sessions.length) {
-          await discussionRepository.createSession(projectId)
-        }
-
-        // now create the *next* number
-        const session = await discussionRepository.createSession(projectId)
-
-        // fetch the authoritative list instead of pushing manually
+        // create a new session (auto-numbered by backend)
+        const newSession = await discussionRepository.createSession(projectId)
+        // reload and switch to that session
         await this.fetchSessions()
-        this.switchSession(session.number)
+        this.switchSession(newSession.number)
       } catch (err) {
         console.error('❌ addSession failed:', err)
       }
@@ -195,6 +231,9 @@ export default Vue.extend({
       this.activeSession = s
       this.messages = []
       this.fetchMessages(s)
+    },
+    onSessionChange(val: number) {
+      this.switchSession(val)
     },
     formatTime(ts: string) {
       return new Date(ts).toLocaleString('en-US', {

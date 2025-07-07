@@ -160,6 +160,7 @@ export default Vue.extend({
       allAnnotationsRaw: [] as any[],
       filteredAnnotations: [] as any[],
       users: [] as { id: number; name: string }[],
+      labels: [] as { id: number; text: string }[],
       selectedVersion: null as number | null,
       errorMessage: '' as string
     }
@@ -176,39 +177,10 @@ export default Vue.extend({
       return opts.sort((a, b) => a.id - b.id)
     },
     annotatorOptions(): Array<{ id: number; name: string }> {
-      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
-      return this.users.filter(u => used.has(u.id))
+      return this.users
     },
-    // restore dynamic Labels entirely from annotation payload:
     labelOptions(): Array<{ id: number; text: string }> {
-      // pick data‐set depending on whether a report has been generated
-      const src = this.filteredAnnotations.length
-        ? this.filteredAnnotations
-        : this.allAnnotationsRaw
-
-      // collect all label IDs used in spans
-      const usedIds = new Set<number>(
-        src.flatMap(a =>
-          (a.extracted_labels.spans || []).map((s: any) => s.label)
-        )
-      )
-
-      // gather all labelType objects from annotations
-      const allTypes = src.flatMap(a =>
-        a.extracted_labels.labelTypes || []
-      ) as Array<{ id: number; text: string }>
-
-      // unique by ID
-      const uniq = Array.from(
-        new Map(allTypes.map(t => [t.id, t])).values()
-      )
-
-      // filter to only those used and exclude unwanted texts
-      return uniq
-        .filter(t => usedIds.has(t.id))
-        .filter(({ text }) => text !== 'Dog' && text !== 'Cat')
-        .map(({ id, text }) => ({ id, text }))
-        .sort((a, b) => a.id - b.id)
+      return this.labels
     },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
@@ -225,6 +197,8 @@ export default Vue.extend({
       handler(p) {
         if (p && p.id) {
           this.selectedVersion = p.id
+          // refresh available labels when project changes
+          this.fetchLabels(p.id)
         }
       },
       immediate: true
@@ -232,6 +206,7 @@ export default Vue.extend({
     selectedVersion(val) {
       if (val) {
         this.changeVersion(val)
+        this.fetchLabels(val)
       }
     }
   },
@@ -245,7 +220,7 @@ export default Vue.extend({
           offset: 0
         }
       }),
-      ApiService.get('/users/')
+      this.$repositories.member.list(String(pid))
     ])
 
     const raw = annRes.data.results || annRes.data
@@ -257,11 +232,12 @@ export default Vue.extend({
       updated_at: a.updated_at
     }))
 
-    const list = usrRes.data.results || usrRes.data
-    this.users = list.map((u: any) => ({
+    this.users = usrRes.map((u: any) => ({
       id: u.id,
       name: u.username || u.name || `User ${u.id}`
     }))
+
+    await this.fetchLabels(pid)
   },
   methods: {
     ...mapActions('projects', ['setCurrentProject']),
@@ -276,6 +252,27 @@ export default Vue.extend({
       this.setCurrentProject(id)
       // you can now refresh the report if desired
       // this.generateReport()
+    },
+    async fetchLabels(projectId: number) {
+      const labels: Array<{ id: number; text: string }> = []
+      const project: any = this.currentProject
+      try {
+        if (project && project.canDefineCategory) {
+          const items = await this.$services.categoryType.list(String(projectId))
+          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
+        }
+        if (project && project.canDefineSpan) {
+          const items = await this.$services.spanType.list(String(projectId))
+          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
+        }
+        if (project && project.canDefineRelation) {
+          const items = await this.$services.relationType.list(String(projectId))
+          labels.push(...items.map((i: any) => ({ id: i.id, text: i.text })))
+        }
+      } catch (e) {
+        // ignore fetch errors
+      }
+      this.labels = labels
     },
     generateReport() {
       // ensure all filters are selected
