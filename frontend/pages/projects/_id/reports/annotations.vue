@@ -176,35 +176,27 @@ export default Vue.extend({
     annotationOptions(): Array<{ id: number; text: string }> {
       const opts = this.allSpans.map(s => {
         const snippet = s.snippet.slice(0, 50) + (s.snippet.length > 50 ? '…' : '')
-        const name = this.users.find(u => u.id === s.user)?.name || String(s.user)
-        return { id: s.id, text: `#${s.id} – ${snippet} (${name})` }
+        return { id: s.id, text: `#${s.id} – ${snippet}` }
       })
       return opts.sort((a, b) => a.id - b.id)
     },
-    // show every unique annotator (main + span labelers) from the current report
     annotatorOptions(): Array<{ id: number; name: string }> {
       const used = new Set<number>()
 
-      // use filteredAnnotations so dropdown matches the report
-      const source = this.filteredAnnotations.length
-        ? this.filteredAnnotations
-        : this.allAnnotationsRaw
-
-      source.forEach(a => {
+      this.allAnnotationsRaw.forEach(a => {
         if (a.annotator) used.add(a.annotator)
         ;(a.extracted_labels.spans || []).forEach((s: any) => {
           if (s.user) used.add(s.user)
         })
       })
 
-      // map IDs to names (fallback to “User {id}”)
-      const options = [...used].map(id => {
-        const u = this.users.find(u => u.id === id)
-        return { id, name: u ? u.name : `User ${id}` }
+      const opts = this.users.filter(u => used.has(u.id))
+      used.forEach(id => {
+        if (!opts.some(o => o.id === id)) {
+          opts.push({ id, name: `User ${id}` })
+        }
       })
-
-      // sort alphabetically
-      return options.sort((a, b) => a.name.localeCompare(b.name))
+      return opts.sort((a, b) => a.id - b.id)
     },
     // dynamic labels dropdown
       labelOptions(): Array<{ id: number; text: string }> {
@@ -257,23 +249,6 @@ export default Vue.extend({
       ])
 
       const raw = annRes.data.results || annRes.data
-      this.allAnnotationsRaw = raw.map((a: any) => ({
-        id: a.id,
-        dataset_item_id: a.dataset_item_id,
-        annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
-        extracted_labels: a.extracted_labels,
-        created_at: a.created_at,
-        updated_at: a.updated_at
-      }))
-
-      const list = usrRes.data.results || usrRes.data
-      this.users = list.map((u: any) => ({
-        id: u.id,
-        name: u.username || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()
-      }))
-
-      const labelsList = lblRes.data.results || lblRes.data || []
-      this.allLabels = labelsList.map((l: any) => ({ id: l.id, text: l.text }))
 
       const examples = exRes.items || []
       const spanPromises = examples.map((ex: any) =>
@@ -282,11 +257,39 @@ export default Vue.extend({
           .then(spans => spans.map((s: any) => ({
             id: s.id,
             snippet: (ex.text || '').slice(s.startOffset, s.endOffset),
-            user: s.user
+            user: typeof s.user === 'object' ? s.user.id : s.user
           })))
       )
       const spanResults = await Promise.all(spanPromises)
-      this.allSpans = spanResults.flat()
+      const flatSpans = spanResults.flat()
+      this.allSpans = flatSpans
+
+      const spanUserMap: Record<number, number | undefined> = {}
+      flatSpans.forEach(sp => { spanUserMap[sp.id] = sp.user })
+
+      this.allAnnotationsRaw = raw.map((a: any) => {
+        const spans = (a.extracted_labels.spans || []).map((sp: any) => ({
+          ...sp,
+          user: spanUserMap[sp.id] ?? (typeof sp.user === 'object' ? sp.user.id : sp.user)
+        }))
+
+        return {
+          id: a.id,
+          dataset_item_id: a.dataset_item_id,
+          annotator: typeof a.annotator === 'object' ? a.annotator.id : a.annotator,
+          extracted_labels: { ...a.extracted_labels, spans },
+          created_at: a.created_at,
+          updated_at: a.updated_at
+        }
+      })
+      const list = usrRes.data.results || usrRes.data
+      this.users = list.map((u: any) => ({
+        id: u.id,
+        name: u.username || u.name || `${u.first_name || ''} ${u.last_name || ''}`.trim()
+      }))
+
+      const labelsList = lblRes.data.results || lblRes.data || []
+      this.allLabels = labelsList.map((l: any) => ({ id: l.id, text: l.text }))
 
       const pers = perRes.data.results || perRes.data || []
       this.perspectives = pers
@@ -423,7 +426,7 @@ export default Vue.extend({
         })
         .join(', ')
       },
-      getLabelNames(ann: any): string {
+    getLabelNames(ann: any): string {
       const spans = ann.extracted_labels.spans || []
       const types = ann.extracted_labels.labelTypes || []
       const names = spans.map((s: any) => {
