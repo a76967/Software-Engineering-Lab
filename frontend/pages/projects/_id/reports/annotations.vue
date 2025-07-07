@@ -43,6 +43,19 @@
                 }"
               />
             </v-col>
+            <v-col cols="12" sm="6" md="4">
+              <v-autocomplete
+                v-model="filters.annotators"
+                :items="annotatorOptions"
+                item-text="name"
+                item-value="id"
+                label="Annotators"
+                multiple
+                clearable
+                dense
+                hide-details
+              />
+            </v-col>
           </v-row>
           <!-- second row: Labels aligned under first columns -->
           <v-row dense>
@@ -141,6 +154,7 @@ export default Vue.extend({
       loading: false,
       filters: {
         annotationIds: [] as number[],
+        annotators: [] as number[],
         labels: [] as number[]      // agora array
       },
       allAnnotationsRaw: [] as any[],
@@ -161,6 +175,11 @@ export default Vue.extend({
       // sort by id ascending
       return opts.sort((a, b) => a.id - b.id)
     },
+    annotatorOptions(): Array<{ id: number; name: string }> {
+      const used = new Set(this.allAnnotationsRaw.map(a => a.annotator))
+      return this.users.filter(u => used.has(u.id))
+    },
+    // dynamic labels dropdown
     labelOptions(): Array<{ id: number; text: string }> {
       // pick data‐set depending on whether a report has been generated
       const src = this.filteredAnnotations.length
@@ -255,6 +274,7 @@ export default Vue.extend({
     generateReport() {
       // ensure all filters are selected
       if (!this.filters.annotationIds.length ||
+          !this.filters.annotators.length ||
           !this.filters.labels.length) {
         this.errorMessage = 'Please select all the filters.'
         this.filteredAnnotations = []
@@ -269,7 +289,12 @@ export default Vue.extend({
             !this.filters.annotationIds.includes(a.id)) {
           return false
         }
-        // 2) filtra por Labels selecionadas
+        // 2) filtra por Annotators, se houver
+        if (this.filters.annotators.length &&
+            !this.filters.annotators.includes(a.annotator)) {
+          return false
+        }
+        // 3) filtra por Labels selecionadas
         if (this.filters.labels.length) {
           const spans = a.extracted_labels.spans || []
           // mantém se tiver pelo menos 1 das labels escolhidas
@@ -293,6 +318,14 @@ export default Vue.extend({
       if (this.filters.annotationIds.length) {
         doc.setFontSize(12).setTextColor('#000')
         doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, margin, startY)
+        startY += 14
+      }
+      if (this.filters.annotators.length) {
+        const names = this.users
+          .filter(u => this.filters.annotators.includes(u.id))
+          .map(u => u.name)
+          .join(', ')
+        doc.text(`Annotators: ${names}`, margin, startY)
         startY += 14
       }
       if (this.filters.labels.length) {
