@@ -131,6 +131,7 @@
 import Vue from 'vue'
 import { mapActions } from 'vuex'
 import { jsPDF as JsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import {
   VContainer, VCard, VCardTitle, VDivider, VCardText,
   VForm, VRow, VCol, VAutocomplete, VSelect,
@@ -200,8 +201,8 @@ export default Vue.extend({
         new Map(types.map((t: any) => [t.id, t])).values()
       )
       return uniq
-        .filter((t: any) => t.text !== 'Dog' && t.text !== 'Cat')
-        .map((t: any) => ({ id: t.id, text: t.text }))
+        .filter(({ text }: any) => text !== 'Dog' && text !== 'Cat')
+        .map(({ id, text }: any) => ({ id, text }))
     },
     currentProject(): any {
       return this.$store.getters['projects/currentProject']
@@ -307,69 +308,49 @@ export default Vue.extend({
     },
     downloadPdf() {
       const doc = new JsPDF({ unit: 'pt', format: 'letter' })
-      const m = 40
-      const lh = 14
-      const ph = doc.internal.pageSize.getHeight()
-      let y = m
+      const margin = 40
+      let startY = margin
 
       doc.setFontSize(18).setTextColor('#333')
-      doc.text('Annotations Report', m, y); y += lh * 1.5
+      doc.text('Annotations Report', margin, startY)
+      startY += 20
 
       if (this.filters.annotationIds.length) {
         doc.setFontSize(12).setTextColor('#000')
-        doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, m, y); y += lh
+        doc.text(`IDs: ${this.filters.annotationIds.join(', ')}`, margin, startY)
+        startY += 14
       }
       if (this.filters.annotators.length) {
         const names = this.users
-          .filter((u) => this.filters.annotators.includes(u.id))
-          .map((u) => u.name)
+          .filter(u => this.filters.annotators.includes(u.id))
+          .map(u => u.name)
           .join(', ')
-        doc.setFontSize(12).setTextColor('#000')
-        doc.text(`Annotators: ${names}`, m, y)
-        y += lh
+        doc.text(`Annotators: ${names}`, margin, startY)
+        startY += 14
       }
       if (this.filters.labels.length) {
         const lbls = this.filters.labels
-          .map((id) => this.labelOptions
-            .find((l: { id: number; text: string }) => l.id === id)?.text || id)
+          .map(id => this.labelOptions.find(l => l.id === id)?.text || id)
           .join(', ')
-        doc.text(`Labels: ${lbls}`, m, y)
-        y += lh
+        doc.text(`Labels: ${lbls}`, margin, startY)
+        startY += 14
       }
-      y += lh
+      startY += 10
 
-      this.filteredAnnotations.forEach((ann, i) => {
-        if (y + 6 * lh > ph - m) { doc.addPage(); y = m }
-        doc.setFontSize(10).setTextColor('#6376AB')
-        doc.text(`${i+1}. ${this.formatDate(ann.created_at)}`, m, y)
-        y += lh
+      const rows = this.filteredAnnotations.map((ann, idx) => [
+        idx + 1,
+        this.formatDate(ann.created_at),
+        this.users.find(u => u.id === ann.annotator)?.name || 'Unknown',
+        ann.extracted_labels.text,
+        this.getSpansSummary(ann)
+      ])
 
-        const author = this.users.find(u=>u.id===ann.annotator)?.name || 'Unknown'
-        doc.setFontSize(10).setTextColor('#000')
-        doc.text(`by ${author}`, m + 10, y)
-        y += lh
-
-        const snippet = ann.extracted_labels.text.slice(0, 100) +
-          (ann.extracted_labels.text.length > 100 ? '…' : '')
-        doc.setFontSize(11).setTextColor('#333')
-        doc.text(snippet, m + 20, y)
-        y += lh * 1.5
-
-        // print spans summary
-        const spansLine = this.getSpansSummary(ann)
-        if (spansLine) {
-          // label
-          doc.setFontSize(10).setTextColor('#6376AB')
-          doc.text('Spans:', m + 20, y)
-          y += lh
-
-          // span snippets
-          doc.setFontSize(10).setTextColor('#000')
-          const maxW = doc.internal.pageSize.getWidth() - (m + 60)
-          const spanLines = doc.splitTextToSize(spansLine, maxW)
-          doc.text(spanLines, m + 30, y)
-          y += spanLines.length * lh + lh
-        }
+      autoTable(doc, {
+        head: [['#', 'Date', 'Annotator', 'Text', 'Spans']],
+        body: rows,
+        startY,
+        styles: { fontSize: 10 },
+        headStyles: { fillColor: [99, 118, 171] }
       })
 
       doc.save('Annotations-Report.pdf')
