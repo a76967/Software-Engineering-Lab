@@ -6,7 +6,9 @@
           <v-card-title>
             Voting on Annotation rules
             <v-spacer />
-            <span v-if="meta">Ends in {{ timeRemaining }}</span>
+            <!-- show countdown until end, or “Ended” once closed -->
+            <span v-if="meta && !voteClosed">Ends in {{ timeRemaining }}</span>
+            <span v-else-if="meta && voteClosed">Ended</span>
           </v-card-title>
           <v-card-text>
             <div v-if="loading" class="text--secondary">Loading history…</div>
