@@ -30,16 +30,21 @@
 <script>
 import {
   mdiAccount,
+  mdiAccountGroup,
   mdiBookOpenOutline,
   mdiChartBar,
   mdiCog,
   mdiCommentAccountOutline,
   mdiDatabase,
-  mdiEyeOutline,
+  mdiAccountEye,
+  mdiEye,
+  mdiGavel,
   mdiHome,
   mdiLabel,
   mdiPlayCircleOutline,
   mdiThumbDownOutline,
+  mdiVote,
+  mdiFileChartOutline,
 } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 
@@ -62,6 +67,7 @@ export default {
       selected: 0,
       mdiPlayCircleOutline,
       mdiThumbDownOutline,
+      mdiVote
     }
   },
 
@@ -93,8 +99,7 @@ export default {
           text: 'Relations',
           link: 'links',
           isVisible:
-            (this.isProjectAdmin || this.project.allowMemberToCreateLabelType) &&
-            this.project.canDefineRelation
+            false
         },
         {
           icon: mdiAccount,
@@ -109,8 +114,14 @@ export default {
           isVisible: this.isProjectAdmin
         },
         {
-          icon: mdiEyeOutline, 
-          text: 'Perspectives',
+          icon: mdiEye,
+          text: 'Admin Perspectives',
+          link: 'admin-perspectives',
+          isVisible: this.isProjectAdmin
+        },
+        {
+          icon: mdiAccountEye,
+          text: 'User Perspectives',
           link: 'perspectives',
           isVisible: true
         },
@@ -118,6 +129,30 @@ export default {
           icon: this.mdiThumbDownOutline,
           text: 'Disagreements',
           link: 'disagreements',
+          isVisible: true
+        },
+        {
+          icon: mdiAccountGroup,
+          text: 'Discussions',
+          link: 'discussions',
+          isVisible: true
+        },
+        {
+          icon: mdiGavel,
+          text: 'Annotation Rules',
+          link: 'annotation-rules',
+          isVisible: false
+        },
+        {
+          icon: mdiVote,
+          text: 'Voting',
+          link: 'voting',
+          isVisible: true
+        },
+        {
+          icon: mdiFileChartOutline,
+          text: 'Reports',
+          link: 'reports',
           isVisible: true
         },
         {

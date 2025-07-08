@@ -69,12 +69,14 @@ class TestExampleFilterOnCollaborative(TestFilterMixin):
     def test_returns_example_if_confirmed_is_true(self):
         for member in self.project.members:
             self.request.user = member
-            self.assert_filter(data={"confirmed": "True"}, expected=1)
+            expected = 1 if member == self.project.admin else 0
+            self.assert_filter(data={"confirmed": "True"}, expected=expected)
 
     def test_does_not_return_example_if_confirmed_is_false(self):
         for member in self.project.members:
             self.request.user = member
-            self.assert_filter(data={"confirmed": "False"}, expected=0)
+            expected = 0 if member == self.project.admin else 1
+            self.assert_filter(data={"confirmed": "False"}, expected=expected)
 
     def test_returns_example_if_confirmed_is_empty(self):
         for member in self.project.members:

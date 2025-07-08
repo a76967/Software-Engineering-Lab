@@ -3,53 +3,56 @@
     <v-alert v-if="dbError" type="error" dense>
       {{ dbError }}
     </v-alert>
-    <v-card-title>
-      <div>
-        <template v-if="editingSubject">
-          <v-text-field
-            v-model="form.subject"
-            label="Subject"
-            dense
-            solo
-            hide-details
-            class="elevation-0"
-            @blur="editingSubject = false"
-            @keyup.enter="editingSubject = false"
-            autofocus
-          />
-        </template>
-        <template v-else>
-          <span class="headline" @click="editingSubject = true">
-            {{ form.subject || 'Perspective Title' }}
-            <v-icon class="edit-icon">{{ mdiPencil }}</v-icon>
-          </span>
-        </template>
-      </div>
-    </v-card-title>
+
     <v-card-text>
       <v-form ref="form" v-model="isValid">
         <v-select
-          class="custom-input"
-          v-model="form.category"
-          :items="categories"
-          :label="$t('Category')"
-          required
+          v-model="form.adminPerspective"
+          :items="adminPerspectives"
+          item-text="name"
+          item-value="id"
+          label="Perspective"
+          readonly
+          class="bold-label"
         />
-        <v-textarea
-          class="custom-input"
-          v-model="form.text"
-          :label="$t('Text')"
-          counter="2000"
-          required
-          rows="10"
-          auto-grow
-        />
+
+        <!-- fields coming from the selected Admin Perspective -->
+        <div v-for="field in extraItems" :key="field.id" class="mt-4">
+          <v-text-field
+            v-if="field.data_type === 'string' || field.data_type === 'number'"
+            v-model="form.extra[field.name]"
+            :type="field.data_type === 'number' ? 'number' : 'text'"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+            :required="field.required"
+          />
+          <v-select
+            v-else-if="field.data_type === 'boolean'"
+            v-model="form.extra[field.name]"
+            :items="booleanOptions"
+            item-text="text"
+            item-value="value"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+          />
+          <v-select
+            v-else-if="field.data_type === 'enum'"
+            v-model="form.extra[field.name]"
+            :items="field.enum || []"
+            :label="`${field.name}${field.required ? ' *' : ''}`"
+            :rules="field.required ? extraRules(field) : []"
+          />
+        </div>
+
       </v-form>
     </v-card-text>
+
     <v-card-actions>
-      <v-spacer></v-spacer>
+      <v-spacer />
       <v-btn text @click="goBack">{{ $t('generic.cancel') }}</v-btn>
-      <v-btn color="primary" :disabled="!isValid" @click="submitPerspective">
+      <v-btn color="primary"
+             :disabled="!isValid"
+             @click="submitPerspective">
         {{ $t('generic.add') }}
       </v-btn>
     </v-card-actions>
@@ -59,75 +62,205 @@
 <script lang="ts">
 // @ts-nocheck
 import Vue from 'vue'
-import { mdiPencil } from '@mdi/js'
 import { mapGetters } from 'vuex'
 
 export default Vue.extend({
   name: 'CreatePerspective',
   layout: 'project',
-  data() {
+
+  data () {
     return {
-      mdiPencil,
-      editingSubject: false,
+      // master lists for lookups
+      allowedGenders: [
+        'M','F','Male','Female',
+        'Masculine','Feminine','Masculino','Feminino'
+      ],
       form: {
-        subject: '',
-        text: '',
-        category: 'subjective'
+        extra: {} as Record<string, any>,
+        adminPerspective: null as number | null
       },
-      categories: [
-        { text: this.$t('Cultural'), value: 'cultural' },
-        { text: this.$t('Technic'), value: 'technic' },
-        { text: this.$t('Subjective'), value: 'subjective' }
+      extraItems: [] as any[],
+      adminPerspectives: [] as any[],
+      booleanOptions: [
+        { text: 'Yes', value: true },
+        { text: 'No',  value: false }
       ],
       isValid: false,
-      dbError: ""
+      dbError: ''
     }
   },
+
   computed: {
     ...mapGetters('auth', ['getUsername']),
-    userRole(): string {
+    userRole (): string {
       return this.$store.state.auth.role || 'annotator'
     }
   },
+
+  async mounted () {
+    // prevent duplicate user perspective
+    await this.checkExistingPerspective()
+    // load the single admin perspective and its fields
+    await this.fetchAdminPerspectives()
+    if (this.adminPerspectives.length) {
+      this.form.adminPerspective = this.adminPerspectives[0].id
+      await this.fetchExtraItems()
+    }
+  },
+
   methods: {
-    async submitPerspective() {
+    async fetchAdminPerspectives () {
+      try {
+        const res = await this.$repositories.adminPerspective.list(Number(this.$route.params.id))
+        this.adminPerspectives = res
+      } catch (e) {
+        this.adminPerspectives = []
+      }
+    },
+
+    async fetchExtraItems () {
+      if (!this.form.adminPerspective) {
+        this.extraItems = []
+        return
+      }
+      try {
+        this.extraItems = await this.$repositories.perspectiveField.list(
+          Number(this.$route.params.id),
+          this.form.adminPerspective
+        )
+      } catch {
+        this.extraItems = []
+      }
+      if (!this.extraItems.length) {
+        this.dbError = 'No fields defined by project admin.'
+      }
+    },
+
+    async checkExistingPerspective () {
+      const projectId = this.$route.params.id
+      const userId    = this.$store.state.auth.id
+      try {
+        const list = await this.$repositories.perspective.list(projectId)
+        const existing = list.find((p:any) => p.userId === userId)
+        if (existing) {
+          this.$router.push(
+            this.localePath(`/projects/${projectId}/perspectives/edit?perspectiveId=${existing.id}`)
+          )
+        }
+      } catch (e) {
+        console.error('Failed to check existing ', e)
+      }
+    },
+
+    async submitPerspective () {
+      this.dbError = ''
+      // run full form validation and block save if invalid
+      const formValid = (this.$refs.form as any).validate()
+      if (!formValid) {
+        this.dbError = 'Insert all data before saving'
+        return
+      }
+      if (!this.form.adminPerspective) {
+        this.dbError = 'Perspective not selected.'
+        return
+      }
+      // require every field to be filled
+      const missing = this.extraItems
+        .filter(f => {
+          const v = this.form.extra[f.name]
+          return v === undefined || v === ''
+        })
+        .map(f => f.name)
+      if (missing.length) {
+        this.dbError = 'Insert all data before saving'
+        return
+      }
+
       const projectId = Number(this.$route.params.id)
-      const userId = this.$store.state.auth.id
-      if (!userId) {
-        console.error('User ID is missing. Ensure the user is logged in.')
-        return
-      }
-      if (!this.form.text || !this.form.category || !this.form.subject) {
-        console.error('Form is invalid. Ensure all required fields are filled.')
-        return
-      }
+      // compose the user‐entered values into the text field
+      const text = this.extraItems
+        .map(it => {
+          const v = this.form.extra[it.name]
+          return v !== undefined && v !== '' ? `${it.name}: ${v}` : null
+        })
+        .filter(Boolean)
+        .join(', ')
       const payload = {
-        subject: this.form.subject,
-        text: this.form.text,
-        category: this.form.category,
-        user: userId,
-        project: projectId,
-        roleOverride: true,
-        role: this.userRole
+        user: this.$store.state.auth.id,
+        admin_perspective: this.form.adminPerspective,
+        extra: this.form.extra,
+        text
       }
-      
-      console.log('Submitting perspective payload:', payload)
+
       try {
         await this.$repositories.perspective.create(projectId, payload)
         this.$router.push({
-          path: '/message',
+          path: this.localePath('/message'),
           query: {
             message: 'Perspective added successfully!',
-            redirect: `/projects/${projectId}/perspectives`
+            redirect: this.localePath(`/projects/${projectId}/perspectives`)
           }
         })
-      } catch (error: any) {
-        console.error('Error submitting perspective:', error.response || error.message)
-        this.dbError = "Can't access our database!"
+      } catch (err:any) {
+        const data = err.response?.data || {}
+        const key = Object.keys(data)[0]
+        this.dbError = Array.isArray(data[key]) ? data[key][0] : data[key] || 'Failed to create.'
       }
     },
-    goBack() {
-      this.$router.push(this.localePath(`/projects/${this.$route.params.id}/perspectives`))
+
+    extraRules(it: any) {
+      // build a list of validator functions:
+      const rules: Array<(v: any)=> true|string> = []
+
+      // boolean is always just required
+      if (it.data_type === 'boolean') {
+        rules.push(v => v === true || v === false || `${it.name} is required`)
+      }
+
+      // number → integer ≥ 0, with special “Age” name hint
+      else if (it.data_type === 'number') {
+        // required
+        rules.push(v => v!=='' && v!==null && v!==undefined || `${it.name} is required`)
+        // integer check
+        rules.push(v => {
+          const n = Number(v)
+          if (isNaN(n))         return `${it.name} must be a number`
+          if (!Number.isInteger(n)) return `${it.name} must be an integer`
+          if (n < 0)            return `${it.name} must be non-negative`
+          if (it.name === 'Age' && n > 100)
+            return 'Age must be between 0 and 100'
+          return true
+        })
+      }
+
+      // string → possibly country/nationality or gender
+      else if (it.data_type === 'string') {
+        // required
+        rules.push(v => !!v || `${it.name} is required`)
+
+        const nm = it.name.toLowerCase()
+        if (nm === 'gender') {
+          // must be one of allowed genders
+          rules.push(v =>
+            this.allowedGenders.includes(v)
+              ? true
+              : `${it.name} must be one of: ${this.allowedGenders.join(', ')}`
+          )
+        }
+      }
+
+      // enum → just required (you already bound items to the enum list)
+      else if (it.data_type === 'enum') {
+        rules.push(v => !!v || `${it.name} is required`)
+      }
+
+      return rules
+    },
+
+    goBack () {
+      this.$router.push(
+        this.localePath(`/projects/${this.$route.params.id}/perspectives`)
+      )
     }
   }
 })
@@ -139,7 +272,6 @@ export default Vue.extend({
   margin: 20px auto;
   padding: 20px;
 }
-
 .headline {
   cursor: pointer;
   font-weight: bold;
@@ -147,20 +279,20 @@ export default Vue.extend({
   display: inline-flex;
   align-items: center;
 }
-
 .headline .edit-icon {
   opacity: 0;
   transition: opacity 0.3s;
   color: inherit;
   margin-left: 8px;
 }
-
 .headline:hover .edit-icon {
   opacity: 1;
 }
-
 ::v-deep .custom-input .v-input__slot {
   background-color: #f0f0f0 !important;
   border-radius: 4px;
+}
+::v-deep .bold-label .v-label {
+  font-weight: bold;
 }
 </style>

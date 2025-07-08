@@ -1,210 +1,212 @@
 <template>
-  <v-card>
-    <v-card-title>
-      <v-btn color="primary" class="text-capitalize ms-2" @click="goToAdd">
-        {{ $t('generic.add') }}
-      </v-btn>
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canEdit"
-        outlined
-        @click="editPerspective"
-      >
-        Edit
-      </v-btn>
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canDelete"
-        outlined
-        @click.stop="dialogDelete = true"
-      >
-        {{ $t('generic.delete') }}
-      </v-btn>
-    </v-card-title>
+  <div>
+    <v-card>
+      <v-card-title>
+        <v-btn color="primary" class="text-capitalize ms-2" @click="goToAdd">
+          {{ $t('generic.add') }}
+        </v-btn>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canEdit || !canDeletePerspective(selected[0])"
+          outlined
+          @click="editPerspective"
+        >
+          Edit
+        </v-btn>
+        <v-btn
+          class="text-capitalize ms-2"
+          :disabled="!canDelete"
+          outlined
+          @click.stop="requestDelete"
+        >
+          {{ $t('generic.delete') }}
+        </v-btn>
+      </v-card-title>
 
-    <v-card-text>
-      <v-text-field
-        v-model="search"
-        :prepend-inner-icon="icons.mdiMagnify"
-        :label="$t('generic.search')"
-        single-line
-        hide-details
-        filled
-        style="margin-bottom: 1rem"
-      />
-      <v-progress-circular
-        v-if="isLoading"
-        class="ma-3"
-        indeterminate
-        color="primary"
-      />
+      <v-card-text>
+        <v-text-field
+          v-model="search"
+          :prepend-inner-icon="icons.mdiMagnify"
+          :label="$t('generic.search')"
+          single-line
+          hide-details
+          filled
+          style="margin-bottom: 1rem"
+        />
 
-      <v-alert v-if="dbError" type="error" dense>
-        {{ dbError }}
-      </v-alert>
+        <v-progress-circular
+          v-if="isLoading"
+          class="ma-3"
+          indeterminate
+          color="primary"
+        />
 
-      <!-- Display perspectives with checkboxes on their left -->
-      <div v-if="!isLoading && !dbError" class="d-flex justify-center">
-        <div style="max-width: 800px; width: 100%;">
-          <div
-            v-for="item in items"
-            :key="item.id"
-            class="mb-4 d-flex align-center"
-          >
-            <v-checkbox
-              v-model="selected"
-              :value="item"
-              hide-details
-              class="mr-2"
-              :ripple="false"
-            />
-            <v-card
-              class="flex-grow-1"
-              outlined
-              elevation="2"
-              rounded
-              :class="{ 'selected-card': isSelected(item) }"
+        <v-alert v-if="dbError" type="error" dense>
+          {{ dbError }}
+        </v-alert>
+
+        <div v-if="!isLoading && !dbError" class="d-flex justify-center">
+          <div style="max-width: 800px; width: 100%;">
+            <div
+              v-for="(item) in filteredItems"
+              :key="item.id"
+              class="mb-4 d-flex align-center"
             >
-              <v-sheet
-                color="primary"
-                dark
-                class="py-3 px-4 rounded-t-lg d-flex flex-column"
+              <v-checkbox
+                v-model="selected"
+                :value="item"
+                hide-details
+                class="mr-2"
+                :ripple="false"
+                :disabled="selected.length > 0 && !isSelected(item) && !canDeletePerspective(item)"
+              />
+              <v-card
+                class="flex-grow-1"
+                outlined
+                elevation="2"
+                rounded
+                :class="{
+                  'selected-card': isSelected(item),
+                  'disabled-card': selected.length > 0 && !canDeletePerspective(item)
+                }"
               >
-                <div class="text-h6 font-weight-medium">
-                  {{ item.user.username }}:
-                  <span v-if="item.subject">
-                    {{ item.subject }}
-                  </span>
-                </div>
-                <div class="text-body-2">
-                  {{ formatTime(item.created_at) }}
-                  <span v-if="item.updated_at !== item.created_at">
-                    &bull; Updated: {{ formatTime(item.updated_at) }}
-                  </span>
-                </div>
-              </v-sheet>
-
-              <v-card-text>
-                <div>
-                  {{ item.text }}
-                </div>
-                <div
-                  v-if="item.linkedAnnotations && item.linkedAnnotations.length"
+                <v-sheet
+                  :color="item.user.role === 'project_admin' ? 'orange' : 'primary'"
+                  dark
+                  class="py-3 px-4 rounded-t-lg d-flex flex-column"
                 >
-                  <v-divider class="my-2" />
-                  <div
-                    v-for="ann in item.linkedAnnotations"
-                    :key="ann.uniqueId"
-                    class="d-flex align-center"
-                  >
-                    <span
-                      v-if="ann.text"
-                      style="cursor: pointer;"
-                      @click="viewAnnotation(item, ann)"
-                    >
-                      <strong>Annotation:</strong>
-                      {{ ann.text }}
-                      <span v-if="ann.label">
-                        ({{ ann.label }})
-                      </span>
-                      <span v-if="ann.linkedBy">
-                        — linked by <strong>{{ ann.linkedBy }}</strong>
-                      </span>
-                    </span>
-                    <v-spacer />
-                    <v-btn
-                      icon
-                      small
-                      color="primary"
-                      :disabled="user.username !== ann.linkedBy && !isProjectAdmin"
-                      @click="editAnnotation(item, ann)"
-                    >
-                      <v-icon>{{ icons.mdiPencil }}</v-icon>
-                    </v-btn>
-                    <v-btn
-                      icon
-                      small
-                      :disabled="!canDeleteAnnotation(ann)"
-                      color="red"
-                      @click="removeAnnotation(item, ann)"
-                    >
-                      <v-icon>{{ icons.mdiTrashCan }}</v-icon>
-                    </v-btn>
+                  <div class="text-h6 font-weight-medium">
+                    {{ item.user.username }}'s perspective
                   </div>
-                </div>
-              </v-card-text>
+                  <div class="text-body-2">
+                    {{ formatTime(item.created_at) }}
+                    <span v-if="item.updated_at !== item.created_at">
+                      &bull; Updated: {{ formatTime(item.updated_at) }}
+                    </span>
+                  </div>
+                </v-sheet>
 
-              <v-card-actions>
-                <v-chip small>
-                  {{ item.category }}
-                </v-chip>
-                <v-spacer />
-                <v-btn
-                  color="secondary"
-                  small
-                  @click="openLinkDialog(item)"
-                >
-                  Link Annotation
-                </v-btn>
-              </v-card-actions>
-            </v-card>
-          </div>
+                <v-card-text>
+                  <div v-html="formatPerspectiveText(item.text, item.id)"></div>
+                  <div
+                    v-if="item.linkedAnnotations && item.linkedAnnotations.length"
+                  >
+                    <v-divider class="my-2" />
+                    <div
+                      v-for="ann in item.linkedAnnotations"
+                      :key="ann.uniqueId"
+                      class="d-flex align-center"
+                    >
+                      <span
+                        v-if="ann.text"
+                        style="cursor: pointer;"
+                        @click="viewAnnotation(item, ann)"
+                      >
+                        <strong>Annotation:</strong>
+                        {{ ann.text }}
+                        <span v-if="ann.label">
+                          ({{ ann.label }})
+                        </span>
+                        <span v-if="ann.linkedBy">
+                          — linked by <strong>{{ ann.linkedBy }}</strong>
+                        </span>
+                      </span>
+                      <v-spacer />
+                      <v-btn
+                        icon
+                        small
+                        color="primary"
+                        :disabled="!canEditAnnotation(item, ann)"
+                        @click="editAnnotation(item, ann)"
+                      >
+                        <v-icon>{{ icons.mdiPencil }}</v-icon>
+                      </v-btn>
+                      <v-btn
+                        icon
+                        small
+                        color="red"
+                        :disabled="!canDeleteAnnotation(item, ann)"
+                        @click="removeAnnotation(item, ann)"
+                      >
+                        <v-icon>{{ icons.mdiTrashCan }}</v-icon>
+                      </v-btn>
+                    </div>
+                  </div>
+                </v-card-text>
 
-          <div v-if="items.length === 0">
-            <p>No perspectives available.</p>
+              </v-card>
+            </div>
+
+            <div v-if="items.length === 0">
+              <p>No perspectives available.</p>
+            </div>
           </div>
         </div>
-      </div>
-    </v-card-text>
+      </v-card-text>
 
-    <!-- Link Annotation Dialog -->
-    <v-dialog v-model="dialogLink" persistent max-width="600px">
+      <v-dialog v-model="dialogLink" persistent max-width="600px">
+        <v-card>
+          <v-card-title>
+            Select a Dataset item to link its annotations
+          </v-card-title>
+          <v-card-text>
+            <v-alert v-if="annotationFetchError" type="error" dense>
+              {{ annotationFetchError }}
+            </v-alert>
+            <v-select
+              v-model="selectedDataset"
+              :items="datasetItems"
+              :item-text="getDatasetLabel"
+              item-value="id"
+              label="Choose a dataset item"
+              :item-disabled="isItemDisabled"
+              :disabled="!!annotationFetchError"
+              dense
+            />
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn
+              color="secondary"
+              text
+              @click="confirmLink"
+              :disabled="!!annotationFetchError"
+            >
+              Confirm
+            </v-btn>
+            <v-btn text @click="closeLinkDialog">
+              Cancel
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
+
+      <delete-dialog
+        v-model="dialogDelete"
+        :dbError="dbError"
+        :deleteDialogText="deleteDialogText"
+        :isDeleting="isDeleting"
+        @confirm-delete="removePerspective"
+        @cancel-delete="closeDeleteDialog"
+      />
+    </v-card>
+
+    <v-dialog v-model="showDuplicateDialog" max-width="400px">
       <v-card>
-        <v-card-title>
-          Select a Dataset item to link its annotations
-        </v-card-title>
+        <v-card-title class="headline">Warning</v-card-title>
         <v-card-text>
-          <v-alert v-if="annotationFetchError" type="error" dense>
-            {{ annotationFetchError }}
-          </v-alert>
-          <v-select
-            v-model="selectedDataset"
-            :items="datasetItems"
-            :item-text="getDatasetLabel"
-            item-value="id"
-            label="Choose a dataset item"
-            :item-disabled="isItemDisabled"
-            :disabled="!!annotationFetchError"
-            dense
-          />
+          You can’t create more than 1 perspective per user! Edit or delete yours first!
         </v-card-text>
         <v-card-actions>
-          <v-spacer />
-          <v-btn
-            color="secondary"
-            text
-            @click="confirmLink"
-            :disabled="!!annotationFetchError"
-          >
-            Confirm
-          </v-btn>
-          <v-btn text @click="closeLinkDialog">
-            Cancel
+          <v-spacer/>
+          <v-btn text color="primary" @click="showDuplicateDialog = false">
+            OK
           </v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Usa o componente DeleteDialog -->
-    <delete-dialog
-      v-model="dialogDelete"
-      :dbError="dbError"
-      :deleteDialogText="deleteDialogText"
-      :isDeleting="isDeleting"
-      @confirm-delete="removePerspective"
-      @cancel-delete="closeDeleteDialog"
-    />
-  </v-card>
+    <info-dialog v-model="showInfoDialog" :message="infoDialogMessage" />
+  </div>
 </template>
 
 <script lang="ts">
@@ -216,12 +218,14 @@ import { mapGetters } from 'vuex'
 import { mdiMagnify, mdiPencil, mdiTrashCan } from '@mdi/js'
 import { getLinkToAnnotationPage } from '~/presenter/linkToAnnotationPage'
 import DeleteDialog from '~/pages/projects/_id/perspectives/delete.vue'
+import InfoDialog from '~/components/utils/InfoDialog.vue'
 
 export default Vue.extend({
   name: 'PerspectivesTable',
   layout: 'project',
   components: {
-    DeleteDialog
+    DeleteDialog,
+    InfoDialog
   },
   data() {
     return {
@@ -231,8 +235,11 @@ export default Vue.extend({
       datasetItems: [] as any[],
       annotationFetchError: "",
       currentPerspective: null as any,
-      selected: [] as any[], // holds the selected perspective(s)
+      selected: [] as any[],
       search: '',
+      filters: {
+        category: ''
+      },
       options: {
         page: 1,
         itemsPerPage: 10,
@@ -242,14 +249,30 @@ export default Vue.extend({
       items: [] as any[],
       total: 0,
       isLoading: false,
-      categoryTypes: [] as any[],
+      categoryTypes: [] as Array<{ text: string; value: string }>,
       dbError: '',
-      isDeleting: false, // Flag para controlar o estado da deleção
+      showDuplicateDialog: false,
+      showInfoDialog: false,
+      infoDialogMessage: '',
+      isDeleting: false,
       icons: {
         mdiMagnify,
         mdiPencil,
         mdiTrashCan
-      }
+      },
+      nameRules: [
+        (v: string) => !!v || 'Name is required',
+        (v: string) => {
+          const exists =
+            this.items.some(it => it.name === v) ||
+            this.pendingItems.some(it => it.name === v)
+          return !exists || 'Name duplicated'
+        }
+      ],
+      dataTypeRules: [
+        (v: string) => !!v || 'Data Type is required',
+        (v: string) => this.types.includes(v) || 'Invalid Data Type'
+      ]
     }
   },
   computed: {
@@ -264,22 +287,34 @@ export default Vue.extend({
     isProjectAdmin(): boolean {
       return (this.user.role || '').toLowerCase() === 'project_admin'
     },
-    // List perspectives that you can delete (used previously; may be retained if needed)
     deletablePerspectives(): any[] {
       return this.items.filter((item: any) => item.user.username === this.user.username)
     },
-    // Enable Edit and Delete only when exactly one perspective is selected
     canEdit(): boolean {
       return this.selected.length === 1
     },
-    // Allow deletion when one or more items are selected
     canDelete(): boolean {
-      return this.selected.length > 0
+      if (!this.selected.length) return false
+      return this.selected.every(item => this.canDeletePerspective(item))
     },
     deleteDialogText(): string {
       return this.selected.length > 1
         ? "Are you sure you want to delete these perspectives?"
         : "Are you sure you want to delete this perspective?"
+    },
+    filteredItems(): any[] {
+      const term = this.search.trim().toLowerCase()
+      if (!term) return this.items
+      return this.items.filter(item => {
+        const user  = item.user.username?.toLowerCase() || ''
+        const subj  = (item.subject || '').toLowerCase()
+        const text  = (item.text    || '').toLowerCase()
+        const cat  = (item.category || '').toLowerCase()
+        return user.includes(term)
+            || subj.includes(term)
+            || text.includes(term)
+            || cat.includes(term)
+      })
     }
   },
   watch: {
@@ -290,8 +325,16 @@ export default Vue.extend({
       deep: true
     },
     search() {
+    },
+    'filters.category'() {
       this.options.page = 1
       this.updateQuery()
+    },
+    // Reload perspectives when returning to this page
+    '$route'(to, from) {
+      if (to.fullPath !== from.fullPath) {
+        this.fetchPerspectives()
+      }
     }
   },
   mounted() {
@@ -300,41 +343,64 @@ export default Vue.extend({
   },
   methods: {
     goToAdd() {
+      if (this.items.some(item => item.user.username === this.user.username)) {
+        this.showDuplicateDialog = true
+        return
+      }
       const projectId = this.$route.params.id
       this.$router.push(
         this.localePath(`/projects/${projectId}/perspectives/add`)
       )
     },
     editPerspective() {
-      if (!this.canEdit) {
-        console.error("Select exactly one perspective to edit!")
-        return
-      }
-      const projectId = this.$route.params.id
-      const perspective = this.selected[0]
-      // Using query parameter to pass the perspective id.
-      // Adjust if you prefer a dynamic segment route.
-      this.$router.push(
-        this.localePath(
-          `/projects/${projectId}/perspectives/edit?perspectiveId=${perspective.id}`
-        )
+    if (!this.canEdit) {
+      console.error("Select exactly one perspective to edit!")
+      return
+    }
+    const projectId = this.$route.params.id
+    const perspective = this.selected[0]
+    if (perspective.linkedAnnotations && perspective.linkedAnnotations.length) {
+      this.infoDialogMessage = 'You already have annotations associated with the perspective'
+      this.showInfoDialog = true
+      return
+    }
+    this.$router.push(
+      this.localePath(
+        `/projects/${projectId}/perspectives/edit?perspectiveId=${perspective.id}`
       )
-    },
-    closeDeleteDialog() {
-      this.dialogDelete = false
-    },
-    removePerspective() {
-      if (!this.canDelete) {
-        console.error("No perspective selected for deletion.")
-        return
+    )
+  },
+  closeDeleteDialog() {
+    this.dialogDelete = false
+  },
+  canDeletePerspective(item: any): boolean {
+    return item.user.username === this.user.username
+  },
+  requestDelete() {
+    if (!this.canDelete) return
+    const hasAnn = this.selected.some(it => it.linkedAnnotations && it.linkedAnnotations.length)
+    if (hasAnn) {
+      this.infoDialogMessage = 'You already have annotations associated with the perspective'
+      this.showInfoDialog = true
+      return
+    }
+    this.dialogDelete = true
+  },
+  removePerspective() {
+    if (!this.canDelete) {
+      console.error("No permission to delete selected perspectives.")
+      return
       }
       const projectId = this.$route.params.id
       this.isDeleting = true
-      const deletePromises = this.selected.map((perspective: any) =>
+      const deletable = this.selected
+        .filter(item => this.canDeletePerspective(item))
+      const deletePromises = deletable.map((perspective: any) =>
         axios.delete(`/v1/projects/${projectId}/perspectives/${perspective.id}/`)
       )
       Promise.all(deletePromises)
         .then(() => {
+          deletable.forEach((p: any) => this.clearPerspectiveColors(p.id))
           this.fetchPerspectives()
           this.dialogDelete = false
           this.selected = []
@@ -361,11 +427,9 @@ export default Vue.extend({
         offset: ((this.options.page ? this.options.page - 1 : 0) *
           this.options.itemsPerPage)
       }
-      if (this.search) {
-        query.q = this.search
-      }
+      if (this.filters.category) query.category = this.filters.category
       this.isLoading = true
-      this.dbError = '' // Clear previous DB error
+      this.dbError = ''
       axios.get(`/v1/projects/${projectId}/perspectives/`, { params: query })
         .then((_response: any) => {
           const data = _response.data
@@ -392,7 +456,6 @@ export default Vue.extend({
             'Error fetching perspectives:',
             error.response || error.message
           )
-          // Set error message for display in v-alert
           this.dbError = "Can't access our database!"
           this.items = []
         })
@@ -499,12 +562,13 @@ export default Vue.extend({
       }
       const annotation = {
         id: datasetItem.id,
-        uniqueId: `${datasetItem.id}-${new Date().getTime()}`,
+        uniqueId: `${datasetItem.id}-${Date.now()}`,
         text: truncatedText,
         label,
         categoryId,
         category: fullCategory,
-        linkedBy: this.user.username
+        linkedBy: this.user.username,
+        linkedByRole: this.user.role
       }
       this.items.forEach((item: any, index: number) => {
         if (item.id === this.currentPerspective.id) {
@@ -567,9 +631,49 @@ export default Vue.extend({
         (ann: any) => ann.id === item.id
       )
     },
+    canEditAnnotation(perspective: any, ann: any): boolean {
+      const role   = this.user.role
+      const author = perspective.user.username
+      const by     = ann.linkedBy
+      const byRole = ann.linkedByRole || 'annotator'
+      if (role === 'annotator') {
+        return author === this.user.username && by === this.user.username
+      }
+      if (role === 'project_admin') {
+        return byRole !== 'project_admin'
+      }
+      return false
+    },
+    canDeleteAnnotation(perspective: any, ann: any): boolean {
+      const role = this.user.role
+      const author = perspective.user.username
+      const byRole = ann.linkedByRole || 'annotator'
+      if (role === 'annotator') {
+        return author === this.user.username && byRole === 'annotator'
+      }
+      if (role === 'project_admin') {
+        return byRole !== 'project_admin'
+      }
+      return false
+    },
+    removeAnnotation(item: any, ann: any) {
+      if (!this.canDeleteAnnotation(item, ann)) {
+        console.error("No permission to delete this annotation.")
+        return
+      }
+      const updated = item.linkedAnnotations.filter((a: any) => a.uniqueId !== ann.uniqueId)
+      const idx = this.items.findIndex((it: any) => it.id === item.id)
+      this.$set(this.items, idx, { ...item, linkedAnnotations: updated })
+      axios.patch(
+        `/v1/projects/${this.$route.params.id}/perspectives/${item.id}/`,
+        { linkedAnnotations: updated }
+      )
+        .then(() => this.fetchPerspectives())
+        .catch(err => console.error(err))
+    },
     editAnnotation(item: any, ann: any) {
-      if (this.user.username !== ann.linkedBy && !this.isProjectAdmin) {
-        console.error("Only project admins or the owner of the annotation can edit linked annotations.")
+      if (!this.canEditAnnotation(item, ann)) {
+        console.error("No permission to edit this annotation.")
         return
       }
       const projectId = this.$route.params.id
@@ -580,53 +684,6 @@ export default Vue.extend({
         path: this.localePath(link),
         query: { page: page.toString() }
       })
-    },
-    canDeleteAnnotation(annotation: any): boolean {
-      const role = this.user.role
-      if (role === 'project_admin') {
-        return true
-      } else if (role === 'annotation_approver') {
-        return (
-          annotation.linkedBy === this.user.username ||
-          annotation.linkedByRole === 'annotator'
-        )
-      } else if (role === 'annotator') {
-        return annotation.linkedBy === this.user.username
-      }
-      return false
-    },
-    removeAnnotation(item: any, ann: any) {
-      if (!this.canDeleteAnnotation(ann)) {
-        console.error("You do not have permission to delete this annotation.")
-        return
-      }
-      const updatedAnnotations = item.linkedAnnotations.filter(
-        (a: any) => a.uniqueId !== ann.uniqueId
-      )
-      const index = this.items.findIndex((it: any) => it.id === item.id)
-      if (index !== -1) {
-        this.$set(this.items, index, {
-          ...item,
-          linkedAnnotations: updatedAnnotations
-        })
-      }
-      axios.patch(
-        `/v1/projects/${this.$route.params.id}/perspectives/${item.id}/`,
-        { linkedAnnotations: updatedAnnotations }
-      )
-        .then((_response: any) => {
-          this.fetchPerspectives()
-          this.$router.push({
-            path: '/message',
-            query: {
-              message: 'Annotation removed successfully!',
-              redirect: `/projects/${this.$route.params.id}/perspectives`
-            }
-          })
-        })
-        .catch((error: any) => {
-          console.error("Error removing annotation:", error.response || error.message)
-        })
     },
     viewAnnotation(item: any, ann: any) {
       const projectId = this.$route.params.id
@@ -651,7 +708,6 @@ export default Vue.extend({
       return perspective.subject || perspective.text || 'Perspective'
     },
     selectPerspective(item: any) {
-      // If item is already selected, deselect it; otherwise, select it
       if (this.isSelected(item)) {
         this.selected = []
       } else {
@@ -660,6 +716,77 @@ export default Vue.extend({
     },
     isSelected(item: any): boolean {
       return this.selected.length === 1 && this.selected[0].id === item.id
+    },
+    getUserPerspectiveIndex(item: any): number {
+      const userItems = this.filteredItems
+        .filter(i => i.user.username === item.user.username)
+      const pos = userItems.findIndex(i => i.id === item.id)
+      return pos >= 0 ? pos + 1 : 0
+    },
+    colorFromString(str: string): string {
+      let hash = 0
+      for (let i = 0; i < str.length; i++) {
+        hash = (hash << 5) - hash + str.charCodeAt(i)
+        hash |= 0
+      }
+      const r = Math.abs(hash) % 156 + 100
+      const g = Math.abs((hash >> 8)) % 156 + 100
+      const b = Math.abs((hash >> 16)) % 156 + 100
+      return '#' + [r, g, b]
+        .map(c => c.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase()
+    },
+    randomHexColor(): string {
+      const r = Math.floor(Math.random() * 156 + 100)
+      const g = Math.floor(Math.random() * 156 + 100)
+      const b = Math.floor(Math.random() * 156 + 100)
+      return '#' + [r, g, b]
+        .map(c => c.toString(16).padStart(2, '0'))
+        .join('')
+        .toUpperCase()
+    },
+    getSegmentColor(id: number, seg: string): string {
+      const key = `persp-color-${id}-${seg}`
+      let color = localStorage.getItem(key) || ''
+      if (!color) {
+        color = this.items.length > 1
+          ? this.randomHexColor()
+          : this.colorFromString(seg)
+        localStorage.setItem(key, color)
+      }
+      return color
+    },
+    clearPerspectiveColors(id: number) {
+      const prefix = `persp-color-${id}-`
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i) || ''
+        if (k.startsWith(prefix)) {
+          localStorage.removeItem(k)
+        }
+      }
+    },
+    formatPerspectiveText (text: string = '', id?: number): string {
+      const dot = text.indexOf('. ')
+
+      const metaStr =
+        dot === -1 ? text.trim() : text.slice(0, dot).trim()
+      const rest = dot === -1 ? '' : text.slice(dot + 2).trim()
+
+      const segments = metaStr.split(',').map(s => s.trim()).map(seg => {
+        const [key, ...valParts] = seg.split(':')
+        let val = valParts.join(':').trim()
+        if (val.toLowerCase() === 'true')  val = 'Yes'
+        if (val.toLowerCase() === 'false') val = 'No'
+        const color = id ? this.getSegmentColor(id, seg) : this.colorFromString(seg)
+        const textColor = this.$contrastColor(color)
+        return `<span class="persp-meta" style="background-color:${color};color:${textColor};">${key}: ${val}</span>`
+      })
+
+      return `
+        <div>${segments.join(' ')}</div>
+        ${rest ? `<div>${rest}</div>` : ''}
+      `
     }
   }
 })
@@ -668,5 +795,17 @@ export default Vue.extend({
 <style scoped>
 .selected-card {
   border: 2px solid #1976D2;
+}
+.disabled-card {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+::v-deep .persp-meta {
+  font-weight: bold;
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 8px;
+  margin-right: 4px;
 }
 </style>

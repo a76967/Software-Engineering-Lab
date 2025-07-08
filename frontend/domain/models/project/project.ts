@@ -57,6 +57,8 @@ export class Project {
   projectType: ProjectType
   constructor(
     readonly id: number,
+    readonly rootProject: number | null,
+    readonly versionNumber: number,
     readonly _name: string,
     readonly _description: string,
     readonly guideline: string,
@@ -94,6 +96,8 @@ export class Project {
 
   static create(
     id: number,
+    rootProject: number | null,
+    versionNumber: number,
     name: string,
     description: string,
     guideline: string,
@@ -109,6 +113,8 @@ export class Project {
   ) {
     return new Project(
       id,
+      rootProject,
+      versionNumber,
       name,
       description,
       guideline,

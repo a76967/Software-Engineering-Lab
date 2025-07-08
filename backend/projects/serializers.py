@@ -65,6 +65,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "description",
             "guideline",
             "project_type",
+            "root_project",
+            "version_number",
             "created_at",
             "updated_at",
             "random_order",
@@ -80,6 +82,8 @@ class ProjectSerializer(serializers.ModelSerializer):
             "updated_at",
             "author",
             "is_text_project",
+            "root_project",
+            "version_number",
         )
 
     def create(self, validated_data):

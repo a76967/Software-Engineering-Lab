@@ -1,37 +1,46 @@
 <template>
-  <v-card>
-    <v-card-title v-if="isStaff">
-      <v-btn class="text-capitalize" color="primary" @click.stop="$router.push('projects/create')">
-        {{ $t('generic.create') }}
-      </v-btn>
-      <v-btn class="text-capitalize ms-2" color="primary" :disabled="!canClone" @click.stop="clone">
-        Clone
-      </v-btn>
-      <v-btn
-        class="text-capitalize ms-2"
-        :disabled="!canDelete"
-        outlined
-        @click.stop="dialogDelete = true"
-      >
-        {{ $t('generic.delete') }}
-      </v-btn>
-      <v-dialog v-model="dialogDelete">
-        <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
-      </v-dialog>
-    </v-card-title>
-    <project-list
-      v-model="selected"
-      :items="projects.items"
-      :is-loading="isLoading"
-      :total="projects.count"
-      @update:query="updateQuery"
-    />
-  </v-card>
+  <v-container fluid class="pa-0">
+    <v-row>
+      <v-col cols="12">
+        <v-card>
+          <v-card-title v-if="isStaff">
+            <v-btn class="text-capitalize" 
+            color="primary" @click.stop="$router.push('projects/create')">
+              {{ $t('generic.create') }}
+            </v-btn>
+            <v-btn class="text-capitalize ms-2" 
+            color="primary" :disabled="!canClone" @click.stop="clone">
+              Clone
+            </v-btn>
+            <v-btn
+              class="text-capitalize ms-2"
+              :disabled="!canDelete"
+              outlined
+              @click.stop="dialogDelete = true"
+            >
+              {{ $t('generic.delete') }}
+            </v-btn>
+            <v-dialog v-model="dialogDelete">
+              <form-delete :selected="selected" @cancel="dialogDelete = false" @remove="remove" />
+            </v-dialog>
+          </v-card-title>
+          <project-list
+            :items="projects.items"
+            :total="projects.count"
+            :isLoading="isLoading"
+            :value="selected"
+            @update:query="updateQuery"
+            @input="selected = $event"
+          />
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script lang="ts">
 import _ from 'lodash'
-import Vue from 'vue'
+import { defineComponent } from 'vue'
 import { mapGetters } from 'vuex'
 import ProjectList from '@/components/project/ProjectList.vue'
 import FormDelete from '~/components/project/FormDelete.vue'
@@ -39,7 +48,7 @@ import { Page } from '~/domain/models/page'
 import { Project } from '~/domain/models/project/project'
 import { SearchQueryData } from '~/services/application/project/projectApplicationService'
 
-export default Vue.extend({
+export default defineComponent({
   components: {
     FormDelete,
     ProjectList

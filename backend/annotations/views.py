@@ -1,13 +1,18 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, serializers
 from rest_framework.permissions import IsAuthenticated
+from django_filters.rest_framework import DjangoFilterBackend
 from .models import Annotation
 from .serializers import AnnotationSerializer
 from examples.models import Example
+from typing import Optional
+from annotation_rules.models import AnnotationRuleGrid   # ← import the model you reference below
 
 class AnnotationView(viewsets.ModelViewSet):
     queryset = Annotation.objects.all()
     serializer_class = AnnotationSerializer
     permission_classes = [IsAuthenticated]
+    filter_backends = [DjangoFilterBackend]  # enable filtering
+    filterset_fields = ['dataset_item_id']   # allow filtering by dataset_item_id
 
     def aggregate_extracted_labels(self, dataset_item_id, request):
         example = Example.objects.get(id=dataset_item_id)
@@ -92,14 +97,26 @@ class AnnotationView(viewsets.ModelViewSet):
         return aggregated
 
     def perform_create(self, serializer):
-        dataset_item_id = serializer.validated_data.get("dataset_item_id")
-        new_labels = self.aggregate_extracted_labels(dataset_item_id, self.request)
+        ds_id = serializer.validated_data["dataset_item_id"]
+        example = Example.objects.get(pk=ds_id)
+        new_labels = self.aggregate_extracted_labels(ds_id, self.request)
         serializer.save(
             annotator=self.request.user,
+            project=example.project,         # ← attach project
             extracted_labels=new_labels
         )
 
     def perform_update(self, serializer):
-        dataset_item_id = serializer.validated_data.get("dataset_item_id")
-        new_labels = self.aggregate_extracted_labels(dataset_item_id, self.request)
-        serializer.save(extracted_labels=new_labels)
+        ds_id = serializer.validated_data.get("dataset_item_id")
+        example = Example.objects.get(pk=ds_id)
+        new_labels = self.aggregate_extracted_labels(ds_id, self.request)
+        serializer.save(
+            project=example.project,         # ← keep project on edit
+            extracted_labels=new_labels
+        )
+
+async def getByDatasetItem(dataset_item_id: int) -> Optional[Annotation]:
+    url = "/annotations/"
+    response = await ApiService.get(url, {"params": {"dataset_item_id": dataset_item_id}})
+    annotations = response.data.get("results", response.data)
+    return annotations[0] if annotations else None

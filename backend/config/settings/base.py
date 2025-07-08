@@ -74,8 +74,9 @@ INSTALLED_APPS = [
     "django_cleanup",
     "perspectives",
     "annotations",
+    "discussions.apps.DiscussionsConfig",
+    "annotation_rules.apps.AnnotationRulesConfig",
 ]
-
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -210,7 +211,7 @@ DATABASES["default"].update(
 )
 
 if not os.getenv("DATABASE_URL"):
-    os.environ["DATABASE_URL"] = "postgres://doccano_admin:doccano@localhost:5432/doccano_db?sslmode=disable"
+    os.environ["DATABASE_URL"] = "postgres://doccana_admin:doccana@localhost:5432/doccana_database?sslmode=disable"
 
 if DATABASES["default"].get("ENGINE") == "django.db.backends.sqlite3":
     DATABASES["default"].get("OPTIONS", {}).pop("sslmode", None)
@@ -244,6 +245,13 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://0.0.0.0:3000",
     "http://localhost:3000",
+    "http://10.20.84.32:3000",
+    "http://10.20.88.93:3000",
+    "http://172.24.6.229:3000",
+    "http://172.29.16.1:3000",
+    "http://192.168.156.164:3000",
+    "http://192.168.220.164:3000",
+    "http://10.20.84.32:3000",
     "http://127.0.0.1:000",
     "http://192.168.101.18:3000",
     "http://172.18.48.1:4000",
@@ -253,6 +261,7 @@ CSRF_TRUSTED_ORIGINS = [
     "http://10.20.81.58:3000",
     "http://172.24.64.1:3000",
     "http://10.20.80.25:3000",
+    "http://192.168.1.18:3000/",
 ]
 =======
 CORS_ORIGIN_ALLOW_ALL = False

@@ -58,6 +58,8 @@ export class ProjectApplicationService {
   }: ProjectFields): Promise<Project> {
     const project = Project.create(
       0,
+      null,
+      1,
       name,
       description,
       guideline,
@@ -96,6 +98,8 @@ export class ProjectApplicationService {
   ): Promise<void> {
     const project = Project.create(
       projectId,
+      null,
+      1,
       name,
       description,
       guideline,
@@ -128,5 +132,13 @@ export class ProjectApplicationService {
     } catch (e: any) {
       throw new Error(e.response.data.detail)
     }
+  }
+
+  public async listVersions(projectId: number): Promise<Project[]> {
+    return await this.repository.listVersions(projectId)
+  }
+
+  public async createVersion(projectId: number): Promise<Project> {
+    return await this.repository.createVersion(projectId)
   }
 }

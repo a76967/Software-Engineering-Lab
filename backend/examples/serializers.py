@@ -36,11 +36,8 @@ class ExampleSerializer(serializers.ModelSerializer):
 
     def get_is_confirmed(self, instance):
         user = self.context.get("request").user
-        if instance.project.collaborative_annotation:
-            states = instance.states.all()
-        else:
-            states = instance.states.filter(confirmed_by_id=user.id)
-        return states.count() > 0
+        states = instance.states.filter(confirmed_by_id=user.id)
+        return states.exists()
 
     def get_assignments(self, instance):
         return [

@@ -9,6 +9,7 @@ function toModel(item: { [key: string]: any }): PerspectiveItem {
     subject: item.subject,
     text: item.text,
     category: item.category,
+    adminPerspective: item.admin_perspective,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt
   }

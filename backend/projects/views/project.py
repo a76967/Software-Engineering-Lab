@@ -7,7 +7,8 @@ from rest_framework.permissions import IsAdminUser, IsAuthenticated
 from rest_framework.response import Response
 
 from projects.models import Project
-from projects.permissions import IsProjectAdmin, IsProjectStaffAndReadOnly
+from django.db import models
+from projects.permissions import IsProjectAdmin, IsProjectMember, IsProjectStaffAndReadOnly
 from projects.serializers import ProjectPolymorphicSerializer
 
 
@@ -64,4 +65,29 @@ class CloneProject(views.APIView):
         project = get_object_or_404(Project, pk=self.kwargs["project_id"])
         cloned_project = project.clone()
         serializer = ProjectPolymorphicSerializer(cloned_project)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ProjectVersionListCreate(views.APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            self.permission_classes = [IsAuthenticated & IsProjectMember]
+        else:
+            self.permission_classes = [IsAuthenticated & IsProjectAdmin]
+        return super().get_permissions()
+
+    def get(self, request, *args, **kwargs):
+        project = get_object_or_404(Project, pk=self.kwargs["project_id"])
+        root = project.root_project or project
+        versions = Project.objects.filter(models.Q(pk=root.pk) | models.Q(root_project=root)).order_by("version_number")
+        serializer = ProjectPolymorphicSerializer(versions, many=True)
+        return Response(serializer.data)
+
+    @transaction.atomic
+    def post(self, request, *args, **kwargs):
+        project = get_object_or_404(Project, pk=self.kwargs["project_id"])
+        new_project = project.clone()
+        serializer = ProjectPolymorphicSerializer(new_project)
         return Response(serializer.data, status=status.HTTP_201_CREATED)

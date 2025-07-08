@@ -159,11 +159,25 @@ class TestCloneProject(CRUDMixin):
         self.assertNotEqual(project.id, self.project.id)
         self.assertEqual(project.name, self.project.name)
 
-        # assert category type
-        category_type = project.categorytype_set.first()
-        self.assertEqual(category_type.text, self.category_type.text)
+        # version cloning should not copy label types
+        self.assertEqual(project.categorytype_set.count(), 0)
 
         # assert example
         example = self.project.examples.first()
         cloned_example = project.examples.first()
         self.assertEqual(example.text, cloned_example.text)
+
+
+class TestProjectVersionList(CRUDMixin):
+    @classmethod
+    def setUpTestData(cls):
+        cls.project = prepare_project()
+        cls.non_member = make_user()
+        cls.url = reverse("project_version", args=[cls.project.id])
+
+    def test_allow_project_members(self):
+        for member in self.project.members:
+            self.assert_fetch(member, status.HTTP_200_OK)
+
+    def test_deny_non_member(self):
+        self.assert_fetch(self.non_member, status.HTTP_403_FORBIDDEN)

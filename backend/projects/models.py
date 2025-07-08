@@ -6,7 +6,7 @@ from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Manager
+from django.db.models import Manager, JSONField, Max, Q
 from polymorphic.models import PolymorphicModel
 
 from roles.models import Role
@@ -40,6 +40,14 @@ class Project(PolymorphicModel):
     collaborative_annotation = models.BooleanField(default=False)
     single_class_classification = models.BooleanField(default=False)
     allow_member_to_create_label_type = models.BooleanField(default=False)
+    root_project = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        related_name="versions",
+        on_delete=models.CASCADE,
+    )
+    version_number = models.PositiveIntegerField(default=1)
 
     def add_admin(self):
         admin_role = Role.objects.get(name=settings.ROLE_PROJECT_ADMIN)
@@ -64,8 +72,18 @@ class Project(PolymorphicModel):
         project = Project.objects.get(pk=self.pk)
         project.pk = None
         project.id = None
+        root = self.root_project or self
+        project.root_project = root
+        last_version = (
+            Project.objects.filter(models.Q(pk=root.pk) | models.Q(root_project=root))
+            .aggregate(max_v=Max("version_number"))
+            .get("max_v")
+            or 1
+        )
+        project.version_number = last_version + 1
         project._state.adding = True
         project.save()
+
 
         def bulk_clone(queryset: models.QuerySet, field_initializers: Optional[Dict[Any, Any]] = None):
             """Clone the queryset.
@@ -95,10 +113,7 @@ class Project(PolymorphicModel):
         # clone examples
         bulk_clone(self.examples.all(), field_initializers={"uuid": uuid.uuid4})
 
-        # clone label types
-        bulk_clone(self.categorytype_set.all())
-        bulk_clone(self.spantype_set.all())
-        bulk_clone(self.relationtype_set.all())
+        # do not clone label types to start with an empty set of labels
 
         return project
 
@@ -219,3 +234,42 @@ class Member(models.Model):
 
     class Meta:
         unique_together = ("user", "project")
+
+
+class AnnotationRuleGrid(models.Model):
+    project = models.ForeignKey(
+        "projects.Project",
+        on_delete=models.CASCADE,
+        related_name="rule_grids",
+    )
+    version = models.PositiveIntegerField()
+    rules = JSONField()
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    last_edited_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("project", "version")
+        ordering = ["-project", "-version"]
+
+    def save(self, *args, **kwargs):
+        if not self.pk:
+            last = (
+                AnnotationRuleGrid.objects.filter(project=self.project)
+                .order_by("-version")
+                .first()
+            )
+            self.version = (last.version if last else 0) + 1
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.project.name} – Rules v{self.version}"

@@ -52,101 +52,104 @@ export default {
     '~/plugins/role.ts'
   ],
   /*
-   ** Nuxt.js modules
+    ** Nuxt.js modules
    */
-  modules: [
-    ['nuxt-i18n', i18n],
-    // Doc: https://axios.nuxtjs.org/usage
-    '@nuxtjs/axios',
-    '@nuxtjs/eslint-module'
-  ],
-
-  buildModules: [
-    '@nuxt/typescript-build',
-    '@nuxtjs/composition-api/module',
-    [
-      '@nuxtjs/google-analytics',
-      {
-        id: process.env.GOOGLE_TRACKING_ID
-      }
+    modules: [
+      ['nuxt-i18n', i18n],
+      // Doc: https://axios.nuxtjs.org/usage
+      '@nuxtjs/axios',
+      '@nuxtjs/eslint-module'
     ],
-    [
-      '@nuxtjs/vuetify',
-      {
-        customVariables: ['~/assets/css/fonts.css'],
-        treeShake: true,
-        defaultAssets: {
-          font: false,
-          icons: ['mdiSvg']
-        }
-      }
-    ],
-    [
-      '@nuxtjs/google-fonts',
-      {
-        families: {
-          Roboto: [100, 300, 400, 500, 700, 900]
-        },
-        display: 'swap',
-        download: true,
-        overwriting: true,
-        inject: true
-      }
-    ]
-  ],
-  /*
-   ** Axios module configuration
-   ** See https://axios.nuxtjs.org/options
-   */
-  axios: {
-    proxy: false,
-    baseURL: 'http://127.0.0.1:8000'
-  },
   
-  proxy: {
-    // Use a fake value for use at build-time
-    '/v1/': {
-      target: 'http://127.0.0.1:8000'
+    buildModules: [
+      '@nuxt/typescript-build',
+      '@nuxtjs/composition-api/module',
+      [
+        '@nuxtjs/google-analytics',
+        {
+          id: process.env.GOOGLE_TRACKING_ID
+        }
+      ],
+      [
+        '@nuxtjs/vuetify',
+        {
+          customVariables: ['~/assets/css/fonts.css'],
+          treeShake: true,
+          defaultAssets: {
+            font: false,
+            icons: 'mdiSvg'
+          }
+        }
+      ],
+      [
+        '@nuxtjs/google-fonts',
+        {
+          families: {
+            Roboto: [100, 300, 400, 500, 700, 900]
+          },
+          display: 'swap',
+          download: true,
+          overwriting: true,
+          inject: true
+        }
+      ]
+    ],
+    /*
+     ** Axios module configuration
+     ** See https://axios.nuxtjs.org/options
+     */
+    axios: {
+      proxy: true,
+      baseURL: 'http://127.0.0.1:8000'
     },
-    '/media': {
-      target: process.env.API_URL || 'http://127.0.0.1:8000'
-    }
-  },
-  /*
-   ** vuetify module configuration
-   ** https://github.com/nuxt-community/vuetify-module
-   */
-  vuetify: {
-    theme: {
-      primary: colors.blue.darken2,
-      accent: colors.grey.darken3,
-      secondary: colors.amber.darken3,
-      info: colors.teal.lighten1,
-      warning: colors.amber.base,
-      error: colors.deepOrange.accent4,
-      success: colors.green.accent3,
-      themes: {
-        dark: {
-          primary: '#6376AB',
-          accent: '#FF4081',
-          secondary: '#ffe18d',
-          success: '#4CAF50',
-          info: '#2196F3',
-          warning: '#FB8C00',
-          error: '#FF5252'
-        },
-        light: {
-          primary: '#6376AB',
-          accent: '#e91e63',
-          secondary: '#30b1dc',
-          success: '#4CAF50',
-          info: '#2196F3',
-          warning: '#FB8C00',
-          error: '#FF5252'
+  
+    proxy: {
+      // Use a fake value for use at build-time
+      '/v1/': {
+        target: process.env.API_URL || 'http://127.0.0.1:8000'
+      },
+      '/media': {
+        target: process.env.API_URL || 'http://127.0.0.1:8000'
+      }
+    },
+    /*
+     ** vuetify module configuration
+     ** https://github.com/nuxt-community/vuetify-module
+     */
+    vuetify: {
+      icons: {
+        iconfont: 'mdiSvg'
+      },
+      theme: {
+        primary: colors.blue.darken2,
+        accent: colors.grey.darken3,
+        secondary: colors.amber.darken3,
+        info: colors.teal.lighten1,
+        warning: colors.amber.base,
+        error: colors.deepOrange.accent4,
+        success: colors.green.accent3,
+        themes: {
+          dark: {
+            primary: '#6376AB',
+            accent: '#FF4081',
+            secondary: '#ffe18d',
+            success: '#4CAF50',
+            info: '#2196F3',
+            warning: '#FB8C00',
+            error: '#FF5252'
+          },
+          light: {
+            primary: '#6376AB',
+            accent: '#e91e63',
+            secondary: '#30b1dc',
+            success: '#4CAF50',
+            info: '#2196F3',
+            warning: '#FB8C00',
+            error: '#FF5252'
+          }
         }
       }
-    }
-  },
+    },
   /*
    ** Build configuration
    */

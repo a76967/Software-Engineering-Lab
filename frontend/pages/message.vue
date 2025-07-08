@@ -44,7 +44,7 @@
 
 <script>
 export default {
-<<<<<<< HEAD
+  name: 'MessagePage',
   layout: 'custom-empty',
   data() {
     return {
@@ -68,6 +68,7 @@ export default {
     }
   },
   mounted() {
+    this.$emit('sent', this.baseMessage)
     const redirectPath = this.$route.query.redirect || '/home'
     const timer = setInterval(() => {
       if (this.countdown > 1) {

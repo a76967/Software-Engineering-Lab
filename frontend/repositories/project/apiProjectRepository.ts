@@ -27,6 +27,8 @@ export class SearchQuery {
 function toModel(item: { [key: string]: any }): Project {
   return new Project(
     item.id,
+    item.root_project,
+    item.version_number,
     item.name,
     item.description,
     item.guideline,
@@ -50,6 +52,8 @@ function toModel(item: { [key: string]: any }): Project {
 function toPayload(item: Project): { [key: string]: any } {
   return {
     id: item.id,
+    root_project: item.rootProject,
+    version_number: item.versionNumber,
     name: item.name,
     description: item.description,
     guideline: item.guideline,
@@ -114,6 +118,18 @@ export class APIProjectRepository {
 
   async clone(project: Project): Promise<Project> {
     const url = `/projects/${project.id}/clone`
+    const response = await this.request.post(url)
+    return toModel(response.data)
+  }
+
+  async listVersions(projectId: number): Promise<Project[]> {
+    const url = `/projects/${projectId}/versions`
+    const response = await this.request.get(url)
+    return response.data.map((item: any) => toModel(item))
+  }
+
+  async createVersion(projectId: number): Promise<Project> {
+    const url = `/projects/${projectId}/versions`
     const response = await this.request.post(url)
     return toModel(response.data)
   }

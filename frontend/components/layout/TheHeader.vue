@@ -10,14 +10,54 @@
       class="d-none d-sm-flex"
       style="text-transform: none"
     >
-      <v-icon small class="mr-1">
-        {{ mdiHexagonMultiple }}
-      </v-icon>
-      <span> {{ currentProject.name }}</span>
+      <v-icon small class="mr-1">{{ mdiHexagonMultiple }}</v-icon>
+      <span>{{ currentProject.name }}</span>
     </v-btn>
+    <v-select
+      v-if="isAuthenticated && isIndividualProject"
+      :items="versionItems"
+      item-text="text"
+      item-value="id"
+      hide-details
+      dense
+      style="max-width: 120px; margin-left: 8px"
+      v-model="selectedVersion"
+      @change="onChangeVersion"
+    />
+    <v-btn
+      v-if="isAuthenticated && isIndividualProject && isProjectAdmin"
+      small
+      class="ms-2"
+      @click="addVersion"
+    >
+      Add Version
+    </v-btn>
+    <v-chip
+      v-if="isAuthenticated && isIndividualProject"
+      small
+      class="ms-2"
+      :color="voteClosed ? 'red' : 'green'"
+      text-color="white"
+    >
+      {{ voteClosed ? 'READ-ONLY' : 'ON GOING' }}
+    </v-chip>
     <div class="flex-grow-1" />
     <the-color-mode-switcher />
-    <locale-menu />
+
+    <v-btn icon @click="dialogNotifications = true">
+      <v-icon>{{ mdiBell }}</v-icon>
+    </v-btn>
+
+    <v-dialog v-model="dialogNotifications" max-width="300">
+      <v-card>
+        <v-card-title>No notifications</v-card-title>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn text @click="dialogNotifications = false">OK</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     <v-btn
       v-if="isAuthenticated"
       text
@@ -26,23 +66,6 @@
     >
       {{ $t('header.projects') }}
     </v-btn>
-    <v-menu v-if="!isAuthenticated" open-on-hover offset-y>
-      <template #activator="{ on }">
-        <v-btn text v-on="on">
-          {{ $t('home.demoDropDown') }}
-          <v-icon>{{ mdiMenuDown }}</v-icon>
-        </v-btn>
-      </template>
-      <v-list>
-        <v-list-item
-          v-for="(item, index) in items"
-          :key="index"
-          @click="$router.push('/demo/' + item.link)"
-        >
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-        </v-list-item>
-      </v-list>
-    </v-menu>
     <v-btn v-if="!isAuthenticated" outlined @click="$router.push(localePath('/auth'))">
       {{ $t('user.login') }}
     </v-btn>
@@ -91,45 +114,35 @@
 </template>
 
 <script>
-import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple } from '@mdi/js'
+import { mdiLogout, mdiDotsVertical, mdiMenuDown, mdiHexagonMultiple, mdiBell } from '@mdi/js'
 import { mapGetters, mapActions } from 'vuex'
 import TheColorModeSwitcher from './TheColorModeSwitcher'
-import LocaleMenu from './LocaleMenu'
 
 export default {
   components: {
-    TheColorModeSwitcher,
-    LocaleMenu
+    TheColorModeSwitcher
   },
 
   data() {
     return {
-      items: [
-        { title: this.$t('home.demoNER'), link: 'named-entity-recognition' },
-        { title: this.$t('home.demoSent'), link: 'sentiment-analysis' },
-        { title: this.$t('home.demoTranslation'), link: 'translation' },
-        {
-          title: this.$t('home.demoIntenDetectSlotFil'),
-          link: 'intent-detection-and-slot-filling'
-        },
-        { title: this.$t('home.demoTextToSQL'), link: 'text-to-sql' },
-        { title: this.$t('home.demoImageClas'), link: 'image-classification' },
-        { title: this.$t('home.demoImageCapt'), link: 'image-caption' },
-        { title: this.$t('home.demoObjDetect'), link: 'object-detection' },
-        { title: this.$t('home.demoPolygSegm'), link: 'segmentation' },
-        { title: this.$t('home.demoSTT'), link: 'speech-to-text' }
-      ],
+      dialogNotifications: false,
       mdiLogout,
       mdiDotsVertical,
       mdiMenuDown,
-      mdiHexagonMultiple
+      mdiHexagonMultiple,
+      mdiBell,
+      selectedVersion: null
     }
   },
 
   computed: {
-    ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
-    ...mapGetters('projects', ['currentProject']),
-    ...mapGetters('config', ['isRTL']),
+      ...mapGetters('auth', ['isAuthenticated', 'getUsername']),
+      ...mapGetters('projects', ['currentProject', 'projectVersions', 'isProjectAdmin']),
+      ...mapGetters('config', ['isRTL']),
+
+      versionItems() {
+        return this.projectVersions.map(v => ({ id: v.id, text: `Version ${v.versionNumber}` }))
+      },
 
     isIndividualProject() {
       return this.$route.name && this.$route.name.startsWith('projects-id')
@@ -137,12 +150,60 @@ export default {
 
     direction() {
       return this.isRTL ? 'RTL' : 'LTR'
+    },
+
+    voteClosed() {
+      if (!this.isIndividualProject || !this.currentProject.id) return false
+      try {
+        const key = `annotation_rule_vote_meta_${this.currentProject.id}`
+        const m = JSON.parse(localStorage.getItem(key) || 'null')
+        return (
+          m &&
+          (m.closed === true || (m.end && m.end <= Date.now()))
+        )
+      } catch {
+        return false
+      }
+    }
+  },
+
+  watch: {
+    currentProject: {
+      handler(p) {
+        this.selectedVersion = p.id
+      },
+      immediate: true
     }
   },
 
   methods: {
     ...mapActions('auth', ['logout']),
     ...mapActions('config', ['toggleRTL']),
+    ...mapActions('projects', ['createVersion', 'setCurrentProject']),
+    onChangeVersion(id) {
+      const version = this.projectVersions.find(v => v.id === id)
+      const number = version ? version.versionNumber : ''
+      this.setCurrentProject(id)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${id}`
+        }
+      })
+    },
+    async addVersion() {
+      const newProject = await this.createVersion()
+      const number = newProject.versionNumber
+      this.setCurrentProject(newProject.id)
+      this.$router.push({
+        path: '/message',
+        query: {
+          message: `Changing to Version ${number} of the project`,
+          redirect: `/projects/${newProject.id}`
+        }
+      })
+    },
     signout() {
       this.$router.push({
         path: '/message',
